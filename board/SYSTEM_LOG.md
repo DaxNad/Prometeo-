@@ -24,3 +24,4 @@
 | 2026-03-21 | Frontend | vista capo reparto con criticità immediate | COMPLETATO | top priorità attive |
 | 2026-03-21 | Event Engine | chiusura massiva eventi per linea pianificata | IN SVILUPPO | da consolidare e verificare |
 | 2026-03-21 | Development OS | registri riallineati allo stato reale del progetto | COMPLETATO | board aggiornata |
+| 2026-03-21 | Backend | freeze architetturale backend v1 eseguito | COMPLETATO | baseline CORE / DEVOS / LEGACY definita |
