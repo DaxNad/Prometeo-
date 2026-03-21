@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { FormEvent, useEffect, useMemo, useState } from 'react'
 import './App.css'
 
 type HealthResponse = {
@@ -44,7 +44,27 @@ type StateResponse = {
   items: StateItem[]
 }
 
-const API_BASE = 'http://127.0.0.1:8000'
+type EventCreatePayload = {
+  title: string
+  line: string
+  station: string
+  event_type: string
+  severity: string
+  note: string
+  source: string
+}
+
+const API_BASE = '/api'
+
+const initialForm: EventCreatePayload = {
+  title: '',
+  line: 'L1',
+  station: 'ZAW2',
+  event_type: 'CRIMPATURA',
+  severity: 'CRITICAL',
+  note: '',
+  source: 'dashboard',
+}
 
 function formatDate(value?: string | null) {
   if (!value) return '—'
@@ -59,13 +79,19 @@ function App() {
   const [health, setHealth] = useState<HealthResponse | null>(null)
   const [events, setEvents] = useState<EventsResponse | null>(null)
   const [state, setState] = useState<StateResponse | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string>('')
 
-  async function loadData() {
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [busyId, setBusyId] = useState<string>('')
+
+  const [form, setForm] = useState<EventCreatePayload>(initialForm)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitMessage, setSubmitMessage] = useState('')
+
+  async function loadData(showSpinner = false) {
     try {
+      if (showSpinner) setLoading(true)
       setError('')
-      setLoading(true)
 
       const [healthRes, eventsRes, stateRes] = await Promise.all([
         fetch(`${API_BASE}/health`),
@@ -89,26 +115,114 @@ function App() {
         err instanceof Error ? err.message : 'Errore caricamento dati'
       setError(message)
     } finally {
-      setLoading(false)
+      if (showSpinner) setLoading(false)
     }
   }
 
   useEffect(() => {
-    void loadData()
+    void loadData(true)
+
     const timer = window.setInterval(() => {
-      void loadData()
-    }, 10000)
+      void loadData(false)
+    }, 5000)
 
     return () => window.clearInterval(timer)
   }, [])
 
-  const openEvents = useMemo(() => {
-    return events?.items.filter((item) => item.status === 'OPEN') ?? []
-  }, [events])
+  const openEvents = useMemo(
+    () => events?.items.filter((item) => item.status === 'OPEN') ?? [],
+    [events],
+  )
 
-  const closedEvents = useMemo(() => {
-    return events?.items.filter((item) => item.status === 'CLOSED') ?? []
-  }, [events])
+  const closedEvents = useMemo(
+    () => events?.items.filter((item) => item.status === 'CLOSED') ?? [],
+    [events],
+  )
+
+  function updateForm<K extends keyof EventCreatePayload>(
+    key: K,
+    value: EventCreatePayload[K],
+  ) {
+    setForm((current) => ({
+      ...current,
+      [key]: value,
+    }))
+  }
+
+  async function handleCreateEvent(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setSubmitMessage('')
+
+    if (!form.title.trim()) {
+      setSubmitMessage('Inserisci il titolo evento.')
+      return
+    }
+
+    try {
+      setSubmitting(true)
+
+      const payload = {
+        title: form.title.trim(),
+        line: form.line.trim(),
+        station: form.station.trim(),
+        event_type: form.event_type.trim(),
+        severity: form.severity.trim(),
+        note: form.note.trim(),
+        source: form.source.trim() || 'dashboard',
+      }
+
+      const response = await fetch(`${API_BASE}/events/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(body || 'Creazione evento fallita')
+      }
+
+      setForm(initialForm)
+      setSubmitMessage('Evento creato correttamente.')
+      await loadData(false)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Errore creazione evento'
+      setSubmitMessage(message)
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  async function handleCloseEvent(eventId: string) {
+    try {
+      setBusyId(eventId)
+      setSubmitMessage('')
+
+      const response = await fetch(`${API_BASE}/events/${eventId}/close`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ closed_by: 'dashboard' }),
+      })
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(body || 'Chiusura evento fallita')
+      }
+
+      await loadData(false)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Errore chiusura evento'
+      setError(message)
+    } finally {
+      setBusyId('')
+    }
+  }
 
   return (
     <div className="page">
@@ -117,12 +231,15 @@ function App() {
           <p className="eyebrow">PROMETEO</p>
           <h1>Dashboard CORE locale</h1>
           <p className="sub">
-            Monitoraggio backend FastAPI e dati eventi/stato
+            Monitoraggio backend FastAPI e gestione eventi/stato
           </p>
         </div>
 
         <div className="actions">
-          <button onClick={() => void loadData()} disabled={loading}>
+          <button
+            onClick={() => void loadData(true)}
+            disabled={loading || submitting || !!busyId}
+          >
             {loading ? 'Aggiornamento...' : 'Aggiorna'}
           </button>
         </div>
@@ -186,6 +303,101 @@ function App() {
         </article>
       </section>
 
+      <section className="card">
+        <h2>Crea evento</h2>
+
+        <form className="event-form" onSubmit={handleCreateEvent}>
+          <div className="form-grid form-grid-2">
+            <label className="field">
+              <span>Titolo</span>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => updateForm('title', e.target.value)}
+                placeholder="Es. Crimpatura KO"
+              />
+            </label>
+
+            <label className="field">
+              <span>Linea</span>
+              <input
+                type="text"
+                value={form.line}
+                onChange={(e) => updateForm('line', e.target.value)}
+                placeholder="Es. L1"
+              />
+            </label>
+
+            <label className="field">
+              <span>Postazione</span>
+              <input
+                type="text"
+                value={form.station}
+                onChange={(e) => updateForm('station', e.target.value)}
+                placeholder="Es. ZAW2"
+              />
+            </label>
+
+            <label className="field">
+              <span>Tipo evento</span>
+              <select
+                value={form.event_type}
+                onChange={(e) => updateForm('event_type', e.target.value)}
+              >
+                <option value="CRIMPATURA">CRIMPATURA</option>
+                <option value="SALDATURA">SALDATURA</option>
+                <option value="PRESSIONE">PRESSIONE</option>
+                <option value="QUALITA">QUALITA</option>
+                <option value="MATERIALE">MATERIALE</option>
+                <option value="FERMO_LINEA">FERMO_LINEA</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Severità</span>
+              <select
+                value={form.severity}
+                onChange={(e) => updateForm('severity', e.target.value)}
+              >
+                <option value="LOW">LOW</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="HIGH">HIGH</option>
+                <option value="CRITICAL">CRITICAL</option>
+              </select>
+            </label>
+
+            <label className="field">
+              <span>Sorgente</span>
+              <input
+                type="text"
+                value={form.source}
+                onChange={(e) => updateForm('source', e.target.value)}
+                placeholder="dashboard"
+              />
+            </label>
+          </div>
+
+          <label className="field">
+            <span>Nota</span>
+            <textarea
+              rows={4}
+              value={form.note}
+              onChange={(e) => updateForm('note', e.target.value)}
+              placeholder="Dettaglio evento"
+            />
+          </label>
+
+          <div className="form-actions">
+            <button type="submit" disabled={submitting || !!busyId}>
+              {submitting ? 'Creazione...' : 'Crea evento'}
+            </button>
+            {submitMessage ? (
+              <span className="form-message">{submitMessage}</span>
+            ) : null}
+          </div>
+        </form>
+      </section>
+
       <section className="grid grid-2">
         <article className="card">
           <h2>Eventi aperti</h2>
@@ -201,7 +413,17 @@ function App() {
                       {item.line} · {item.station} · {item.event_type}
                     </p>
                   </div>
-                  <span className="badge danger">{item.severity}</span>
+
+                  <div className="row-actions">
+                    <span className="badge danger">{item.severity}</span>
+                    <button
+                      className="secondary-btn"
+                      onClick={() => void handleCloseEvent(item.id)}
+                      disabled={busyId === item.id || submitting}
+                    >
+                      {busyId === item.id ? 'Chiusura...' : 'Chiudi'}
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -214,7 +436,7 @@ function App() {
             <p className="empty">Nessun evento chiuso.</p>
           ) : (
             <div className="list">
-              {closedEvents.slice(0, 5).map((item) => (
+              {closedEvents.slice(0, 10).map((item) => (
                 <div className="list-item" key={item.id}>
                   <div>
                     <strong>{item.title}</strong>

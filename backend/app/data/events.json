@@ -40,5 +40,19 @@
     "opened_at": "2026-03-17T18:00:54.687785",
     "closed_at": "2026-03-17T18:01:49.406783",
     "closed_by": "dashboard"
+  },
+  {
+    "id": "da79313c-d9a7-403c-a826-16e158f1af9f",
+    "title": "Test evento dashboard",
+    "line": "L1",
+    "station": "ZAW2",
+    "event_type": "CRIMPATURA",
+    "severity": "HIGH",
+    "status": "OPEN",
+    "note": "",
+    "source": "dashboard",
+    "opened_at": "2026-03-21T09:57:18.845442",
+    "closed_at": null,
+    "closed_by": null
   }
 ]
