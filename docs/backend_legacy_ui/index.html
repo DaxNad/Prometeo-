@@ -1,0 +1,902 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  />
+  <title>PROMETEO Dashboard</title>
+
+  <meta name="theme-color" content="#0b1220" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="PROMETEO" />
+  <meta name="application-name" content="PROMETEO" />
+  <meta name="format-detection" content="telephone=no" />
+
+  <link rel="manifest" href="/ui/manifest.json" />
+  <link rel="apple-touch-icon" href="/ui/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/ui/favicon.png" />
+
+  <style>
+    :root {
+      --bg: #0b1220;
+      --panel: #121a2b;
+      --panel-2: #182235;
+      --text: #e8edf7;
+      --muted: #9dadc7;
+      --line: #2a3852;
+      --ok: #1f9d55;
+      --warn: #d97706;
+      --danger: #dc2626;
+      --accent: #2563eb;
+      --chip: #22314d;
+      --shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+      --radius: 16px;
+    }
+
+    * {
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(180deg, #08101d 0%, #0b1220 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      min-height: 100%;
+    }
+
+    body {
+      padding: max(16px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom)) 16px;
+    }
+
+    .app {
+      max-width: 1280px;
+      margin: 0 auto;
+      display: grid;
+      gap: 16px;
+    }
+
+    .topbar {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: 1fr;
+      align-items: stretch;
+    }
+
+    .hero {
+      background: linear-gradient(135deg, #101a2d 0%, #16213a 100%);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px;
+      display: grid;
+      gap: 8px;
+    }
+
+    .hero-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title {
+      margin: 0;
+      font-size: 1.4rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .subtitle {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--chip);
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--text);
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex: 0 0 auto;
+    }
+
+    .dot.ok { background: var(--ok); }
+    .dot.warn { background: var(--warn); }
+    .dot.danger { background: var(--danger); }
+
+    .toolbar {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+      display: grid;
+      gap: 12px;
+    }
+
+    .toolbar-grid {
+      display: grid;
+      grid-template-columns: repeat(1, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+    }
+
+    .field label {
+      font-size: 0.82rem;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .field input,
+    .field select,
+    .field button {
+      width: 100%;
+      min-height: 44px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: #0f1728;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      outline: none;
+    }
+
+    .field input::placeholder {
+      color: #7383a1;
+    }
+
+    .field button {
+      cursor: pointer;
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    .field button.secondary {
+      background: #1b2740;
+      border-color: var(--line);
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+
+    .stat-card {
+      display: grid;
+      gap: 6px;
+    }
+
+    .stat-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      font-weight: 600;
+    }
+
+    .stat-value {
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    .section-title {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+
+    .section-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+
+    .tiny {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .events-list,
+    .stations-list {
+      display: grid;
+      gap: 10px;
+    }
+
+    .event-item {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .event-top {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      align-items: flex-start;
+    }
+
+    .event-title {
+      margin: 0;
+      font-size: 0.98rem;
+      font-weight: 800;
+    }
+
+    .event-meta,
+    .event-bottom {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--line);
+      background: var(--chip);
+      color: var(--text);
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .chip.open {
+      border-color: rgba(31, 157, 85, 0.35);
+      background: rgba(31, 157, 85, 0.12);
+    }
+
+    .chip.done {
+      border-color: rgba(121, 138, 165, 0.35);
+      background: rgba(121, 138, 165, 0.12);
+    }
+
+    .chip.block,
+    .chip.quality {
+      border-color: rgba(220, 38, 38, 0.35);
+      background: rgba(220, 38, 38, 0.12);
+    }
+
+    .chip.alert,
+    .chip.maint {
+      border-color: rgba(217, 119, 6, 0.35);
+      background: rgba(217, 119, 6, 0.12);
+    }
+
+    .event-note {
+      margin: 0;
+      color: var(--text);
+      font-size: 0.9rem;
+      line-height: 1.4;
+    }
+
+    .station-item {
+      display: grid;
+      gap: 10px;
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .station-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .station-name {
+      margin: 0;
+      font-size: 0.95rem;
+      font-weight: 800;
+    }
+
+    .station-bars {
+      display: grid;
+      gap: 8px;
+    }
+
+    .bar-row {
+      display: grid;
+      gap: 6px;
+    }
+
+    .bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .bar-track {
+      width: 100%;
+      height: 10px;
+      background: #0f1728;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .bar-fill {
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.25s ease;
+    }
+
+    .bar-fill.open {
+      background: var(--danger);
+    }
+
+    .bar-fill.closed {
+      background: var(--ok);
+    }
+
+    .empty {
+      border: 1px dashed var(--line);
+      border-radius: 14px;
+      padding: 16px;
+      text-align: center;
+      color: var(--muted);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .footer-note {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.78rem;
+      padding-bottom: 8px;
+    }
+
+    @media (min-width: 768px) {
+      body {
+        padding:
+          max(20px, env(safe-area-inset-top))
+          20px
+          max(20px, env(safe-area-inset-bottom))
+          20px;
+      }
+
+      .toolbar-grid {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+
+      .stats {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+      }
+
+      .layout {
+        grid-template-columns: 1.4fr 1fr;
+      }
+    }
+
+    @media (min-width: 1100px) {
+      .title {
+        font-size: 1.7rem;
+      }
+
+      .hero {
+        padding: 22px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="topbar">
+      <div class="hero">
+        <div class="hero-top">
+          <div>
+            <h1 class="title">PROMETEO Dashboard Produzione</h1>
+            <p class="subtitle">
+              Monitoraggio eventi reparto, KPI stazioni e stato servizio.
+            </p>
+          </div>
+          <div class="status-row">
+            <span class="badge">
+              <span id="serviceDot" class="dot"></span>
+              <span id="serviceStatus">Servizio: verifica...</span>
+            </span>
+            <span class="badge">
+              <span class="dot ok"></span>
+              <span id="apiBuild">API: --</span>
+            </span>
+            <span class="badge">
+              <span class="dot"></span>
+              <span id="lastRefresh">Ultimo refresh: --</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar-grid">
+          <div class="field">
+            <label for="filterStation">Postazione</label>
+            <input id="filterStation" type="text" placeholder="HENN, ZAW-2, PIDMILL" />
+          </div>
+
+          <div class="field">
+            <label for="filterCode">Codice</label>
+            <input id="filterCode" type="text" placeholder="TEST01" />
+          </div>
+
+          <div class="field">
+            <label for="filterKind">Tipo evento</label>
+            <select id="filterKind">
+              <option value="">Tutti</option>
+              <option value="OPEN">OPEN</option>
+              <option value="DONE">DONE</option>
+              <option value="BLOCK">BLOCK</option>
+              <option value="QUALITY">QUALITY</option>
+              <option value="ALERT">ALERT</option>
+              <option value="INFO">INFO</option>
+              <option value="MAINT">MAINT</option>
+              <option value="SYSTEM">SYSTEM</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="filterShift">Turno</label>
+            <select id="filterShift">
+              <option value="">Tutti</option>
+              <option value="MAT">MAT</option>
+              <option value="POM">POM</option>
+              <option value="NOT">NOT</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label for="filterStatus">Stato</label>
+            <select id="filterStatus">
+              <option value="OPEN">Solo aperti</option>
+              <option value="">Tutti</option>
+              <option value="DONE">Solo chiusi</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="applyFiltersBtn">Aggiorna</button>
+          </div>
+
+          <div class="field">
+            <label for="autoRefresh">Auto refresh</label>
+            <select id="autoRefresh">
+              <option value="15000">15 sec</option>
+              <option value="30000" selected>30 sec</option>
+              <option value="60000">60 sec</option>
+              <option value="0">Off</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label>&nbsp;</label>
+            <button id="resetFiltersBtn" class="secondary">Reset filtri</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="stats">
+      <div class="card stat-card">
+        <div class="stat-label">Eventi aperti visibili</div>
+        <div id="statOpen" class="stat-value">0</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Eventi chiusi visibili</div>
+        <div id="statDone" class="stat-value">0</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Eventi totali visibili</div>
+        <div id="statTotal" class="stat-value">0</div>
+      </div>
+      <div class="card stat-card">
+        <div class="stat-label">Stazioni monitorate</div>
+        <div id="statStations" class="stat-value">0</div>
+      </div>
+    </section>
+
+    <section class="layout">
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">Eventi reparto</h2>
+          <span class="tiny" id="eventsInfo">caricamento...</span>
+        </div>
+        <div id="eventsList" class="events-list"></div>
+      </div>
+
+      <div class="card">
+        <div class="section-head">
+          <h2 class="section-title">Carico per postazione</h2>
+          <span class="tiny" id="stationsInfo">caricamento...</span>
+        </div>
+        <div id="stationsList" class="stations-list"></div>
+      </div>
+    </section>
+
+    <div class="footer-note">
+      PROMETEO UI v1 · Mobile first · iPhone base pack attivo
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      events: [],
+      stations: [],
+      apiBuild: "--",
+      timer: null,
+    };
+
+    const els = {
+      serviceDot: document.getElementById("serviceDot"),
+      serviceStatus: document.getElementById("serviceStatus"),
+      apiBuild: document.getElementById("apiBuild"),
+      lastRefresh: document.getElementById("lastRefresh"),
+
+      statOpen: document.getElementById("statOpen"),
+      statDone: document.getElementById("statDone"),
+      statTotal: document.getElementById("statTotal"),
+      statStations: document.getElementById("statStations"),
+
+      eventsInfo: document.getElementById("eventsInfo"),
+      stationsInfo: document.getElementById("stationsInfo"),
+      eventsList: document.getElementById("eventsList"),
+      stationsList: document.getElementById("stationsList"),
+
+      filterStation: document.getElementById("filterStation"),
+      filterCode: document.getElementById("filterCode"),
+      filterKind: document.getElementById("filterKind"),
+      filterShift: document.getElementById("filterShift"),
+      filterStatus: document.getElementById("filterStatus"),
+      autoRefresh: document.getElementById("autoRefresh"),
+      applyFiltersBtn: document.getElementById("applyFiltersBtn"),
+      resetFiltersBtn: document.getElementById("resetFiltersBtn"),
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function fmtDate(value) {
+      if (!value) return "--";
+      try {
+        const d = new Date(value);
+        return d.toLocaleString("it-IT");
+      } catch {
+        return String(value);
+      }
+    }
+
+    function statusChipClass(value) {
+      const v = String(value || "").toUpperCase();
+      if (v === "OPEN") return "open";
+      if (v === "DONE") return "done";
+      return "";
+    }
+
+    function kindChipClass(value) {
+      const v = String(value || "").toUpperCase();
+      if (v === "BLOCK") return "block";
+      if (v === "QUALITY") return "quality";
+      if (v === "ALERT") return "alert";
+      if (v === "MAINT") return "maint";
+      return "";
+    }
+
+    function buildEventsUrl() {
+      const params = new URLSearchParams();
+      params.set("limit", "100");
+
+      const station = els.filterStation.value.trim();
+      const code = els.filterCode.value.trim();
+      const kind = els.filterKind.value;
+      const shift = els.filterShift.value;
+      const status = els.filterStatus.value;
+
+      if (station) params.set("station", station);
+      if (code) params.set("code", code);
+      if (kind) params.set("kind", kind);
+      if (shift) params.set("shift", shift);
+
+      if (status === "OPEN") {
+        params.set("open_only", "true");
+      } else if (status === "DONE") {
+        params.set("status", "DONE");
+      }
+
+      return `/events?${params.toString()}`;
+    }
+
+    async function fetchJson(url) {
+      const response = await fetch(url, {
+        headers: { "Accept": "application/json" },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return response.json();
+    }
+
+    async function loadHealth() {
+      try {
+        const data = await fetchJson("/health");
+        els.serviceDot.className = "dot ok";
+        els.serviceStatus.textContent = "Servizio: OK";
+        if (data?.version) {
+          els.apiBuild.textContent = `CORE: ${data.version}`;
+        }
+      } catch {
+        els.serviceDot.className = "dot danger";
+        els.serviceStatus.textContent = "Servizio: non raggiungibile";
+      }
+    }
+
+    async function loadEvents() {
+      const data = await fetchJson(buildEventsUrl());
+      state.events = Array.isArray(data.items) ? data.items : [];
+      state.apiBuild = data.api_build || state.apiBuild;
+      els.apiBuild.textContent = `API: ${state.apiBuild}`;
+    }
+
+    async function loadStations() {
+      const data = await fetchJson("/kpi/stations");
+      state.stations = Array.isArray(data.items) ? data.items : [];
+      if (data.api_build) {
+        state.apiBuild = data.api_build;
+        els.apiBuild.textContent = `API: ${state.apiBuild}`;
+      }
+    }
+
+    function renderStats() {
+      const openCount = state.events.filter((e) => String(e.status).toUpperCase() === "OPEN").length;
+      const doneCount = state.events.filter((e) => String(e.status).toUpperCase() === "DONE").length;
+
+      els.statOpen.textContent = String(openCount);
+      els.statDone.textContent = String(doneCount);
+      els.statTotal.textContent = String(state.events.length);
+      els.statStations.textContent = String(state.stations.length);
+    }
+
+    function renderEvents() {
+      if (!state.events.length) {
+        els.eventsList.innerHTML = `<div class="empty">Nessun evento trovato con i filtri attuali.</div>`;
+        els.eventsInfo.textContent = "0 eventi";
+        return;
+      }
+
+      els.eventsInfo.textContent = `${state.events.length} eventi`;
+
+      els.eventsList.innerHTML = state.events.map((event) => {
+        const title = event.title || event.kind || "EVENTO";
+        const note = event.note || event.payload?.note || "";
+        const station = event.station || "—";
+        const code = event.code || "—";
+        const shift = event.shift || "—";
+        const status = event.status || "—";
+        const kind = event.kind || "—";
+        const ts = fmtDate(event.ts);
+        const closedAt = event.closed_at ? fmtDate(event.closed_at) : null;
+
+        return `
+          <article class="event-item">
+            <div class="event-top">
+              <div>
+                <h3 class="event-title">${escapeHtml(title)}</h3>
+              </div>
+              <div class="event-meta">
+                <span class="chip ${statusChipClass(status)}">${escapeHtml(status)}</span>
+                <span class="chip ${kindChipClass(kind)}">${escapeHtml(kind)}</span>
+              </div>
+            </div>
+
+            <div class="event-bottom">
+              <span class="chip">Postazione: ${escapeHtml(station)}</span>
+              <span class="chip">Codice: ${escapeHtml(code)}</span>
+              <span class="chip">Turno: ${escapeHtml(shift)}</span>
+            </div>
+
+            ${note ? `<p class="event-note">${escapeHtml(note)}</p>` : ""}
+
+            <div class="event-bottom">
+              <span class="chip">Aperto: ${escapeHtml(ts)}</span>
+              ${closedAt ? `<span class="chip">Chiuso: ${escapeHtml(closedAt)}</span>` : ""}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderStations() {
+      if (!state.stations.length) {
+        els.stationsList.innerHTML = `<div class="empty">Nessuna postazione disponibile.</div>`;
+        els.stationsInfo.textContent = "0 stazioni";
+        return;
+      }
+
+      els.stationsInfo.textContent = `${state.stations.length} stazioni`;
+
+      const maxTotal = Math.max(...state.stations.map((s) => Number(s.total || 0)), 1);
+
+      els.stationsList.innerHTML = state.stations.map((station) => {
+        const total = Number(station.total || 0);
+        const open = Number(station.open || 0);
+        const closed = Number(station.closed || 0);
+
+        const totalWidth = Math.max((total / maxTotal) * 100, total > 0 ? 4 : 0);
+        const openWidth = total > 0 ? (open / total) * 100 : 0;
+        const closedWidth = total > 0 ? (closed / total) * 100 : 0;
+
+        return `
+          <article class="station-item">
+            <div class="station-head">
+              <h3 class="station-name">${escapeHtml(station.station)}</h3>
+              <span class="chip">Totale: ${total}</span>
+            </div>
+
+            <div class="station-bars">
+              <div class="bar-row">
+                <div class="bar-label">
+                  <span>Carico totale</span>
+                  <span>${total}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill" style="width:${totalWidth}%"></div>
+                </div>
+              </div>
+
+              <div class="bar-row">
+                <div class="bar-label">
+                  <span>Aperti</span>
+                  <span>${open}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill open" style="width:${openWidth}%"></div>
+                </div>
+              </div>
+
+              <div class="bar-row">
+                <div class="bar-label">
+                  <span>Chiusi</span>
+                  <span>${closed}</span>
+                </div>
+                <div class="bar-track">
+                  <div class="bar-fill closed" style="width:${closedWidth}%"></div>
+                </div>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function markRefreshTime() {
+      els.lastRefresh.textContent = `Ultimo refresh: ${new Date().toLocaleTimeString("it-IT")}`;
+    }
+
+    async function loadAll() {
+      try {
+        await loadHealth();
+        await Promise.all([loadEvents(), loadStations()]);
+        renderStats();
+        renderEvents();
+        renderStations();
+        markRefreshTime();
+      } catch (error) {
+        els.eventsList.innerHTML = `
+          <div class="empty">
+            Errore caricamento dati.<br />
+            Verifica backend, database o endpoint API.
+          </div>
+        `;
+        els.stationsList.innerHTML = `
+          <div class="empty">
+            KPI non disponibili.
+          </div>
+        `;
+        els.eventsInfo.textContent = "errore";
+        els.stationsInfo.textContent = "errore";
+        els.serviceDot.className = "dot warn";
+        els.serviceStatus.textContent = "Servizio: parziale / errore dati";
+        console.error(error);
+      }
+    }
+
+    function restartAutoRefresh() {
+      if (state.timer) {
+        clearInterval(state.timer);
+        state.timer = null;
+      }
+
+      const ms = Number(els.autoRefresh.value || 0);
+      if (ms > 0) {
+        state.timer = setInterval(loadAll, ms);
+      }
+    }
+
+    function resetFilters() {
+      els.filterStation.value = "";
+      els.filterCode.value = "";
+      els.filterKind.value = "";
+      els.filterShift.value = "";
+      els.filterStatus.value = "OPEN";
+      loadAll();
+    }
+
+    els.applyFiltersBtn.addEventListener("click", loadAll);
+    els.resetFiltersBtn.addEventListener("click", resetFilters);
+    els.autoRefresh.addEventListener("change", restartAutoRefresh);
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/ui/sw.js").catch((err) => {
+          console.error("SW registration failed:", err);
+        });
+      });
+    }
+
+    restartAutoRefresh();
+    loadAll();
+  </script>
+</body>
+</html>

@@ -1,0 +1,20 @@
+[
+  {
+    "codice": "12054",
+    "descrizione": "manca tubo X — cluster HENN",
+    "stato": "critico",
+    "priorita": 1
+  },
+  {
+    "codice": "50027",
+    "descrizione": "parziale connettori",
+    "stato": "attenzione",
+    "priorita": 2
+  },
+  {
+    "codice": "468845",
+    "descrizione": "pronto",
+    "stato": "ok",
+    "priorita": 3
+  }
+]

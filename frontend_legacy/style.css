@@ -1,0 +1,32 @@
+body {
+font-family: -apple-system;
+background: #111;
+color: white;
+margin: 0;
+padding: 16px;
+}
+
+h1 {
+margin-top: 0;
+}
+
+.order {
+padding: 12px;
+margin-bottom: 10px;
+border-radius: 8px;
+font-size: 18px;
+}
+
+.red { background: #b00020; }
+.yellow { background: #ff9800; }
+.green { background: #2e7d32; }
+
+button {
+width: 100%;
+padding: 16px;
+font-size: 18px;
+border-radius: 8px;
+border: none;
+background: #2196f3;
+color: white;
+}

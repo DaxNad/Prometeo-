@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Viewer Eventi</title>
+
+  <!-- manteniamo il manifest della PWA -->
+  <link rel="manifest" href="manifest.json">
+
+  <link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="title">Viewer Eventi</div>
+    <div class="subtitle">Modalità: statico (JSON)</div>
+  </header>
+
+  <main class="wrap">
+    <section class="panel">
+      <div class="panel-head">
+        <div>Eventi</div>
+        <button id="btnReload" type="button">Ricarica</button>
+      </div>
+
+      <div id="status" class="status">Pronto.</div>
+
+      <ul id="eventList" class="list"></ul>
+    </section>
+  </main>
+
+  <script src="./assets/api.js"></script>
+  <script src="./assets/app.js"></script>
+</body>
+</html>

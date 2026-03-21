@@ -1,0 +1,44 @@
+[
+  {
+    "id": "c09a8b17-51c3-472c-8d66-e0533a647a16",
+    "title": "Crimpatura KO",
+    "line": "L1",
+    "station": "ZAW2",
+    "event_type": "CRIMPATURA",
+    "severity": "CRITICAL",
+    "status": "CLOSED",
+    "note": "chiusura test",
+    "source": "manual",
+    "opened_at": "2026-03-17T17:29:42.091995",
+    "closed_at": "2026-03-17T17:45:59.026462",
+    "closed_by": "test"
+  },
+  {
+    "id": "f883b14e-79ad-4392-a817-a36cdf1cef2f",
+    "title": "Test blocco",
+    "line": "L1",
+    "station": "ZAW2",
+    "event_type": "CRIMPATURA",
+    "severity": "CRITICAL",
+    "status": "CLOSED",
+    "note": "Chiuso da dashboard",
+    "source": "manual",
+    "opened_at": "2026-03-17T17:56:26.540057",
+    "closed_at": "2026-03-17T17:57:01.691312",
+    "closed_by": "dashboard"
+  },
+  {
+    "id": "6be749a9-441c-4958-b60f-3957fa85729a",
+    "title": "crimpatura ko",
+    "line": "L1",
+    "station": "ZAW2",
+    "event_type": "CRIMPATURA",
+    "severity": "CRITICAL",
+    "status": "CLOSED",
+    "note": "Chiuso da dashboard",
+    "source": "manual",
+    "opened_at": "2026-03-17T18:00:54.687785",
+    "closed_at": "2026-03-17T18:01:49.406783",
+    "closed_by": "dashboard"
+  }
+]

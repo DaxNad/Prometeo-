@@ -1,0 +1,6 @@
+{
+  "version": 2,
+  "rewrites": [
+    { "source": "/", "destination": "/piano_produzione_pwa_v2/index.html" }
+  ]
+}

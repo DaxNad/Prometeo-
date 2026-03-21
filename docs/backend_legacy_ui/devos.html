@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROMETEO DevOS Panel</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --panel-2: #1f2937;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --ok: #10b981;
+      --warn: #f59e0b;
+      --todo: #ef4444;
+      --line: #374151;
+      --chip: #0b1220;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      padding: 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+    }
+
+    header h1 {
+      margin: 0 0 6px 0;
+      font-size: 24px;
+    }
+
+    header p {
+      margin: 0;
+      color: var(--muted);
+    }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: var(--panel-2);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      opacity: 0.92;
+    }
+
+    .wrap {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 16px;
+      overflow: hidden;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .chip {
+      background: var(--chip);
+      border: 1px solid var(--line);
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .list {
+      margin: 0;
+      padding-left: 18px;
+    }
+
+    .list li {
+      margin: 8px 0;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      padding: 10px 8px;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      border: 1px solid var(--line);
+      background: var(--chip);
+    }
+
+    .badge.attivo, .badge.completato {
+      color: var(--ok);
+    }
+
+    .badge.parziale, .badge.in-sviluppo {
+      color: var(--warn);
+    }
+
+    .badge.todo {
+      color: var(--todo);
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text);
+      max-height: 420px;
+      overflow: auto;
+      background: #0b1020;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .full {
+      grid-column: 1 / -1;
+    }
+
+    .status {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    @media (max-width: 980px) {
+      .wrap {
+        grid-template-columns: 1fr;
+      }
+
+      .grid-2 {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PROMETEO — Development OS Panel</h1>
+    <p>Stato moduli, task, log e milestone letti dal backend FastAPI.</p>
+  </header>
+
+  <div class="toolbar">
+    <button id="refreshBtn">Aggiorna</button>
+    <button id="toggleRawBtn">Mostra/Nascondi RAW</button>
+    <div class="status" id="statusLine">Caricamento...</div>
+  </div>
+
+  <main class="wrap">
+    <section class="card">
+      <h2>Stato moduli</h2>
+      <table id="modulesTable">
+        <thead>
+          <tr>
+            <th>Modulo</th>
+            <th>Stato</th>
+            <th>Note</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </section>
+
+    <section class="card">
+      <h2>Milestone</h2>
+      <ul class="list" id="milestonesList"></ul>
+
+      <h2>Priorità correnti</h2>
+      <div class="chips" id="priorityChips"></div>
+    </section>
+
+    <section class="card grid-2">
+      <div>
+        <h2>Obiettivi immediati</h2>
+        <ul class="list" id="objectivesList"></ul>
+      </div>
+      <div>
+        <h2>Blocchi aperti</h2>
+        <ul class="list" id="blocksList"></ul>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Task board</h2>
+      <pre id="tasksRaw">Caricamento...</pre>
+    </section>
+
+    <section class="card">
+      <h2>System log</h2>
+      <pre id="logsRaw">Caricamento...</pre>
+    </section>
+
+    <section class="card full" id="rawCard" style="display:none;">
+      <h2>RAW master control</h2>
+      <pre id="statusRaw">Caricamento...</pre>
+    </section>
+  </main>
+
+  <script src="/ui/devos.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+[
+  {
+    "id": "e1",
+    "ts": "2026-02-09T09:10:00Z",
+    "type": "OPEN",
+    "postazione": "PIDMILL",
+    "priorita": 1,
+    "payload": { "note": "Apertura lavorazione" }
+  },
+  {
+    "id": "e2",
+    "ts": "2026-02-09T09:30:00Z",
+    "type": "NOTE",
+    "postazione": "ZAW-2",
+    "priorita": 2,
+    "payload": { "note": "Controllo intermedio ok" }
+  },
+  {
+    "id": "e3",
+    "ts": "2026-02-09T10:00:00Z",
+    "type": "CLOSE",
+    "postazione": "PIDMILL",
+    "priorita": 0,
+    "payload": { "note": "Chiusura fase" }
+  }
+]

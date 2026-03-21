@@ -1,0 +1,12 @@
+{
+  "events": [
+    {
+      "id": "seed-001",
+      "ts": "2026-03-02T15:20:00Z",
+      "status": "ACTIVE",
+      "title": "PROMETEO CORE ONLINE",
+      "area": "SYSTEM",
+      "note": "Seed event (bootstrap)"
+    }
+  ]
+}

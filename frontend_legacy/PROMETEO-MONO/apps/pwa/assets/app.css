@@ -1,0 +1,22 @@
+:root { font-family: -apple-system, system-ui, Segoe UI, Roboto, Arial, sans-serif; }
+body { margin: 0; background: #f6f7f9; color: #111; }
+
+.topbar { padding: 14px 16px; background: #111; color: #fff; }
+.title { font-weight: 700; }
+.subtitle { opacity: 0.8; font-size: 12px; margin-top: 2px; }
+
+.wrap { padding: 14px; }
+.panel { background: #fff; border-radius: 10px; padding: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.08); }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+
+button { padding: 8px 10px; border: 1px solid #ddd; background: #fff; border-radius: 8px; cursor: pointer; }
+button:active { transform: translateY(1px); }
+
+.status { font-size: 12px; color: #444; margin-bottom: 10px; }
+
+.list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.item { border: 1px solid #eee; border-radius: 10px; padding: 10px; background: #fff; }
+.row1 { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; color: #444; }
+.row2 { margin-top: 6px; font-weight: 600; }
+.badge { font-size: 11px; border: 1px solid #ddd; padding: 2px 8px; border-radius: 999px; }
+.note { margin-top: 6px; font-size: 13px; color: #222; opacity: 0.9; }

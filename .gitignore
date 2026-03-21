@@ -1,0 +1,39 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node
+node_modules/
+dist/
+build/
+
+# Env
+.env
+.env.*
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+
+# Temporary
+tmp/
+temp/
+
+# IDE
+.vscode/
+.idea/
+
+# Data local
+*.sqlite3
+*.db
+
+# sorgenti migrazione
+_sources/
+
+# ambienti locali
+.venv/
+venv/
