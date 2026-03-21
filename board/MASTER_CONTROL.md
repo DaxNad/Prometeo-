@@ -44,3 +44,23 @@
 - pianificare persistenza PostgreSQL per Event Engine
 - definire task OS di fase successiva
 - preparare protocollo evoluzione PROMETEO OS v0.2
+
+
+---
+
+## OS v0.2 governance layer attivo
+
+Protocollo avanzamento moduli definito.
+
+Focus attuale:
+
+READY REPARTO
+- Event Engine
+- State Engine
+- Dashboard operativa
+
+READY CAPI
+- Dashboard cloud sintetica
+
+READY CLOUD
+- PostgreSQL
