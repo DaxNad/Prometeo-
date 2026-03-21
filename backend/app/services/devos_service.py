@@ -1,13 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List
 
-
-ROOT_DIR = Path(__file__).resolve().parents[3]
-BOARD_DIR = ROOT_DIR / "board"
-DOCS_DIR = ROOT_DIR / "docs"
+BASE_DIR = Path(__file__).resolve().parents[3]
+BOARD_DIR = BASE_DIR / "board"
 
 
 def _read_text(path: Path) -> str:
@@ -16,122 +12,151 @@ def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _extract_bullets_under_heading(markdown: str, heading: str) -> List[str]:
+def _extract_bullets_under_section(markdown: str, title: str) -> list[str]:
     lines = markdown.splitlines()
-    results: List[str] = []
-    capture = False
+    items: list[str] = []
+    in_section = False
 
-    for line in lines:
-        stripped = line.strip()
+    for raw in lines:
+        line = raw.rstrip()
 
-        if stripped.startswith("## "):
-            capture = stripped.lower() == f"## {heading.lower()}"
+        if line.startswith("## "):
+            current = line[3:].strip().lower()
+            in_section = current == title.lower()
             continue
+
+        if not in_section:
+            continue
+
+        if line.startswith("- "):
+            items.append(line[2:].strip())
+
+    return items
+
+
+def _extract_table_after_heading(markdown: str, heading: str) -> list[list[str]]:
+    lines = markdown.splitlines()
+    capture = False
+    table_lines: list[str] = []
+
+    for raw in lines:
+        line = raw.rstrip()
+
+        if line.startswith("## "):
+            current = line[3:].strip().lower()
+
+            if capture:
+                break
+
+            if current == heading.lower():
+                capture = True
+                continue
 
         if capture:
-            if stripped.startswith("## "):
+            if line.strip().startswith("|"):
+                table_lines.append(line.strip())
+            elif table_lines and not line.strip():
                 break
-            if stripped.startswith("- "):
-                results.append(stripped[2:].strip())
-            elif stripped[:2].isdigit() and ". " in stripped:
-                parts = stripped.split(". ", 1)
-                if len(parts) == 2:
-                    results.append(parts[1].strip())
 
-    return results
+    rows: list[list[str]] = []
 
-
-def _extract_table_rows(markdown: str) -> List[Dict[str, str]]:
-    lines = [line.strip() for line in markdown.splitlines() if line.strip()]
-    rows: List[Dict[str, str]] = []
-
-    for line in lines:
-        if not line.startswith("|") or not line.endswith("|"):
+    for line in table_lines:
+        parts = [part.strip() for part in line.strip("|").split("|")]
+        if not parts:
             continue
-        if "---" in line:
+        if all(set(part) <= {"-", ":"} for part in parts):
             continue
-
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
-        if len(cells) != 3:
-            continue
-        if cells[0].lower() == "modulo":
-            continue
-
-        rows.append(
-            {
-                "modulo": cells[0],
-                "stato": cells[1],
-                "note": cells[2],
-            }
-        )
+        rows.append(parts)
 
     return rows
 
 
-@dataclass
-class DevOSService:
-    board_dir: Path = BOARD_DIR
-    docs_dir: Path = DOCS_DIR
+def _extract_general_modules(markdown: str) -> list[dict]:
+    rows = _extract_table_after_heading(markdown, "Stato generale")
+    modules: list[dict] = []
 
-    @property
-    def master_control_path(self) -> Path:
-        return self.board_dir / "master_control.md"
+    for row in rows:
+        if len(row) < 3:
+            continue
+        if row[0].lower() == "modulo" and row[1].lower() == "stato":
+            continue
 
-    @property
-    def task_board_path(self) -> Path:
-        return self.board_dir / "task_board.md"
+        modules.append(
+            {
+                "modulo": row[0],
+                "stato": row[1],
+                "note": row[2],
+            }
+        )
 
-    @property
-    def system_log_path(self) -> Path:
-        return self.board_dir / "system_log.md"
-
-    def get_status(self) -> Dict:
-        master_text = _read_text(self.master_control_path)
-
-        return {
-            "ok": True,
-            "source": str(self.master_control_path.relative_to(ROOT_DIR)),
-            "modules": _extract_table_rows(master_text),
-            "priority_modules": _extract_bullets_under_heading(master_text, "Modulo prioritario corrente"),
-            "immediate_objectives": _extract_bullets_under_heading(master_text, "Obiettivo immediato"),
-            "open_blocks": _extract_bullets_under_heading(master_text, "Blocchi aperti"),
-            "next_steps": _extract_bullets_under_heading(master_text, "Prossimi passi immediati"),
-            "raw": master_text,
-        }
-
-    def get_tasks(self) -> Dict:
-        task_text = _read_text(self.task_board_path)
-
-        return {
-            "ok": True,
-            "source": str(self.task_board_path.relative_to(ROOT_DIR)),
-            "raw": task_text,
-        }
-
-    def get_logs(self) -> Dict:
-        log_text = _read_text(self.system_log_path)
-
-        return {
-            "ok": True,
-            "source": str(self.system_log_path.relative_to(ROOT_DIR)),
-            "raw": log_text,
-        }
-
-    def get_milestones(self) -> Dict:
-        master_text = _read_text(self.master_control_path)
-        log_text = _read_text(self.system_log_path)
-
-        milestone_lines = _extract_bullets_under_heading(master_text, "Milestone corrente")
-
-        if not milestone_lines:
-            milestone_lines = _extract_bullets_under_heading(log_text, "Prossimi passi")
-
-        return {
-            "ok": True,
-            "milestones": milestone_lines,
-            "master_control_source": str(self.master_control_path.relative_to(ROOT_DIR)),
-            "system_log_source": str(self.system_log_path.relative_to(ROOT_DIR)),
-        }
+    return modules
 
 
-devos_service = DevOSService()
+def _extract_maturity_matrix(markdown: str) -> list[dict]:
+    rows = _extract_table_after_heading(markdown, "Maturity matrix")
+    matrix: list[dict] = []
+
+    for row in rows:
+        if len(row) < 3:
+            continue
+        if row[0].lower() == "modulo" and row[1].lower().startswith("livello attuale"):
+            continue
+
+        matrix.append(
+            {
+                "modulo": row[0],
+                "maturity_level": row[1],
+                "target_level": row[2],
+            }
+        )
+
+    return matrix
+
+
+def get_dev_status() -> dict:
+    path = BOARD_DIR / "MASTER_CONTROL.md"
+    raw = _read_text(path)
+
+    return {
+        "ok": True,
+        "source": "board/master_control.md",
+        "modules": _extract_general_modules(raw),
+        "priority_modules": _extract_bullets_under_section(raw, "Modulo prioritario corrente"),
+        "immediate_objectives": _extract_bullets_under_section(raw, "Obiettivo immediato"),
+        "open_blocks": _extract_bullets_under_section(raw, "Blocchi aperti"),
+        "next_steps": _extract_bullets_under_section(raw, "Prossimi passi immediati"),
+        "maturity_matrix": _extract_maturity_matrix(raw),
+        "raw": raw,
+    }
+
+
+def get_dev_tasks() -> dict:
+    path = BOARD_DIR / "TASK_BOARD.md"
+    raw = _read_text(path)
+    return {
+        "ok": True,
+        "source": "board/task_board.md",
+        "raw": raw,
+    }
+
+
+def get_dev_logs() -> dict:
+    path = BOARD_DIR / "SYSTEM_LOG.md"
+    raw = _read_text(path)
+    return {
+        "ok": True,
+        "source": "board/system_log.md",
+        "raw": raw,
+    }
+
+
+def get_dev_milestones() -> dict:
+    path = BOARD_DIR / "MASTER_CONTROL.md"
+    raw = _read_text(path)
+    milestones = _extract_bullets_under_section(raw, "Milestone corrente")
+    return {
+        "ok": True,
+        "source": "board/master_control.md",
+        "items": milestones,
+        "raw": raw,
+    }

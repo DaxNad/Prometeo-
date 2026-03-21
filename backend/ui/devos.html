@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PROMETEO DevOS Panel</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      margin: 32px;
+      background: #0b0f14;
+      color: #e6edf3;
+    }
+    h1, h2 {
+      margin-top: 32px;
+    }
+    button {
+      padding: 8px 14px;
+      background: #238636;
+      color: white;
+      border: 0;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      margin-top: 16px;
+    }
+    th, td {
+      border: 1px solid #30363d;
+      padding: 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #161b22;
+    }
+    ul {
+      padding-left: 20px;
+    }
+    .msg {
+      margin-top: 12px;
+      color: #8b949e;
+    }
+  </style>
+</head>
+<body>
+  <h1>PROMETEO — Development OS Panel</h1>
+
+  <button onclick="load()">Aggiorna</button>
+  <p class="msg" id="msg">Caricamento...</p>
+
+  <h2>Stato moduli</h2>
+  <table id="modules"></table>
+
+  <h2>Maturity matrix</h2>
+  <table id="maturity"></table>
+
+  <h2>Priorità OS</h2>
+  <ul id="priorities"></ul>
+
+  <h2>Obiettivi</h2>
+  <ul id="objectives"></ul>
+
+  <script>
+    async function load() {
+      const msg = document.getElementById("msg")
+      msg.textContent = "Aggiornamento..."
+
+      const res = await fetch("/dev/status")
+      const data = await res.json()
+
+      renderModules(data.modules || [])
+      renderMaturity(data.maturity_matrix || [])
+      renderList("priorities", data.priority_modules || [])
+      renderList("objectives", data.immediate_objectives || [])
+
+      msg.textContent = "Aggiornato correttamente"
+    }
+
+    function renderModules(items) {
+      const el = document.getElementById("modules")
+      el.innerHTML = "<tr><th>Modulo</th><th>Stato</th><th>Note</th></tr>"
+
+      items.forEach(i => {
+        el.innerHTML += `
+          <tr>
+            <td>${i.modulo ?? ""}</td>
+            <td>${i.stato ?? ""}</td>
+            <td>${i.note ?? ""}</td>
+          </tr>
+        `
+      })
+    }
+
+    function renderMaturity(items) {
+      const el = document.getElementById("maturity")
+      el.innerHTML = "<tr><th>Modulo</th><th>Livello</th><th>Target</th></tr>"
+
+      items.forEach(i => {
+        el.innerHTML += `
+          <tr>
+            <td>${i.modulo ?? ""}</td>
+            <td>${i.maturity_level ?? ""}</td>
+            <td>${i.target_level ?? ""}</td>
+          </tr>
+        `
+      })
+    }
+
+    function renderList(id, items) {
+      const el = document.getElementById(id)
+      el.innerHTML = ""
+
+      items.forEach(i => {
+        el.innerHTML += `<li>${i}</li>`
+      })
+    }
+
+    load()
+  </script>
+</body>
+</html>

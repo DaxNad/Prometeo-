@@ -45,7 +45,6 @@
 - definire task OS di fase successiva
 - preparare protocollo evoluzione PROMETEO OS v0.2
 
-
 ---
 
 ## OS v0.2 governance layer attivo
@@ -64,3 +63,18 @@ READY CAPI
 
 READY CLOUD
 - PostgreSQL
+
+---
+
+## Maturity matrix
+
+| Modulo | Livello attuale | Livello target |
+|---|---|---|
+| Event Engine | READY REPARTO | READY REPARTO |
+| State Engine | READY REPARTO | READY REPARTO |
+| Dashboard operativa | READY REPARTO | READY REPARTO |
+| Dashboard cloud | BUILDING | READY CAPI |
+| Database SQLite | READY LOCAL | READY LOCAL |
+| Database PostgreSQL | IDEA | READY CLOUD |
+| Development OS | STABLE | STABLE |
+| AI / ATLAS | BUILDING | READY LOCAL |
