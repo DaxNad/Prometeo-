@@ -5,7 +5,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..db import get_connection
+from ..repositories.factory import get_events_repository
 
 router = APIRouter(tags=["State"])
 
@@ -14,8 +14,14 @@ class StationState(BaseModel):
     line: str
     station: str
     status: str
+    severity: Optional[str] = None
+    event_type: Optional[str] = None
+    title: Optional[str] = None
     note: str = ""
+    source: Optional[str] = None
+    event_id: Optional[str] = None
     updated_at: Optional[str] = None
+    priority_score: int = 0
 
 
 class StateResponse(BaseModel):
@@ -23,76 +29,33 @@ class StateResponse(BaseModel):
     items: list[StationState]
 
 
+def _to_state(item: dict) -> StationState:
+    return StationState(
+        line=item["line"],
+        station=item["station"],
+        status=item["status"],
+        severity=item.get("severity"),
+        event_type=item.get("event_type"),
+        title=item.get("title"),
+        note=item.get("note") or "",
+        source=item.get("source"),
+        event_id=item.get("event_id"),
+        updated_at=str(item["updated_at"]) if item.get("updated_at") is not None else None,
+        priority_score=int(item.get("priority_score") or 0),
+    )
+
+
 @router.get("/state", response_model=StateResponse)
 def get_all_states() -> StateResponse:
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT
-                line,
-                station,
-                status,
-                note,
-                CASE
-                    WHEN closed_at IS NOT NULL THEN closed_at
-                    ELSE opened_at
-                END AS updated_at
-            FROM events
-            WHERE id IN (
-                SELECT id
-                FROM events e2
-                WHERE e2.line = events.line
-                  AND e2.station = events.station
-                ORDER BY datetime(opened_at) DESC
-                LIMIT 1
-            )
-            ORDER BY line, station
-            """
-        ).fetchall()
-
-    items = [
-        StationState(
-            line=row["line"],
-            station=row["station"],
-            status=row["status"],
-            note=row["note"] or "",
-            updated_at=row["updated_at"],
-        )
-        for row in rows
-    ]
-
+    repo = get_events_repository()
+    items = [_to_state(item) for item in repo.list_station_states()]
     return StateResponse(total=len(items), items=items)
 
 
 @router.get("/state/{line}/{station}", response_model=StationState)
 def get_station_state(line: str, station: str) -> StationState:
-    with get_connection() as conn:
-        row = conn.execute(
-            """
-            SELECT
-                line,
-                station,
-                status,
-                note,
-                CASE
-                    WHEN closed_at IS NOT NULL THEN closed_at
-                    ELSE opened_at
-                END AS updated_at
-            FROM events
-            WHERE line = ? AND station = ?
-            ORDER BY datetime(opened_at) DESC
-            LIMIT 1
-            """,
-            (line, station),
-        ).fetchone()
-
-    if row is None:
+    repo = get_events_repository()
+    item = repo.get_station_state(line, station)
+    if item is None:
         raise HTTPException(status_code=404, detail="Stato postazione non trovato")
-
-    return StationState(
-        line=row["line"],
-        station=row["station"],
-        status=row["status"],
-        note=row["note"] or "",
-        updated_at=row["updated_at"],
-    )
+    return _to_state(item)

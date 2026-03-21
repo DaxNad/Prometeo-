@@ -1,33 +1,40 @@
+from __future__ import annotations
+
 import os
-from typing import Optional
+from pathlib import Path
 
 
 class Settings:
-    """
-    Configurazione centrale PROMETEO.
-    Legge variabili ambiente e fornisce fallback sicuri per sviluppo locale.
-    """
-
-    def __init__(self):
-
-        # ---- ENV -----------------------------------------------------
-        self.env: str = os.getenv("ENV", "local")
-
-        # ---- SERVICE INFO -------------------------------------------
+    def __init__(self) -> None:
         self.service_name: str = "prometeo-core"
         self.version: str = "0.3.1"
 
-        # ---- SERVER --------------------------------------------------
-        self.port: int = int(os.getenv("PORT", "8000"))
+        base_dir = Path(__file__).resolve().parent.parent
+        default_sqlite_dir = Path(
+            os.getenv("PROMETEO_DATA_DIR", str(base_dir / "app" / "data"))
+        )
+        self.sqlite_dir: Path = default_sqlite_dir
+        self.sqlite_path: Path = self.sqlite_dir / "prometeo.sqlite3"
 
-        # ---- DATABASE -----------------------------------------------
-        self.database_url: Optional[str] = os.getenv("DATABASE_URL")
+        self.database_url: str = os.getenv("DATABASE_URL", "").strip()
+        self.db_backend: str = os.getenv("PROMETEO_DB_BACKEND", "sqlite").strip().lower()
 
-        # flag: DB configurato
-        self.database_configured: bool = self.database_url is not None
+        if self.db_backend not in {"sqlite", "postgres"}:
+            self.db_backend = "sqlite"
 
-        # ---- UI ------------------------------------------------------
-        self.ui_available: bool = True
+    @property
+    def ui_available(self) -> bool:
+        return True
+
+    @property
+    def database_configured(self) -> bool:
+        if self.db_backend == "postgres":
+            return bool(self.database_url)
+        return True
+
+    @property
+    def postgres_configured(self) -> bool:
+        return bool(self.database_url)
 
 
 settings = Settings()

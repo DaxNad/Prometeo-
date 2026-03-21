@@ -25,3 +25,4 @@
 | 2026-03-21 | Event Engine | chiusura massiva eventi per linea pianificata | IN SVILUPPO | da consolidare e verificare |
 | 2026-03-21 | Development OS | registri riallineati allo stato reale del progetto | COMPLETATO | board aggiornata |
 | 2026-03-21 | Backend | freeze architetturale backend v1 eseguito | COMPLETATO | baseline CORE / DEVOS / LEGACY definita |
+| 2026-03-21 | Database | fase PostgreSQL freeze v1 completata | COMPLETATO | doppio backend controllato SQLite/PostgreSQL pronto |

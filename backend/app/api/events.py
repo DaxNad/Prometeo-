@@ -1,13 +1,11 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Literal, Optional
-from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from ..db import get_connection
+from ..repositories.factory import get_events_repository
 
 router = APIRouter(tags=["Events"])
 
@@ -52,6 +50,11 @@ class EventClose(BaseModel):
     closed_by: str = "dashboard"
 
 
+class BulkCloseByLine(BaseModel):
+    line: str = Field(min_length=1)
+    closed_by: str = "dashboard"
+
+
 class EventListResponse(BaseModel):
     total: int
     open_count: int
@@ -59,35 +62,34 @@ class EventListResponse(BaseModel):
     items: list[Event]
 
 
-def _row_to_event(row) -> Event:
+class BulkCloseResponse(BaseModel):
+    line: str
+    closed_count: int
+    closed_ids: list[str]
+
+
+def _to_event(item: dict) -> Event:
     return Event(
-        id=row["id"],
-        title=row["title"],
-        line=row["line"],
-        station=row["station"],
-        event_type=row["event_type"],
-        severity=row["severity"],
-        status=row["status"],
-        note=row["note"] or "",
-        source=row["source"] or "manual",
-        opened_at=row["opened_at"],
-        closed_at=row["closed_at"],
-        closed_by=row["closed_by"],
+        id=item["id"],
+        title=item["title"],
+        line=item["line"],
+        station=item["station"],
+        event_type=item["event_type"],
+        severity=item["severity"],
+        status=item["status"],
+        note=item.get("note") or "",
+        source=item.get("source") or "manual",
+        opened_at=str(item["opened_at"]),
+        closed_at=str(item["closed_at"]) if item.get("closed_at") is not None else None,
+        closed_by=item.get("closed_by"),
     )
 
 
 @router.get("/events", response_model=EventListResponse)
 def list_events() -> EventListResponse:
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM events
-            ORDER BY datetime(opened_at) DESC
-            """
-        ).fetchall()
-
-    items = [_row_to_event(row) for row in rows]
+    repo = get_events_repository()
+    rows = repo.list_events()
+    items = [_to_event(row) for row in rows]
     open_count = sum(1 for item in items if item.status == "OPEN")
     closed_count = sum(1 for item in items if item.status == "CLOSED")
 
@@ -101,17 +103,9 @@ def list_events() -> EventListResponse:
 
 @router.get("/events/active", response_model=EventListResponse)
 def list_active_events() -> EventListResponse:
-    with get_connection() as conn:
-        rows = conn.execute(
-            """
-            SELECT *
-            FROM events
-            WHERE status = 'OPEN'
-            ORDER BY datetime(opened_at) DESC
-            """
-        ).fetchall()
-
-    items = [_row_to_event(row) for row in rows]
+    repo = get_events_repository()
+    rows = repo.list_active_events()
+    items = [_to_event(row) for row in rows]
 
     return EventListResponse(
         total=len(items),
@@ -123,151 +117,55 @@ def list_active_events() -> EventListResponse:
 
 @router.post("/events/create", response_model=Event)
 def create_event(payload: EventCreate) -> Event:
-    now = datetime.utcnow().isoformat()
-    event = Event(
-        id=str(uuid4()),
-        title=payload.title.strip(),
-        line=payload.line.strip(),
-        station=payload.station.strip(),
-        event_type=payload.event_type.strip(),
-        severity=payload.severity,
-        status="OPEN",
-        note=payload.note.strip(),
-        source=payload.source.strip() or "manual",
-        opened_at=now,
-        closed_at=None,
-        closed_by=None,
-    )
-
-    with get_connection() as conn:
-        conn.execute(
-            """
-            INSERT INTO events (
-                id, title, line, station, event_type, severity, status,
-                note, source, opened_at, closed_at, closed_by
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-            (
-                event.id,
-                event.title,
-                event.line,
-                event.station,
-                event.event_type,
-                event.severity,
-                event.status,
-                event.note,
-                event.source,
-                event.opened_at,
-                event.closed_at,
-                event.closed_by,
-            ),
-        )
-        conn.commit()
-
-    return event
+    repo = get_events_repository()
+    try:
+        item = repo.create_event(payload.model_dump())
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
+    return _to_event(item)
 
 
 @router.get("/events/{event_id}", response_model=Event)
 def get_event(event_id: str) -> Event:
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
-
-    if row is None:
+    repo = get_events_repository()
+    item = repo.get_event(event_id)
+    if item is None:
         raise HTTPException(status_code=404, detail="Evento non trovato")
-
-    return _row_to_event(row)
+    return _to_event(item)
 
 
 @router.put("/events/{event_id}", response_model=Event)
 def update_event(event_id: str, payload: EventUpdate) -> Event:
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
+    repo = get_events_repository()
+    try:
+        item = repo.update_event(event_id, payload.model_dump(exclude_unset=True))
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
-        if row is None:
-            raise HTTPException(status_code=404, detail="Evento non trovato")
-
-        current = _row_to_event(row)
-
-        updated = Event(
-            id=current.id,
-            title=(payload.title.strip() if payload.title is not None else current.title),
-            line=(payload.line.strip() if payload.line is not None else current.line),
-            station=(payload.station.strip() if payload.station is not None else current.station),
-            event_type=(payload.event_type.strip() if payload.event_type is not None else current.event_type),
-            severity=(payload.severity if payload.severity is not None else current.severity),
-            status=(payload.status if payload.status is not None else current.status),
-            note=(payload.note.strip() if payload.note is not None else current.note),
-            source=(payload.source.strip() if payload.source is not None else current.source),
-            opened_at=current.opened_at,
-            closed_at=current.closed_at,
-            closed_by=current.closed_by,
-        )
-
-        conn.execute(
-            """
-            UPDATE events
-            SET title = ?, line = ?, station = ?, event_type = ?, severity = ?,
-                status = ?, note = ?, source = ?, closed_at = ?, closed_by = ?
-            WHERE id = ?
-            """,
-            (
-                updated.title,
-                updated.line,
-                updated.station,
-                updated.event_type,
-                updated.severity,
-                updated.status,
-                updated.note,
-                updated.source,
-                updated.closed_at,
-                updated.closed_by,
-                updated.id,
-            ),
-        )
-        conn.commit()
-
-    return updated
+    if item is None:
+        raise HTTPException(status_code=404, detail="Evento non trovato")
+    return _to_event(item)
 
 
 @router.post("/events/{event_id}/close", response_model=Event)
 def close_event(event_id: str, payload: EventClose = EventClose()) -> Event:
-    now = datetime.utcnow().isoformat()
+    repo = get_events_repository()
+    try:
+        item = repo.close_event(event_id, payload.closed_by)
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
-    with get_connection() as conn:
-        row = conn.execute(
-            "SELECT * FROM events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
+    if item is None:
+        raise HTTPException(status_code=404, detail="Evento non trovato")
+    return _to_event(item)
 
-        if row is None:
-            raise HTTPException(status_code=404, detail="Evento non trovato")
 
-        current = _row_to_event(row)
+@router.post("/events/close-by-line", response_model=BulkCloseResponse)
+def close_events_by_line(payload: BulkCloseByLine) -> BulkCloseResponse:
+    repo = get_events_repository()
+    try:
+        result = repo.close_events_by_line(payload.line.strip(), payload.closed_by)
+    except NotImplementedError as exc:
+        raise HTTPException(status_code=501, detail=str(exc)) from exc
 
-        if current.status == "CLOSED":
-            return current
-
-        conn.execute(
-            """
-            UPDATE events
-            SET status = 'CLOSED',
-                closed_at = ?,
-                closed_by = ?
-            WHERE id = ?
-            """,
-            (now, payload.closed_by, event_id),
-        )
-        conn.commit()
-
-        updated_row = conn.execute(
-            "SELECT * FROM events WHERE id = ?",
-            (event_id,),
-        ).fetchone()
-
-    return _row_to_event(updated_row)
+    return BulkCloseResponse(**result)
