@@ -16,6 +16,7 @@ from .db import current_backend, init_db, probe_postgres
 BASE_DIR = Path(__file__).resolve().parent.parent
 UI_DIR = BASE_DIR / "ui"
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
+FRONTEND_DIST_DIR = FRONTEND_DIR / "dist"
 
 app = FastAPI(
     title="PROMETEO CORE",
@@ -38,9 +39,14 @@ def startup_event() -> None:
 
 @app.get("/")
 def root():
-    index_file = FRONTEND_DIR / "index.html"
-    if index_file.exists():
-        return FileResponse(index_file)
+    dist_index = FRONTEND_DIST_DIR / "index.html"
+    if dist_index.exists():
+        return FileResponse(dist_index)
+
+    ui_index = UI_DIR / "index.html"
+    if ui_index.exists():
+        return FileResponse(ui_index)
+
     return {
         "service": settings.service_name,
         "version": settings.version,
@@ -55,7 +61,7 @@ def health():
         "ok": True,
         "service": settings.service_name,
         "version": settings.version,
-        "ui_available": UI_DIR.exists(),
+        "ui_available": UI_DIR.exists() or FRONTEND_DIST_DIR.exists(),
         "database_configured": settings.database_configured,
         "db_backend": current_backend(),
         "postgres_configured": settings.postgres_configured,
@@ -76,9 +82,14 @@ def ping_head():
 
 @app.get("/mobile")
 def mobile():
-    mobile_file = FRONTEND_DIR / "mobile.html"
+    mobile_file = FRONTEND_DIST_DIR / "mobile.html"
     if mobile_file.exists():
         return FileResponse(mobile_file)
+
+    legacy_mobile = FRONTEND_DIR / "mobile.html"
+    if legacy_mobile.exists():
+        return FileResponse(legacy_mobile)
+
     return Response(status_code=404)
 
 
@@ -91,5 +102,7 @@ app.include_router(postgres_probe_router)
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
 
-if FRONTEND_DIR.exists():
+if FRONTEND_DIST_DIR.exists():
+    app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
+elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")

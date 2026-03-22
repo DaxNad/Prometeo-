@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import './App.css'
 
 type HealthResponse = {
@@ -60,7 +61,7 @@ type EventCreatePayload = {
   source: string
 }
 
-const API_BASE = '/api'
+const API_BASE = ''
 
 const initialForm: EventCreatePayload = {
   title: '',
