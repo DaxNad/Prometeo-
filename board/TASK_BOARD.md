@@ -12,20 +12,13 @@
 | T-008 | BACKEND | verificare endpoint /dev/tasks | COMPLETATO | ALTA | risposta OK |
 | T-009 | BACKEND | verificare endpoint /dev/logs | COMPLETATO | ALTA | risposta OK |
 | T-010 | BACKEND | verificare endpoint /dev/milestones | COMPLETATO | ALTA | risposta OK |
-| T-011 | FRONTEND | collegare dashboard a backend stabile | COMPLETATO | ALTA | dashboard locale operativa |
-| T-012 | DATABASE | consolidare configurazione SQLite / compatibilità Railway | COMPLETATO | ALTA | persistente e funzionante |
-| T-013 | EVENT ENGINE | preparare CRUD eventi | COMPLETATO | ALTA | create, read, close attivi |
+| T-011 | FRONTEND | collegare dashboard a backend stabile | IN SVILUPPO | ALTA | UI online ma ancora parziale |
+| T-012 | DATABASE | consolidare configurazione PostgreSQL | TODO | ALTA | integrazione reale da completare |
+| T-013 | EVENT ENGINE | verificare CRUD minimo eventi online | COMPLETATO | ALTA | create/active/state/close/reset verificati su Railway |
 | T-014 | DEPLOY | verificare deploy Railway post-fix | COMPLETATO | ALTA | deploy attivo |
 | T-015 | AI / ATLAS | definire interfaccia futura ATLAS | TODO | MEDIA | dopo core stabile |
-| T-016 | FRONTEND | collegare dashboard a /dev/status | TODO | ALTA | vista cloud da riallineare |
-| T-017 | FRONTEND | collegare dashboard a /dev/tasks | TODO | ALTA | vista cloud da riallineare |
-| T-018 | FRONTEND | collegare dashboard a /dev/logs | TODO | MEDIA | vista cloud da riallineare |
-| T-019 | STATE ENGINE | ordinamento priorità per postazione | COMPLETATO | ALTA | OPEN e severità ordinate |
-| T-020 | FRONTEND | filtri linea/postazione/severità | COMPLETATO | ALTA | filtri operativi attivi |
-| T-021 | FRONTEND | KPI reparto + badge linea | COMPLETATO | ALTA | vista reparto attiva |
-| T-022 | FRONTEND | vista capo reparto top priorità | COMPLETATO | ALTA | criticità immediate attive |
-| T-023 | EVENT ENGINE | chiusura massiva eventi per linea | COMPLETATO | ALTA | endpoint e UI previsti |
-| T-024 | DEVELOPMENT OS | riallineare board allo stato reale del progetto | COMPLETATO | ALTA | aggiornamento registri |
-| T-025 | ARCHITETTURA | pianificare passaggio SQLite → PostgreSQL | TODO | ALTA | fase successiva core |
-| T-026 | FRONTEND | allineare cloud UI alla dashboard locale avanzata | TODO | ALTA | root cloud ancora parziale |
-| T-027 | DEVELOPMENT OS | definire protocollo PROMETEO OS v0.2 | TODO | MEDIA | governance fase successiva |
+| T-016 | FRONTEND | collegare dashboard a /dev/status | TODO | ALTA | mostrare stato sistema |
+| T-017 | FRONTEND | collegare dashboard a /dev/tasks | TODO | ALTA | mostrare task board |
+| T-018 | FRONTEND | collegare dashboard a /dev/logs | TODO | MEDIA | mostrare system log |
+| T-019 | DATABASE | verificare persistenza eventi dopo restart/redeploy | TODO | ALTA | capire se Event Engine usa DB reale o memoria |
+| T-020 | FRONTEND | verificare rendering live di /events/active e /state | TODO | ALTA | test UI con eventi reali |

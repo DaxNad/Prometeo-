@@ -4,77 +4,42 @@
 
 | Modulo | Stato | Note |
 |---|---|---|
-| Backend | ATTIVO | FastAPI operativo, Event Engine attivo, router dev e search attivi |
-| Frontend | ATTIVO | Dashboard locale operativa con KPI, priorità, filtri e chiusura eventi |
-| Database | ATTIVO | SQLite operativo in locale e compatibile Railway |
+| Backend | ATTIVO | FastAPI operativo, health/docs/openapi/eventi/state verificati |
+| Frontend | PARZIALE | Dashboard servita online, rifinitura UI e collegamenti da consolidare |
+| Database | PARZIALE | Configurazione presente, persistenza reale da verificare come sorgente primaria |
 | AI / ATLAS | TODO | Layer AI da formalizzare dopo consolidamento core |
 | Deploy Railway | ATTIVO | Deploy stabile e funzionante |
 | Development OS | ATTIVO | Registri base presenti e letti via API |
 
 ## Modulo prioritario corrente
-- DEVELOPMENT OS
-- STABILIZZAZIONE CORE OPERATIVO
+- STABILIZZAZIONE FRONTEND
 - INTEGRAZIONE DATABASE
-- PREPARAZIONE VISTA CAPO REPARTO
+- CONSOLIDAMENTO EVENT ENGINE
 
 ## Obiettivo immediato
-- consolidare i registri Development OS
-- mantenere allineati backend, frontend e board
-- completare il pannello operativo reparto
-- preparare la transizione da SQLite a PostgreSQL
-- stabilizzare il flusso eventi → stato → priorità → azione
+- consolidare dashboard e backend
+- verificare persistenza eventi dopo restart/redeploy
+- completare integrazione PostgreSQL
+- rifinire pannello eventi/stato
+- preparare estensione Event Engine
 
 ## Blocchi aperti
-- dashboard cloud non ancora allineata completamente alla dashboard locale avanzata
-- PostgreSQL non ancora sorgente primaria
-- pipeline test non ancora formalizzata
-- layer AI / ATLAS non ancora integrato operativamente
+- dashboard ancora parziale lato UI
+- asset frontend/PWA incompleti
+- database reale non ancora confermato come sorgente primaria
+- pipeline test da formalizzare
 
 ## Milestone corrente
 - PROMETEO Development OS v0.1 inizializzato
-- backend stabile con endpoint health, events, state e dev attivi
-- dashboard locale operativa con creazione/chiusura eventi
-- state engine con priorità operativa attivo
-- vista capo reparto inizializzata
-- SQLite persistente attivo
+- backend stabile con endpoint health e dev attivi
+- endpoint Development OS letti correttamente da file markdown locali
+- Event Engine minimo verificato online su Railway
+- ciclo reale create → active → state → close → reset verificato con successo
 
 ## Prossimi passi immediati
-- consolidare registri Development OS rispetto allo stato reale
-- riallineare UI cloud alla dashboard locale avanzata
-- pianificare persistenza PostgreSQL per Event Engine
-- definire task OS di fase successiva
-- preparare protocollo evoluzione PROMETEO OS v0.2
-
----
-
-## OS v0.2 governance layer attivo
-
-Protocollo avanzamento moduli definito.
-
-Focus attuale:
-
-READY REPARTO
-- Event Engine
-- State Engine
-- Dashboard operativa
-
-READY CAPI
-- Dashboard cloud sintetica
-
-READY CLOUD
-- PostgreSQL
-
----
-
-## Maturity matrix
-
-| Modulo | Livello attuale | Livello target |
-|---|---|---|
-| Event Engine | READY REPARTO | READY REPARTO |
-| State Engine | READY REPARTO | READY REPARTO |
-| Dashboard operativa | READY REPARTO | READY REPARTO |
-| Dashboard cloud | BUILDING | READY CAPI |
-| Database SQLite | READY LOCAL | READY LOCAL |
-| Database PostgreSQL | IDEA | READY CLOUD |
-| Development OS | STABLE | STABLE |
-| AI / ATLAS | BUILDING | READY LOCAL |
+- riallineare task board allo stato reale Event Engine
+- verificare persistenza eventi su database dopo restart
+- consolidare dashboard su `/events/active` e `/state`
+- completare collegamento dashboard a `/dev/status`
+- completare collegamento dashboard a `/dev/tasks`
+- completare collegamento dashboard a `/dev/logs`
