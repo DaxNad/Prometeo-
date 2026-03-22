@@ -35,8 +35,14 @@ type StateItem = {
   line: string
   station: string
   status?: string
-  updated_at?: string
+  severity?: string | null
+  event_type?: string | null
+  title?: string | null
   note?: string
+  source?: string | null
+  event_id?: string | null
+  updated_at?: string
+  priority_score?: number
 }
 
 type StateResponse = {
@@ -82,11 +88,17 @@ function App() {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [busyId, setBusyId] = useState<string>('')
+  const [busyId, setBusyId] = useState('')
+  const [busyLine, setBusyLine] = useState('')
 
   const [form, setForm] = useState<EventCreatePayload>(initialForm)
   const [submitting, setSubmitting] = useState(false)
   const [submitMessage, setSubmitMessage] = useState('')
+
+  const [filterLine, setFilterLine] = useState('ALL')
+  const [filterStation, setFilterStation] = useState('ALL')
+  const [filterSeverity, setFilterSeverity] = useState('ALL')
+  const [filterOnlyOpen, setFilterOnlyOpen] = useState(false)
 
   async function loadData(showSpinner = false) {
     try {
@@ -129,15 +141,153 @@ function App() {
     return () => window.clearInterval(timer)
   }, [])
 
-  const openEvents = useMemo(
-    () => events?.items.filter((item) => item.status === 'OPEN') ?? [],
-    [events],
-  )
+  const allLines = useMemo(() => {
+    const values = new Set<string>()
+    ;(events?.items ?? []).forEach((item) => values.add(item.line))
+    ;(state?.items ?? []).forEach((item) => item.line && values.add(item.line))
+    return ['ALL', ...Array.from(values).sort()]
+  }, [events, state])
 
-  const closedEvents = useMemo(
-    () => events?.items.filter((item) => item.status === 'CLOSED') ?? [],
-    [events],
-  )
+  const allStations = useMemo(() => {
+    const values = new Set<string>()
+    ;(events?.items ?? []).forEach((item) => values.add(item.station))
+    ;(state?.items ?? []).forEach((item) => item.station && values.add(item.station))
+    return ['ALL', ...Array.from(values).sort()]
+  }, [events, state])
+
+  function matchCommonFilters(item: {
+    line?: string
+    station?: string
+    severity?: string | null
+    status?: string
+  }) {
+    const lineOk = filterLine === 'ALL' || item.line === filterLine
+    const stationOk = filterStation === 'ALL' || item.station === filterStation
+    const severityOk =
+      filterSeverity === 'ALL' || item.severity === filterSeverity
+    const openOk = !filterOnlyOpen || item.status === 'OPEN'
+
+    return lineOk && stationOk && severityOk && openOk
+  }
+
+  const openEvents = useMemo(() => {
+    return (events?.items ?? []).filter(
+      (item) => item.status === 'OPEN' && matchCommonFilters(item),
+    )
+  }, [events, filterLine, filterStation, filterSeverity, filterOnlyOpen])
+
+  const closedEvents = useMemo(() => {
+    return (events?.items ?? []).filter(
+      (item) => item.status === 'CLOSED' && matchCommonFilters(item),
+    )
+  }, [events, filterLine, filterStation, filterSeverity, filterOnlyOpen])
+
+  const priorityStations = useMemo(() => {
+    return [...(state?.items ?? [])].filter((item) => matchCommonFilters(item))
+  }, [state, filterLine, filterStation, filterSeverity, filterOnlyOpen])
+
+  const criticalOpenCount = useMemo(() => {
+    return openEvents.filter((item) => item.severity === 'CRITICAL').length
+  }, [openEvents])
+
+  const highOpenCount = useMemo(() => {
+    return openEvents.filter((item) => item.severity === 'HIGH').length
+  }, [openEvents])
+
+  const activeLines = useMemo(() => {
+    return new Set(openEvents.map((item) => item.line)).size
+  }, [openEvents])
+
+  const activeStations = useMemo(() => {
+    return new Set(openEvents.map((item) => `${item.line}__${item.station}`)).size
+  }, [openEvents])
+
+  const lineCounters = useMemo(() => {
+    const counters = new Map<
+      string,
+      { total: number; critical: number; high: number; open: number }
+    >()
+
+    openEvents.forEach((item) => {
+      const current = counters.get(item.line) ?? {
+        total: 0,
+        critical: 0,
+        high: 0,
+        open: 0,
+      }
+
+      current.total += 1
+      current.open += 1
+      if (item.severity === 'CRITICAL') current.critical += 1
+      if (item.severity === 'HIGH') current.high += 1
+
+      counters.set(item.line, current)
+    })
+
+    return Array.from(counters.entries())
+      .map(([line, values]) => ({ line, ...values }))
+      .sort((a, b) => {
+        if (b.critical !== a.critical) return b.critical - a.critical
+        if (b.high !== a.high) return b.high - a.high
+        return b.open - a.open
+      })
+  }, [openEvents])
+
+  const topCriticalNow = useMemo(() => {
+    return priorityStations
+      .filter((item) => item.status === 'OPEN' && item.severity === 'CRITICAL')
+      .slice(0, 5)
+  }, [priorityStations])
+
+  const topAbsolutePriorities = useMemo(() => {
+    return [...priorityStations]
+      .sort((a, b) => (b.priority_score ?? 0) - (a.priority_score ?? 0))
+      .slice(0, 5)
+  }, [priorityStations])
+
+  const repartoSummary = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        line: string
+        open: number
+        closed: number
+        critical: number
+        high: number
+        stations: Set<string>
+      }
+    >()
+
+    ;(events?.items ?? []).forEach((item) => {
+      const current = map.get(item.line) ?? {
+        line: item.line,
+        open: 0,
+        closed: 0,
+        critical: 0,
+        high: 0,
+        stations: new Set<string>(),
+      }
+
+      current.stations.add(item.station)
+      if (item.status === 'OPEN') current.open += 1
+      if (item.status === 'CLOSED') current.closed += 1
+      if (item.status === 'OPEN' && item.severity === 'CRITICAL') current.critical += 1
+      if (item.status === 'OPEN' && item.severity === 'HIGH') current.high += 1
+
+      map.set(item.line, current)
+    })
+
+    return Array.from(map.values())
+      .map((row) => ({
+        ...row,
+        stationsCount: row.stations.size,
+      }))
+      .sort((a, b) => {
+        if (b.critical !== a.critical) return b.critical - a.critical
+        if (b.open !== a.open) return b.open - a.open
+        return a.line.localeCompare(b.line)
+      })
+  }, [events])
 
   function updateForm<K extends keyof EventCreatePayload>(
     key: K,
@@ -173,9 +323,7 @@ function App() {
 
       const response = await fetch(`${API_BASE}/events/create`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       })
 
@@ -203,9 +351,7 @@ function App() {
 
       const response = await fetch(`${API_BASE}/events/${eventId}/close`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ closed_by: 'dashboard' }),
       })
 
@@ -224,6 +370,39 @@ function App() {
     }
   }
 
+  async function handleCloseByLine(line: string) {
+    try {
+      setBusyLine(line)
+      setSubmitMessage('')
+
+      const response = await fetch(`${API_BASE}/events/close-by-line`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ line, closed_by: 'dashboard-line' }),
+      })
+
+      if (!response.ok) {
+        const body = await response.text()
+        throw new Error(body || 'Chiusura massiva fallita')
+      }
+
+      await loadData(false)
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Errore chiusura linea'
+      setError(message)
+    } finally {
+      setBusyLine('')
+    }
+  }
+
+  function resetFilters() {
+    setFilterLine('ALL')
+    setFilterStation('ALL')
+    setFilterSeverity('ALL')
+    setFilterOnlyOpen(false)
+  }
+
   return (
     <div className="page">
       <header className="topbar">
@@ -231,14 +410,14 @@ function App() {
           <p className="eyebrow">PROMETEO</p>
           <h1>Dashboard CORE locale</h1>
           <p className="sub">
-            Monitoraggio backend FastAPI e gestione eventi/stato
+            Monitoraggio backend FastAPI, priorità postazioni e gestione eventi
           </p>
         </div>
 
         <div className="actions">
           <button
             onClick={() => void loadData(true)}
-            disabled={loading || submitting || !!busyId}
+            disabled={loading || submitting || !!busyId || !!busyLine}
           >
             {loading ? 'Aggiornamento...' : 'Aggiorna'}
           </button>
@@ -259,14 +438,133 @@ function App() {
         </article>
 
         <article className="card stat">
-          <span className="label">Eventi totali</span>
-          <strong>{events?.total ?? 0}</strong>
+          <span className="label">Eventi totali filtrati</span>
+          <strong>{openEvents.length + closedEvents.length}</strong>
         </article>
 
         <article className="card stat">
-          <span className="label">Stati postazione</span>
-          <strong>{state?.total ?? 0}</strong>
+          <span className="label">Stati postazione filtrati</span>
+          <strong>{priorityStations.length}</strong>
         </article>
+      </section>
+
+      <section className="grid grid-4">
+        <article className="card kpi-card">
+          <span className="label">Aperti</span>
+          <strong>{openEvents.length}</strong>
+        </article>
+
+        <article className="card kpi-card kpi-critical">
+          <span className="label">Critici aperti</span>
+          <strong>{criticalOpenCount}</strong>
+        </article>
+
+        <article className="card kpi-card kpi-high">
+          <span className="label">High aperti</span>
+          <strong>{highOpenCount}</strong>
+        </article>
+
+        <article className="card kpi-card">
+          <span className="label">Linee / Postazioni</span>
+          <strong>
+            {activeLines} / {activeStations}
+          </strong>
+        </article>
+      </section>
+
+      <section className="grid grid-2">
+        <article className="card critical-panel">
+          <h2>Criticità immediate</h2>
+          {topCriticalNow.length === 0 ? (
+            <p className="empty">Nessuna criticità CRITICAL aperta.</p>
+          ) : (
+            <div className="list">
+              {topCriticalNow.map((item, index) => (
+                <div className="list-item highlight-item" key={`${item.event_id}-${index}`}>
+                  <div>
+                    <strong>
+                      {item.line} · {item.station} · {item.title ?? '—'}
+                    </strong>
+                    <p>
+                      {item.event_type ?? '—'} · {item.severity ?? '—'} · priorità{' '}
+                      {item.priority_score ?? 0}
+                    </p>
+                    <p>
+                      nota: {item.note || '—'} · aggiornato: {formatDate(item.updated_at)}
+                    </p>
+                  </div>
+                  <span className="badge danger">CRITICAL</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+
+        <article className="card">
+          <h2>Top 5 priorità assolute</h2>
+          {topAbsolutePriorities.length === 0 ? (
+            <p className="empty">Nessuna priorità disponibile.</p>
+          ) : (
+            <div className="list">
+              {topAbsolutePriorities.map((item, index) => (
+                <div className="list-item" key={`${item.event_id}-${index}`}>
+                  <div>
+                    <strong>
+                      #{index + 1} · {item.line} · {item.station}
+                    </strong>
+                    <p>
+                      {item.title ?? '—'} · {item.event_type ?? '—'} ·{' '}
+                      {item.severity ?? '—'}
+                    </p>
+                  </div>
+                  <div className="row-actions">
+                    <span
+                      className={
+                        item.status === 'OPEN' ? 'badge danger' : 'badge success'
+                      }
+                    >
+                      {item.status ?? '—'}
+                    </span>
+                    <span className="badge neutral">
+                      P {item.priority_score ?? 0}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
+      </section>
+
+      <section className="card">
+        <h2>Riepilogo reparto per linea</h2>
+        {repartoSummary.length === 0 ? (
+          <p className="empty">Nessun dato reparto disponibile.</p>
+        ) : (
+          <div className="list">
+            {repartoSummary.map((row) => (
+              <div className="list-item" key={row.line}>
+                <div>
+                  <strong>{row.line}</strong>
+                  <p>
+                    OPEN {row.open} · CLOSED {row.closed} · CRITICAL {row.critical} ·
+                    HIGH {row.high} · POSTAZIONI {row.stationsCount}
+                  </p>
+                </div>
+                <div className="row-actions">
+                  <span className="badge neutral">LINEA</span>
+                  <button
+                    className="secondary-btn"
+                    onClick={() => void handleCloseByLine(row.line)}
+                    disabled={busyLine === row.line || row.open === 0 || submitting || !!busyId}
+                  >
+                    {busyLine === row.line ? 'Chiusura linea...' : 'Chiudi tutti OPEN'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="grid grid-2">
@@ -287,7 +585,7 @@ function App() {
         </article>
 
         <article className="card">
-          <h2>Riepilogo eventi</h2>
+          <h2>Riepilogo filtrato</h2>
           <div className="kv">
             <span>Aperti</span>
             <strong>{openEvents.length}</strong>
@@ -301,6 +599,122 @@ function App() {
             <strong>{new Date().toLocaleTimeString('it-IT')}</strong>
           </div>
         </article>
+      </section>
+
+      <section className="card">
+        <h2>Badge linea</h2>
+        {lineCounters.length === 0 ? (
+          <p className="empty">Nessuna linea con eventi aperti.</p>
+        ) : (
+          <div className="line-badges">
+            {lineCounters.map((item) => (
+              <div className="line-badge" key={item.line}>
+                <strong>{item.line}</strong>
+                <span>OPEN {item.open}</span>
+                <span>CRITICAL {item.critical}</span>
+                <span>HIGH {item.high}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="card">
+        <h2>Filtri operativi</h2>
+
+        <div className="form-grid form-grid-4">
+          <label className="field">
+            <span>Linea</span>
+            <select
+              value={filterLine}
+              onChange={(e) => setFilterLine(e.target.value)}
+            >
+              {allLines.map((value) => (
+                <option key={value} value={value}>
+                  {value === 'ALL' ? 'TUTTE' : value}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Postazione</span>
+            <select
+              value={filterStation}
+              onChange={(e) => setFilterStation(e.target.value)}
+            >
+              {allStations.map((value) => (
+                <option key={value} value={value}>
+                  {value === 'ALL' ? 'TUTTE' : value}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="field">
+            <span>Severità</span>
+            <select
+              value={filterSeverity}
+              onChange={(e) => setFilterSeverity(e.target.value)}
+            >
+              <option value="ALL">TUTTE</option>
+              <option value="CRITICAL">CRITICAL</option>
+              <option value="HIGH">HIGH</option>
+              <option value="MEDIUM">MEDIUM</option>
+              <option value="LOW">LOW</option>
+            </select>
+          </label>
+
+          <label className="field checkbox-field">
+            <span>Solo OPEN</span>
+            <input
+              type="checkbox"
+              checked={filterOnlyOpen}
+              onChange={(e) => setFilterOnlyOpen(e.target.checked)}
+            />
+          </label>
+        </div>
+
+        <div className="form-actions">
+          <button className="secondary-btn" onClick={resetFilters}>
+            Reset filtri
+          </button>
+        </div>
+      </section>
+
+      <section className="card">
+        <h2>Priorità postazioni</h2>
+        {priorityStations.length === 0 ? (
+          <p className="empty">Nessuna postazione disponibile con i filtri attivi.</p>
+        ) : (
+          <div className="list">
+            {priorityStations.map((row, index) => (
+              <div className="list-item" key={`${row.line}-${row.station}-${index}`}>
+                <div>
+                  <strong>
+                    {row.line} · {row.station} · {row.status ?? '—'}
+                  </strong>
+                  <p>
+                    {row.title ?? '—'} · {row.event_type ?? '—'} ·{' '}
+                    {row.severity ?? '—'} · priorità {row.priority_score ?? 0}
+                  </p>
+                  <p>
+                    nota: {row.note || '—'} · aggiornato: {formatDate(row.updated_at)}
+                  </p>
+                </div>
+                <div className="row-actions">
+                  <span
+                    className={
+                      row.status === 'OPEN' ? 'badge danger' : 'badge success'
+                    }
+                  >
+                    {row.status ?? '—'}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="card">
@@ -388,7 +802,7 @@ function App() {
           </label>
 
           <div className="form-actions">
-            <button type="submit" disabled={submitting || !!busyId}>
+            <button type="submit" disabled={submitting || !!busyId || !!busyLine}>
               {submitting ? 'Creazione...' : 'Crea evento'}
             </button>
             {submitMessage ? (
@@ -402,7 +816,7 @@ function App() {
         <article className="card">
           <h2>Eventi aperti</h2>
           {openEvents.length === 0 ? (
-            <p className="empty">Nessun evento aperto.</p>
+            <p className="empty">Nessun evento aperto con i filtri attivi.</p>
           ) : (
             <div className="list">
               {openEvents.map((item) => (
@@ -419,7 +833,7 @@ function App() {
                     <button
                       className="secondary-btn"
                       onClick={() => void handleCloseEvent(item.id)}
-                      disabled={busyId === item.id || submitting}
+                      disabled={busyId === item.id || submitting || !!busyLine}
                     >
                       {busyId === item.id ? 'Chiusura...' : 'Chiudi'}
                     </button>
@@ -431,9 +845,9 @@ function App() {
         </article>
 
         <article className="card">
-          <h2>Ultimi eventi chiusi</h2>
+          <h2>Eventi chiusi</h2>
           {closedEvents.length === 0 ? (
-            <p className="empty">Nessun evento chiuso.</p>
+            <p className="empty">Nessun evento chiuso con i filtri attivi.</p>
           ) : (
             <div className="list">
               {closedEvents.slice(0, 10).map((item) => (
@@ -451,38 +865,6 @@ function App() {
             </div>
           )}
         </article>
-      </section>
-
-      <section className="card">
-        <h2>Stato postazioni</h2>
-        {state?.items?.length ? (
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Linea</th>
-                  <th>Postazione</th>
-                  <th>Stato</th>
-                  <th>Nota</th>
-                  <th>Aggiornato</th>
-                </tr>
-              </thead>
-              <tbody>
-                {state.items.map((row, index) => (
-                  <tr key={`${row.line}-${row.station}-${index}`}>
-                    <td>{row.line}</td>
-                    <td>{row.station}</td>
-                    <td>{row.status ?? '—'}</td>
-                    <td>{row.note ?? '—'}</td>
-                    <td>{formatDate(row.updated_at)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <p className="empty">Nessuno stato disponibile.</p>
-        )}
       </section>
     </div>
   )
