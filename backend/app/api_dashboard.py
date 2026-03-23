@@ -13,16 +13,29 @@ def _orders_payload() -> dict:
     return adapter.preview(sheet="Pianificazione", rows=5000)
 
 
-@router.get("/board")
-def production_board():
+def _is_meaningful_row(row: dict) -> bool:
+    order_id = str(row.get("ID ordine", "")).strip()
+    codice = str(row.get("Codice", "")).strip()
+    cliente = str(row.get("Cliente", "")).strip()
+    postazione = str(row.get("Postazione assegnata", "")).strip()
+    stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip()
+    progress = str(row.get("Progress %", "")).strip()
+
+    return any([order_id, codice, cliente, postazione, stato, progress])
+
+
+def _filtered_rows() -> list[dict]:
     payload = _orders_payload()
     rows = payload.get("rows_preview", [])
+    return [row for row in rows if _is_meaningful_row(row)]
+
+
+@router.get("/board")
+def production_board():
+    rows = _filtered_rows()
 
     board = []
     for row in rows:
-        if not any(str(v).strip() for v in row.values()):
-            continue
-
         board.append(
             {
                 "order_id": row.get("ID ordine", ""),
@@ -47,14 +60,10 @@ def production_board():
 
 @router.get("/delays")
 def production_delays():
-    payload = _orders_payload()
-    rows = payload.get("rows_preview", [])
+    rows = _filtered_rows()
 
     delayed = []
     for row in rows:
-        if not any(str(v).strip() for v in row.values()):
-            continue
-
         semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
         if semaforo in {"ROSSO", "GIALLO"}:
             delayed.append(
@@ -79,15 +88,11 @@ def production_delays():
 
 @router.get("/load")
 def production_load():
-    payload = _orders_payload()
-    rows = payload.get("rows_preview", [])
+    rows = _filtered_rows()
 
     load_map: dict[str, dict] = {}
 
     for row in rows:
-        if not any(str(v).strip() for v in row.values()):
-            continue
-
         station = str(row.get("Postazione assegnata", "")).strip() or "NON_ASSEGNATA"
         semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
         stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip().lower()
