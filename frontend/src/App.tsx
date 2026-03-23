@@ -31,6 +31,7 @@ export default function App() {
   const [delays, setDelays] = useState<Order[]>([])
   const [load, setLoad] = useState<LoadRow[]>([])
   const [loading, setLoading] = useState(true)
+  const [busyOrderId, setBusyOrderId] = useState("")
 
   async function loadData() {
     setLoading(true)
@@ -53,6 +54,51 @@ export default function App() {
     return () => clearInterval(t)
   }, [])
 
+  async function patchOrder(orderId: string, payload: Record<string, unknown>) {
+    setBusyOrderId(orderId)
+
+    try {
+      const res = await fetch(`${API}/production/order/${encodeURIComponent(orderId)}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      })
+
+      if (!res.ok) {
+        const text = await res.text()
+        throw new Error(text || "PATCH ordine fallita")
+      }
+
+      await loadData()
+    } finally {
+      setBusyOrderId("")
+    }
+  }
+
+  async function handleStart(order: Order) {
+    const now = new Date().toLocaleString("sv-SE")
+
+    await patchOrder(order.order_id, {
+      "Stato (da fare/in corso/finito)": "in corso",
+      "Data inizio": now,
+      "Progress %": order.progress && Number(order.progress) > 0 ? order.progress : 10,
+      "Semaforo scadenza": order.semaforo || "GIALLO",
+    })
+  }
+
+  async function handleDone(order: Order) {
+    const now = new Date().toLocaleString("sv-SE")
+
+    await patchOrder(order.order_id, {
+      "Stato (da fare/in corso/finito)": "finito",
+      "Data fine": now,
+      "Progress %": 100,
+      "Semaforo scadenza": "VERDE",
+    })
+  }
+
   return (
     <div className="page">
       <header className="topbar">
@@ -61,13 +107,17 @@ export default function App() {
           <h1>Dashboard Produzione</h1>
         </div>
 
-        <button onClick={loadData}>aggiorna</button>
+        <button onClick={loadData} disabled={loading || !!busyOrderId}>
+          aggiorna
+        </button>
       </header>
 
       <section className="card">
         <h2>Board ordini</h2>
 
         {loading && <p>caricamento...</p>}
+
+        {!loading && board.length === 0 && <p>nessun ordine disponibile</p>}
 
         {board.map((o) => (
           <div className="list-item" key={o.order_id}>
@@ -78,6 +128,9 @@ export default function App() {
               </p>
               <p>
                 qta {o.qta} · progress {o.progress}%
+              </p>
+              <p>
+                stato {o.stato}
               </p>
             </div>
 
@@ -95,6 +148,21 @@ export default function App() {
               >
                 {o.semaforo}
               </span>
+
+              <button
+                className="secondary-btn"
+                onClick={() => handleStart(o)}
+                disabled={!!busyOrderId || o.stato === "in corso" || o.stato === "finito"}
+              >
+                {busyOrderId === o.order_id ? "..." : "START"}
+              </button>
+
+              <button
+                onClick={() => handleDone(o)}
+                disabled={!!busyOrderId || o.stato === "finito"}
+              >
+                {busyOrderId === o.order_id ? "..." : "DONE"}
+              </button>
             </div>
           </div>
         ))}
