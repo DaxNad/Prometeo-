@@ -115,6 +115,13 @@ app.include_router(events_router)
 app.include_router(state_router)
 app.include_router(postgres_probe_router)
 app.include_router(smf_router)
+<<<<<<< HEAD
+=======
+app.include_router(production_router)
+app.include_router(dashboard_router)
+app.include_router(production_events_router)
+app.include_router(devos_status_router)
+>>>>>>> snapshot/sicurezza-2026-03-23
 
 # ROUTER PRODUZIONE
 app.include_router(production_router)

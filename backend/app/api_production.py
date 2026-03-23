@@ -1,32 +1,300 @@
-from fastapi import APIRouter
+from typing import Any, Dict
 
-from .smf.smf_adapter import SMFAdapter
+from fastapi import APIRouter, Body, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+from .db.session import get_db
 
 router = APIRouter(prefix="/production", tags=["production"])
 
-adapter = SMFAdapter()
+
+def _normalize_stato(value: Any) -> str:
+    if value is None:
+        return "da fare"
+    s = str(value).strip().lower()
+    if not s:
+        return "da fare"
+    return s
 
 
-@router.get("/orders")
-def production_orders():
-    return adapter.preview(sheet="Pianificazione", rows=200)
+def _progress_from_stato(stato: str) -> float:
+    mapping = {
+        "da fare": 0.0,
+        "in corso": 50.0,
+        "finito": 100.0,
+        "bloccato": 0.0,
+    }
+    return mapping.get(stato, 0.0)
 
 
-@router.get("/stations")
-def production_stations():
-    return adapter.preview(sheet="Postazioni", rows=200)
+def _semaforo_from_stato(stato: str) -> str:
+    mapping = {
+        "da fare": "GIALLO",
+        "in corso": "GIALLO",
+        "finito": "VERDE",
+        "bloccato": "ROSSO",
+    }
+    return mapping.get(stato, "GIALLO")
 
 
-@router.get("/teamleaders")
-def production_teamleaders():
-    return adapter.preview(sheet="TurniTL", rows=200)
+def _ensure_tables(db: Session) -> None:
+    statements = [
+        """
+        CREATE TABLE IF NOT EXISTS production_orders (
+            id BIGSERIAL PRIMARY KEY,
+            order_id TEXT NOT NULL UNIQUE,
+            cliente TEXT NOT NULL,
+            codice TEXT NOT NULL,
+            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+            postazione TEXT NOT NULL,
+            stato TEXT NOT NULL DEFAULT 'da fare',
+            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+            due_date TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS board_state (
+            id BIGSERIAL PRIMARY KEY,
+            order_id TEXT NOT NULL UNIQUE,
+            cliente TEXT NOT NULL,
+            codice TEXT NOT NULL,
+            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+            postazione TEXT NOT NULL,
+            stato TEXT NOT NULL DEFAULT 'da fare',
+            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+            due_date TEXT NOT NULL DEFAULT '',
+            note TEXT NOT NULL DEFAULT '',
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE TABLE IF NOT EXISTS production_events (
+            id BIGSERIAL PRIMARY KEY,
+            order_id TEXT NOT NULL,
+            event_type TEXT NOT NULL,
+            payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
+        ON production_orders(order_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_board_state_order_id
+        ON board_state(order_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_production_events_order_id
+        ON production_events(order_id)
+        """,
+        """
+        CREATE INDEX IF NOT EXISTS idx_production_events_created_at
+        ON production_events(created_at DESC)
+        """,
+    ]
+
+    for stmt in statements:
+        db.execute(text(stmt))
+
+    db.commit()
 
 
 @router.post("/order")
-def create_order(order: dict):
-    return adapter.append_order(order)
+def create_or_update_order(
+    payload: Dict[str, Any] = Body(...),
+    db: Session = Depends(get_db),
+):
+    _ensure_tables(db)
+
+    order_id = str(payload.get("order_id", "")).strip()
+    cliente = str(payload.get("cliente", "")).strip()
+    codice = str(payload.get("codice", "")).strip()
+    qta = float(payload.get("qta", 0) or 0)
+    postazione = str(payload.get("postazione", "")).strip()
+    stato = _normalize_stato(payload.get("stato"))
+    due_date = str(payload.get("due_date", "") or "")
+    note = str(payload.get("note", "") or "")
+    progress = float(payload.get("progress", _progress_from_stato(stato)))
+    semaforo = str(payload.get("semaforo", _semaforo_from_stato(stato)))
+
+    if not order_id:
+        return {"ok": False, "error": "order_id mancante"}
+    if not cliente:
+        return {"ok": False, "error": "cliente mancante"}
+    if not codice:
+        return {"ok": False, "error": "codice mancante"}
+    if not postazione:
+        return {"ok": False, "error": "postazione mancante"}
+
+    db.execute(
+        text(
+            """
+            INSERT INTO production_orders (
+                order_id, cliente, codice, qta, postazione, stato,
+                progress, semaforo, due_date, note
+            )
+            VALUES (
+                :order_id, :cliente, :codice, :qta, :postazione, :stato,
+                :progress, :semaforo, :due_date, :note
+            )
+            ON CONFLICT (order_id) DO UPDATE SET
+                cliente = EXCLUDED.cliente,
+                codice = EXCLUDED.codice,
+                qta = EXCLUDED.qta,
+                postazione = EXCLUDED.postazione,
+                stato = EXCLUDED.stato,
+                progress = EXCLUDED.progress,
+                semaforo = EXCLUDED.semaforo,
+                due_date = EXCLUDED.due_date,
+                note = EXCLUDED.note,
+                updated_at = NOW()
+            """
+        ),
+        {
+            "order_id": order_id,
+            "cliente": cliente,
+            "codice": codice,
+            "qta": qta,
+            "postazione": postazione,
+            "stato": stato,
+            "progress": progress,
+            "semaforo": semaforo,
+            "due_date": due_date,
+            "note": note,
+        },
+    )
+
+    db.execute(
+        text(
+            """
+            INSERT INTO board_state (
+                order_id, cliente, codice, qta, postazione, stato,
+                progress, semaforo, due_date, note
+            )
+            VALUES (
+                :order_id, :cliente, :codice, :qta, :postazione, :stato,
+                :progress, :semaforo, :due_date, :note
+            )
+            ON CONFLICT (order_id) DO UPDATE SET
+                cliente = EXCLUDED.cliente,
+                codice = EXCLUDED.codice,
+                qta = EXCLUDED.qta,
+                postazione = EXCLUDED.postazione,
+                stato = EXCLUDED.stato,
+                progress = EXCLUDED.progress,
+                semaforo = EXCLUDED.semaforo,
+                due_date = EXCLUDED.due_date,
+                note = EXCLUDED.note,
+                updated_at = NOW()
+            """
+        ),
+        {
+            "order_id": order_id,
+            "cliente": cliente,
+            "codice": codice,
+            "qta": qta,
+            "postazione": postazione,
+            "stato": stato,
+            "progress": progress,
+            "semaforo": semaforo,
+            "due_date": due_date,
+            "note": note,
+        },
+    )
+
+    db.execute(
+        text(
+            """
+            INSERT INTO production_events (
+                order_id, event_type, payload
+            )
+            VALUES (
+                :order_id,
+                :event_type,
+                CAST(:payload AS JSONB)
+            )
+            """
+        ),
+        {
+            "order_id": order_id,
+            "event_type": "order_upserted",
+            "payload": (
+                "{"
+                f"\"order_id\": \"{order_id}\", "
+                f"\"cliente\": \"{cliente}\", "
+                f"\"codice\": \"{codice}\", "
+                f"\"qta\": {qta}, "
+                f"\"postazione\": \"{postazione}\", "
+                f"\"stato\": \"{stato}\", "
+                f"\"progress\": {progress}, "
+                f"\"semaforo\": \"{semaforo}\", "
+                f"\"due_date\": \"{due_date}\", "
+                f"\"note\": \"{note.replace(chr(34), chr(39))}\""
+                "}"
+            ),
+        },
+    )
+
+    db.commit()
+
+    total_rows = db.execute(
+        text("SELECT COUNT(*) AS total FROM board_state")
+    ).mappings().first()
+
+    return {
+        "ok": True,
+        "order_id": order_id,
+        "rows": int(total_rows["total"]) if total_rows else 0,
+    }
 
 
-@router.patch("/order/{order_id}")
-def update_order(order_id: str, updates: dict):
-    return adapter.update_order(order_id, updates)
+@router.get("/board")
+def get_board(db: Session = Depends(get_db)):
+    _ensure_tables(db)
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                order_id,
+                cliente,
+                codice,
+                qta,
+                postazione,
+                stato,
+                progress,
+                semaforo,
+                due_date,
+                note
+            FROM board_state
+            ORDER BY updated_at DESC, order_id ASC
+            """
+        )
+    ).mappings().all()
+
+    return {
+        "ok": True,
+        "count": len(rows),
+        "items": [
+            {
+                "order_id": r["order_id"],
+                "cliente": r["cliente"],
+                "codice": r["codice"],
+                "qta": float(r["qta"]) if r["qta"] is not None else 0.0,
+                "postazione": r["postazione"],
+                "stato": r["stato"],
+                "progress": float(r["progress"]) if r["progress"] is not None else 0.0,
+                "semaforo": r["semaforo"],
+                "due_date": r["due_date"] or "",
+                "note": r["note"] or "",
+            }
+            for r in rows
+        ],
+    }
