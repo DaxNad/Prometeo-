@@ -17,9 +17,14 @@ class Settings:
         self.sqlite_path: Path = self.sqlite_dir / "prometeo.sqlite3"
 
         self.database_url: str = os.getenv("DATABASE_URL", "").strip()
-        self.db_backend: str = os.getenv("PROMETEO_DB_BACKEND", "sqlite").strip().lower()
 
-        if self.db_backend not in {"sqlite", "postgres"}:
+        raw_backend = os.getenv("PROMETEO_DB_BACKEND", "").strip().lower()
+
+        if raw_backend in {"sqlite", "postgres"}:
+            self.db_backend = raw_backend
+        elif self.database_url:
+            self.db_backend = "postgres"
+        else:
             self.db_backend = "sqlite"
 
     @property
