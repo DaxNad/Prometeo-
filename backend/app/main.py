@@ -10,6 +10,7 @@ from .api.events import router as events_router
 from .api.postgres_probe import router as postgres_probe_router
 from .api.state import router as state_router
 from .api_search import router as search_router
+from .api_smf import router as smf_router
 from .config import settings
 from .db import current_backend, init_db, probe_postgres
 
@@ -98,6 +99,7 @@ app.include_router(search_router)
 app.include_router(events_router)
 app.include_router(state_router)
 app.include_router(postgres_probe_router)
+app.include_router(smf_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
