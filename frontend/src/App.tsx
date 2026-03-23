@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import "./App.css"
 
-const API = "/api"
+const API = ""
 
 type Order = {
   order_id: string
@@ -26,25 +26,47 @@ type LoadRow = {
   green: number
 }
 
+type DevosStatus = {
+  ok: boolean
+  service: string
+  version: string
+  runtime: {
+    db_backend: string
+    postgres: {
+      configured: boolean
+      reachable: boolean
+      message: string
+    }
+  }
+  resources: {
+    board_items: number
+    events_items: number
+  }
+  ui_available: boolean
+}
+
 export default function App() {
   const [board, setBoard] = useState<Order[]>([])
   const [delays, setDelays] = useState<Order[]>([])
   const [load, setLoad] = useState<LoadRow[]>([])
+  const [devos, setDevos] = useState<DevosStatus | null>(null)
   const [loading, setLoading] = useState(true)
   const [busyOrderId, setBusyOrderId] = useState("")
 
   async function loadData() {
     setLoading(true)
 
-    const [b, d, l] = await Promise.all([
+    const [b, d, l, s] = await Promise.all([
       fetch(`${API}/production/board`).then((r) => r.json()),
       fetch(`${API}/production/delays`).then((r) => r.json()),
       fetch(`${API}/production/load`).then((r) => r.json()),
+      fetch(`${API}/devos/status`).then((r) => r.json()),
     ])
 
     setBoard(b.items || [])
     setDelays(d.items || [])
     setLoad(l.items || [])
+    setDevos(s || null)
     setLoading(false)
   }
 
@@ -113,6 +135,31 @@ export default function App() {
       </header>
 
       <section className="card">
+        <h2>DEV OS runtime</h2>
+
+        {!devos && <p>runtime non disponibile</p>}
+
+        {devos && (
+          <div className="list-item">
+            <div>
+              <strong>{devos.service}</strong>
+              <p>versione {devos.version}</p>
+              <p>db backend {devos.runtime.db_backend}</p>
+              <p>postgres {devos.runtime.postgres.reachable ? "OK" : "DOWN"}</p>
+            </div>
+
+            <div className="row-actions">
+              <span className="badge neutral">board {devos.resources.board_items}</span>
+              <span className="badge neutral">events {devos.resources.events_items}</span>
+              <span className={`badge ${devos.runtime.postgres.reachable ? "success" : "danger"}`}>
+                {devos.runtime.postgres.reachable ? "POSTGRES OK" : "POSTGRES DOWN"}
+              </span>
+            </div>
+          </div>
+        )}
+      </section>
+
+      <section className="card">
         <h2>Board ordini</h2>
 
         {loading && <p>caricamento...</p>}
@@ -129,9 +176,7 @@ export default function App() {
               <p>
                 qta {o.qta} · progress {o.progress}%
               </p>
-              <p>
-                stato {o.stato}
-              </p>
+              <p>stato {o.stato}</p>
             </div>
 
             <div className="row-actions">
