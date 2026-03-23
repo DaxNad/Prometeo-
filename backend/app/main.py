@@ -6,8 +6,10 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .api.devos import router as dev_router
+from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
 from .api.postgres_probe import router as postgres_probe_router
+from .api.production_events import router as production_events_router
 from .api.state import router as state_router
 from .api_search import router as search_router
 from .api_smf import router as smf_router
@@ -104,6 +106,8 @@ app.include_router(postgres_probe_router)
 app.include_router(smf_router)
 app.include_router(production_router)
 app.include_router(dashboard_router)
+app.include_router(production_events_router)
+app.include_router(devos_status_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
