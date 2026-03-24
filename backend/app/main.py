@@ -1,3 +1,4 @@
+from importlib import import_module
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -5,27 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from .api.devos import router as dev_router
-from .api.devos_status import router as devos_status_router
-from .api.events import router as events_router
-from .api.postgres_probe import router as postgres_probe_router
-from .api.production_events import router as production_events_router
-from .api.state import router as state_router
-from .api_search import router as search_router
-from .api_smf import router as smf_router
-from .api_production import router as production_router
-from .api_dashboard import router as dashboard_router
-from .config import settings
-from .db import current_backend, init_db, probe_postgres
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 UI_DIR = BASE_DIR / "ui"
 FRONTEND_DIR = BASE_DIR.parent / "frontend"
 FRONTEND_DIST_DIR = FRONTEND_DIR / "dist"
 
 app = FastAPI(
-    title="PROMETEO CORE",
-    version=settings.version,
+    title="PROMETEO CORE DIAGNOSTIC",
+    version="diag-1",
 )
 
 app.add_middleware(
@@ -36,22 +24,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-startup_db_init_ok = False
-startup_db_init_error = None
+import_results: dict[str, dict] = {}
 
+ROUTERS = [
+    ("app.api.devos", "router", "devos"),
+    ("app.api.devos_status", "router", "devos_status"),
+    ("app.api.events", "router", "events"),
+    ("app.api.postgres_probe", "router", "postgres_probe"),
+    ("app.api.production_events", "router", "production_events"),
+    ("app.api.state", "router", "state"),
+    ("app.api_search", "router", "search"),
+    ("app.api_smf", "router", "smf"),
+    ("app.api_production", "router", "production"),
+    ("app.api_dashboard", "router", "dashboard"),
+]
 
-@app.on_event("startup")
-def startup_event() -> None:
-    global startup_db_init_ok, startup_db_init_error
+for module_name, attr_name, label in ROUTERS:
     try:
-        init_db()
-        startup_db_init_ok = True
-        startup_db_init_error = None
-        print("DB INIT OK")
+        module = import_module(module_name)
+        router = getattr(module, attr_name)
+        app.include_router(router)
+        import_results[label] = {
+            "ok": True,
+            "module": module_name,
+            "error": None,
+        }
+        print(f"IMPORT OK: {label} -> {module_name}")
     except Exception as e:
-        startup_db_init_ok = False
-        startup_db_init_error = str(e)
-        print(f"DB INIT ERROR: {e}")
+        import_results[label] = {
+            "ok": False,
+            "module": module_name,
+            "error": str(e),
+        }
+        print(f"IMPORT ERROR: {label} -> {module_name} -> {e}")
 
 
 @app.get("/")
@@ -65,31 +70,19 @@ def root():
         return FileResponse(ui_index)
 
     return {
-        "service": settings.service_name,
-        "version": settings.version,
+        "service": "PROMETEO CORE DIAGNOSTIC",
+        "version": "diag-1",
     }
 
 
 @app.get("/health")
 def health():
-    postgres_probe = {"reachable": False, "message": "probe skipped"}
-    try:
-        postgres_probe = probe_postgres()
-    except Exception as e:
-        postgres_probe = {"reachable": False, "message": str(e)}
-
     return {
         "ok": True,
-        "service": settings.service_name,
-        "version": settings.version,
+        "service": "PROMETEO CORE DIAGNOSTIC",
+        "version": "diag-1",
         "ui_available": UI_DIR.exists() or FRONTEND_DIST_DIR.exists(),
-        "database_configured": settings.database_configured,
-        "db_backend": current_backend(),
-        "postgres_configured": settings.postgres_configured,
-        "postgres_reachable": postgres_probe["reachable"],
-        "postgres_message": postgres_probe["message"],
-        "startup_db_init_ok": startup_db_init_ok,
-        "startup_db_init_error": startup_db_init_error,
+        "imports": import_results,
     }
 
 
@@ -115,17 +108,6 @@ def mobile():
 
     return Response(status_code=404)
 
-
-app.include_router(dev_router)
-app.include_router(search_router)
-app.include_router(events_router)
-app.include_router(state_router)
-app.include_router(postgres_probe_router)
-app.include_router(smf_router)
-app.include_router(production_router)
-app.include_router(dashboard_router)
-app.include_router(production_events_router)
-app.include_router(devos_status_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
