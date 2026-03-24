@@ -1,3 +1,4 @@
+from app.api.routes.dev_db_init import router as dev_db_init_router
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -134,3 +135,5 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
+
+app.include_router(dev_db_init_router)
