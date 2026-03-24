@@ -1,16 +1,24 @@
-from fastapi import APIRouter
-from sqlalchemy import text
 from pathlib import Path
-from app.db.session import engine
+
+from fastapi import APIRouter, HTTPException
+from sqlalchemy import text
 
 router = APIRouter()
 
 SQL_FILE = Path("backend/sql/003_bom_registry.sql")
 
+
 @router.post("/dev/init-bom-db")
 def init_bom_db():
+    if not SQL_FILE.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"SQL file non trovato: {SQL_FILE}",
+        )
 
-    sql = SQL_FILE.read_text()
+    from app.db.session import engine
+
+    sql = SQL_FILE.read_text(encoding="utf-8")
 
     with engine.begin() as conn:
         conn.execute(text(sql))
@@ -23,6 +31,6 @@ def init_bom_db():
             "bom_operations",
             "bom_markings",
             "bom_controls",
-            "bom_variants"
-        ]
+            "bom_variants",
+        ],
     }

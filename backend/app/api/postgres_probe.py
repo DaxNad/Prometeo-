@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 
 from ..config import settings
+from ..db import probe_postgres
 from ..repositories.postgres_events_repository import PostgresEventsRepository
 
 router = APIRouter(tags=["Postgres Probe"])
@@ -10,12 +11,27 @@ router = APIRouter(tags=["Postgres Probe"])
 repo = PostgresEventsRepository()
 
 
-@router.get("/postgres/ping")
-def postgres_ping():
-    if not settings.postgres_configured:
+@router.get("/db/ping")
+def db_ping():
+    result = probe_postgres()
+
+    if not result["configured"]:
         raise HTTPException(status_code=400, detail="DATABASE_URL non configurato")
 
-    return repo.ping()
+    if not result["reachable"]:
+        raise HTTPException(status_code=503, detail=result["message"])
+
+    return {
+        "ok": True,
+        "backend": "postgres",
+        "message": result["message"],
+        "result": result.get("result"),
+    }
+
+
+@router.get("/postgres/ping")
+def postgres_ping():
+    return db_ping()
 
 
 @router.post("/postgres/init")
