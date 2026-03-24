@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from .smf_reader import SMFReader
@@ -7,13 +8,20 @@ from .smf_writer import SMFWriter
 from .smf_updater import SMFUpdater
 
 
-DEFAULT_SMF_DIR = Path.home() / "Documents" / "local_smf"
 MASTER_NAME = "SuperMegaFile_Master.xlsx"
+
+
+def _default_smf_dir() -> Path:
+    env_dir = os.getenv("SMF_BASE_PATH", "").strip()
+    if env_dir:
+        return Path(env_dir)
+
+    return Path.home() / "Documents" / "local_smf"
 
 
 class SMFAdapter:
     def __init__(self, base_path: Path | None = None) -> None:
-        self.base_path = base_path or DEFAULT_SMF_DIR
+        self.base_path = base_path or _default_smf_dir()
 
     def master_path(self) -> Path:
         return self.base_path / MASTER_NAME
@@ -32,6 +40,7 @@ class SMFAdapter:
 
     def info(self) -> dict:
         return {
+            "base_path": str(self.base_path),
             "path": str(self.master_path()),
             "exists": self.available(),
         }
