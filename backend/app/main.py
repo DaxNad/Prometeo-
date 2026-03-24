@@ -1,4 +1,3 @@
-from app.api.routes.dev_db_init import router as dev_db_init_router
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -11,11 +10,12 @@ from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
 from .api.postgres_probe import router as postgres_probe_router
 from .api.production_events import router as production_events_router
+from .api.routes.dev_db_init import router as dev_db_init_router
 from .api.state import router as state_router
+from .api_dashboard import router as dashboard_router
+from .api_production import router as production_router
 from .api_search import router as search_router
 from .api_smf import router as smf_router
-from .api_production import router as production_router
-from .api_dashboard import router as dashboard_router
 from .config import settings
 from .db import current_backend, init_db, probe_postgres
 
@@ -127,6 +127,7 @@ app.include_router(production_router)
 app.include_router(dashboard_router)
 app.include_router(production_events_router)
 app.include_router(devos_status_router)
+app.include_router(dev_db_init_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
@@ -135,5 +136,3 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
-
-app.include_router(dev_db_init_router)
