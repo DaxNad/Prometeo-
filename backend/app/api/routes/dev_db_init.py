@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
-SQL_FILE = Path("backend/sql/003_bom_registry.sql")
+SQL_FILE = Path(__file__).resolve().parents[3] / "sql" / "003_bom_registry.sql"
 
 
 @router.post("/dev/init-bom-db")
@@ -42,6 +42,7 @@ def init_bom_db():
 
     return {
         "status": "ok",
+        "sql_file": str(SQL_FILE),
         "tables_created": [
             "bom_specs",
             "bom_components",
