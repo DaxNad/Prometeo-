@@ -1,7 +1,6 @@
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException
-from sqlalchemy import text
 
 router = APIRouter()
 
@@ -16,12 +15,30 @@ def init_bom_db():
             detail=f"SQL file non trovato: {SQL_FILE}",
         )
 
-    from app.db.session import engine
+    from ...db.session import engine
 
-    sql = SQL_FILE.read_text(encoding="utf-8")
+    sql = SQL_FILE.read_text(encoding="utf-8").strip()
 
-    with engine.begin() as conn:
-        conn.execute(text(sql))
+    if not sql:
+        raise HTTPException(
+            status_code=400,
+            detail="SQL file vuoto",
+        )
+
+    raw_conn = engine.raw_connection()
+    try:
+        cursor = raw_conn.cursor()
+        cursor.execute(sql)
+        raw_conn.commit()
+        cursor.close()
+    except Exception as e:
+        raw_conn.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Errore init BOM DB: {e}",
+        )
+    finally:
+        raw_conn.close()
 
     return {
         "status": "ok",
