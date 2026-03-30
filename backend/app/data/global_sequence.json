@@ -1,6 +1,5 @@
 {
   "planner_stage": "ZAW1_SQL_BRIDGE",
-  "source_view": "vw_tl_zaw1_board",
   "items_count": 3,
   "items": [
     {

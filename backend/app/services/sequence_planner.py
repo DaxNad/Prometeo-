@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+from collections import defaultdict
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -9,25 +11,30 @@ from sqlalchemy.orm import Session
 
 
 class SequencePlannerService:
-    """
-    Planner iniziale PROMETEO.
-    Primo strato Python sopra le viste SQL ZAW-1.
 
-    Obiettivi attuali:
-    - leggere la board operativa TL
-    - produrre una global sequence runtime coerente
-    - persistere global_sequence.json
-    - produrre un primo turn_plan.json minimale
-    """
+    SHIFT_SEQUENCE = ["NOTTE", "MATTINA", "POMERIGGIO"]
+
+    TEAM_LEADERS = ["Davide", "Stefano", "Nino"]
+
+    ROTATION_LOGIC = "SHIFT_TL_MULTI_CLUSTER"
 
     def __init__(self) -> None:
+
         base_dir = Path(__file__).resolve().parent.parent
+
         self.data_dir = base_dir / "data"
+
         self.data_dir.mkdir(parents=True, exist_ok=True)
+
         self.global_sequence_file = self.data_dir / "global_sequence.json"
+
         self.turn_plan_file = self.data_dir / "turn_plan.json"
 
+
+    # -------------------------
+
     def fetch_zaw1_board(self, db: Session) -> list[dict[str, Any]]:
+
         rows = db.execute(
             text(
                 """
@@ -48,120 +55,185 @@ class SequencePlannerService:
             )
         ).mappings().all()
 
-        return [dict(row) for row in rows]
+        return [dict(r) for r in rows]
 
-    def build_global_sequence(self, db: Session) -> dict[str, Any]:
-        board_rows = self.fetch_zaw1_board(db)
 
-        sequence_items: list[dict[str, Any]] = []
+    # -------------------------
 
-        for row in board_rows:
-            sequence_items.append(
+    def build_global_sequence(self, db: Session):
+
+        rows = self.fetch_zaw1_board(db)
+
+        items = []
+
+        for r in rows:
+
+            items.append(
                 {
-                    "rank": int(row["priorita_operativa"]),
-                    "article": str(row["articolo"]),
-                    "shared_components": self._split_components(row["componenti_condivisi"]),
-                    "quantity": int(row["quantita"] or 0),
+                    "rank": int(r["priorita_operativa"]),
+                    "article": str(r["articolo"]),
+                    "shared_components": self._split(r["componenti_condivisi"]),
+                    "quantity": int(r["quantita"] or 0),
                     "due_date": (
-                        row["data_spedizione"].isoformat()
-                        if row["data_spedizione"] is not None
+                        r["data_spedizione"].isoformat()
+                        if r["data_spedizione"]
                         else None
                     ),
-                    "customer_priority": row["priorita_cliente"],
-                    "assembly_group": row["complessivo_articolo"],
-                    "critical_station": row["postazione_critica"],
-                    "tl_action": row["azione_tl"],
-                    "logic_origin": row["origine_logica"],
+                    "customer_priority": r["priorita_cliente"],
+                    "assembly_group": r["complessivo_articolo"],
+                    "critical_station": r["postazione_critica"],
+                    "tl_action": r["azione_tl"],
+                    "logic_origin": r["origine_logica"],
                 }
             )
 
         payload = {
             "planner_stage": "ZAW1_SQL_BRIDGE",
-            "source_view": "vw_tl_zaw1_board",
-            "items_count": len(sequence_items),
-            "items": sequence_items,
+            "items_count": len(items),
+            "items": items,
         }
 
-        self.save_global_sequence(payload)
+        self._save(self.global_sequence_file, payload)
+
         return payload
 
-    def build_turn_plan(self, db: Session) -> dict[str, Any]:
+
+    # -------------------------
+
+    def build_turn_plan(self, db: Session):
+
         sequence = self.build_global_sequence(db)
-        items = sequence.get("items", [])
 
-        assignments: list[dict[str, Any]] = []
+        items = sequence["items"]
 
-        for item in items:
-            assignments.append(
-                {
-                    "slot": int(item["rank"]),
-                    "shift": "DA_DEFINIRE",
-                    "team_leader": "DA_DEFINIRE",
-                    "station": item["critical_station"],
-                    "article": item["article"],
-                    "quantity": item["quantity"],
-                    "shared_components": item["shared_components"],
-                    "due_date": item["due_date"],
-                    "customer_priority": item["customer_priority"],
-                    "tl_action": item["tl_action"],
-                    "planning_status": "BOZZA_INIZIALE",
-                    "planning_origin": "GLOBAL_SEQUENCE",
-                }
-            )
+        today = date.today()
+
+        base_rotation = today.toordinal() % len(self.SHIFT_SEQUENCE)
+
+        clusters = self._cluster(items)
+
+        assignments = []
+
+        rotation_pointer = base_rotation
+
+        for cluster in clusters:
+
+            shift = self.SHIFT_SEQUENCE[rotation_pointer]
+
+            tl = self.TEAM_LEADERS[rotation_pointer]
+
+            for item in cluster:
+
+                assignments.append(
+                    {
+                        "slot": item["rank"],
+
+                        "plan_date": today.isoformat(),
+
+                        "shift": shift,
+
+                        "team_leader": tl,
+
+                        "station": item["critical_station"],
+
+                        "article": item["article"],
+
+                        "quantity": item["quantity"],
+
+                        "shared_components": item["shared_components"],
+
+                        "due_date": item["due_date"],
+
+                        "customer_priority": item["customer_priority"],
+
+                        "tl_action": item["tl_action"],
+
+                        "cluster_key": self._cluster_key(item),
+
+                        "planning_status": "ASSEGNATO_MULTI_CLUSTER",
+
+                        "planning_origin": "GLOBAL_SEQUENCE",
+                    }
+                )
+
+            rotation_pointer = (
+                rotation_pointer + 1
+            ) % len(self.SHIFT_SEQUENCE)
+
+        assignments.sort(key=lambda x: x["slot"])
 
         payload = {
-            "planner_stage": "TURN_PLAN_STAGE_0",
-            "source": "global_sequence.json",
+            "planner_stage": "TURN_PLAN_STAGE_4",
+
+            "rotation_logic": self.ROTATION_LOGIC,
+
+            "plan_date": today.isoformat(),
+
+            "clusters_count": len(clusters),
+
             "assignments_count": len(assignments),
+
             "assignments": assignments,
         }
 
-        self.save_turn_plan(payload)
+        self._save(self.turn_plan_file, payload)
+
         return payload
 
-    def save_global_sequence(self, payload: dict[str, Any]) -> None:
-        self.global_sequence_file.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+
+    # -------------------------
+
+    def _cluster(self, items):
+
+        groups = defaultdict(list)
+
+        for i in items:
+
+            groups[self._cluster_key(i)].append(i)
+
+        clusters = []
+
+        for g in groups.values():
+
+            g.sort(key=lambda x: x["rank"])
+
+            clusters.append(g)
+
+        clusters.sort(key=lambda g: min(x["rank"] for x in g))
+
+        return clusters
+
+
+    # -------------------------
+
+    def _cluster_key(self, item):
+
+        return (
+            item["critical_station"],
+            tuple(sorted(item["shared_components"]))
         )
 
-    def load_global_sequence(self) -> dict[str, Any]:
-        if not self.global_sequence_file.exists():
-            return {
-                "planner_stage": "ZAW1_SQL_BRIDGE",
-                "source_view": "vw_tl_zaw1_board",
-                "items_count": 0,
-                "items": [],
-            }
 
-        return json.loads(self.global_sequence_file.read_text(encoding="utf-8"))
+    # -------------------------
 
-    def save_turn_plan(self, payload: dict[str, Any]) -> None:
-        self.turn_plan_file.write_text(
-            json.dumps(payload, indent=2, ensure_ascii=False),
-            encoding="utf-8",
+    def _split(self, raw):
+
+        if not raw:
+
+            return []
+
+        return [x.strip() for x in str(raw).split("|") if x.strip()]
+
+
+    # -------------------------
+
+    def _save(self, path, payload):
+
+        path.write_text(
+
+            json.dumps(payload, indent=2, ensure_ascii=False)
+
         )
-
-    def load_turn_plan(self) -> dict[str, Any]:
-        if not self.turn_plan_file.exists():
-            return {
-                "planner_stage": "TURN_PLAN_STAGE_0",
-                "source": "global_sequence.json",
-                "assignments_count": 0,
-                "assignments": [],
-            }
-
-        return json.loads(self.turn_plan_file.read_text(encoding="utf-8"))
-
-    def _split_components(self, raw_value: Any) -> list[str]:
-        if raw_value is None:
-            return []
-
-        value = str(raw_value).strip()
-        if not value:
-            return []
-
-        return [part.strip() for part in value.split("|") if part.strip()]
 
 
 sequence_planner_service = SequencePlannerService()
