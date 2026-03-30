@@ -1,0 +1,52 @@
+{
+  "planner_stage": "ZAW1_SQL_BRIDGE",
+  "source_view": "vw_tl_zaw1_board",
+  "items_count": 3,
+  "items": [
+    {
+      "rank": 1,
+      "article": "12063",
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "quantity": 80,
+      "due_date": "2026-03-28",
+      "customer_priority": "ALTA",
+      "assembly_group": "-",
+      "critical_station": "ZAW-1",
+      "tl_action": "AVVIO_IMMEDIATO",
+      "logic_origin": "ZAW1_CLUSTER_COMPONENTI"
+    },
+    {
+      "rank": 2,
+      "article": "12377",
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "quantity": 40,
+      "due_date": "2026-03-28",
+      "customer_priority": "MEDIA",
+      "assembly_group": "-",
+      "critical_station": "ZAW-1",
+      "tl_action": "PREPARARE_CAMBIO_SERIE",
+      "logic_origin": "ZAW1_CLUSTER_COMPONENTI"
+    },
+    {
+      "rank": 3,
+      "article": "12066",
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "quantity": 60,
+      "due_date": "2026-03-29",
+      "customer_priority": "ALTA",
+      "assembly_group": "-",
+      "critical_station": "ZAW-1",
+      "tl_action": "PREPARARE_CAMBIO_SERIE",
+      "logic_origin": "ZAW1_CLUSTER_COMPONENTI"
+    }
+  ]
+}

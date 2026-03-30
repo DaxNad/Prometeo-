@@ -1,0 +1,58 @@
+{
+  "planner_stage": "TURN_PLAN_STAGE_0",
+  "source": "global_sequence.json",
+  "assignments_count": 3,
+  "assignments": [
+    {
+      "slot": 1,
+      "shift": "DA_DEFINIRE",
+      "team_leader": "DA_DEFINIRE",
+      "station": "ZAW-1",
+      "article": "12063",
+      "quantity": 80,
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "due_date": "2026-03-28",
+      "customer_priority": "ALTA",
+      "tl_action": "AVVIO_IMMEDIATO",
+      "planning_status": "BOZZA_INIZIALE",
+      "planning_origin": "GLOBAL_SEQUENCE"
+    },
+    {
+      "slot": 2,
+      "shift": "DA_DEFINIRE",
+      "team_leader": "DA_DEFINIRE",
+      "station": "ZAW-1",
+      "article": "12377",
+      "quantity": 40,
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "due_date": "2026-03-28",
+      "customer_priority": "MEDIA",
+      "tl_action": "PREPARARE_CAMBIO_SERIE",
+      "planning_status": "BOZZA_INIZIALE",
+      "planning_origin": "GLOBAL_SEQUENCE"
+    },
+    {
+      "slot": 3,
+      "shift": "DA_DEFINIRE",
+      "team_leader": "DA_DEFINIRE",
+      "station": "ZAW-1",
+      "article": "12066",
+      "quantity": 60,
+      "shared_components": [
+        "468728",
+        "468796"
+      ],
+      "due_date": "2026-03-29",
+      "customer_priority": "ALTA",
+      "tl_action": "PREPARARE_CAMBIO_SERIE",
+      "planning_status": "BOZZA_INIZIALE",
+      "planning_origin": "GLOBAL_SEQUENCE"
+    }
+  ]
+}

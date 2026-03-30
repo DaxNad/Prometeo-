@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from .db.session import get_db
+from .services.sequence_planner import sequence_planner_service
 
 router = APIRouter(prefix="/production", tags=["production"])
 
@@ -298,3 +299,32 @@ def get_board(db: Session = Depends(get_db)):
             for r in rows
         ],
     }
+
+@router.get("/sequence")
+def get_sequence(db: Session = Depends(get_db)):
+    _ensure_tables(db)
+
+    sequence = sequence_planner_service.build_global_sequence(db)
+
+    return {
+        "ok": True,
+        "planner_stage": sequence.get("planner_stage"),
+        "source_view": sequence.get("source_view"),
+        "items_count": sequence.get("items_count", 0),
+        "items": sequence.get("items", []),
+    }
+
+@router.get("/turn-plan")
+def get_turn_plan(db: Session = Depends(get_db)):
+    _ensure_tables(db)
+
+    plan = sequence_planner_service.build_turn_plan(db)
+
+    return {
+        "ok": True,
+        "planner_stage": plan.get("planner_stage"),
+        "source": plan.get("source"),
+        "assignments_count": plan.get("assignments_count", 0),
+        "assignments": plan.get("assignments", []),
+    }
+
