@@ -1,54 +1,49 @@
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends
+from sqlalchemy import text
+from sqlalchemy.orm import Session
 
-router = APIRouter()
+from backend.app.db import get_db
 
-SQL_FILE = Path(__file__).resolve().parents[3] / "sql" / "003_bom_registry.sql"
+router = APIRouter(tags=["default"])
+
+SQL_DIR = Path(__file__).resolve().parents[3] / "sql"
+
+SQL_FILES = [
+    "003_bom_registry.sql",
+    "006_component_usage_registry.sql",
+    "006_view_componenti_critici.sql",
+    "007_customer_demand_registry.sql",
+    "007_view_zaw1_component_load.sql",
+    "007_view_zaw1_sequence.sql",
+    "007_view_zaw1_sequence_ranked.sql",
+    "007_view_zaw1_sequence_tl.sql",
+    "008_view_tl_zaw1_board.sql",
+]
 
 
 @router.post("/dev/init-bom-db")
-def init_bom_db():
-    if not SQL_FILE.exists():
-        raise HTTPException(
-            status_code=404,
-            detail=f"SQL file non trovato: {SQL_FILE}",
-        )
+def init_bom_db(db: Session = Depends(get_db)):
+    executed = []
+    missing = []
 
-    from ...db.session import engine
+    for filename in SQL_FILES:
+        sql_file = SQL_DIR / filename
 
-    sql = SQL_FILE.read_text(encoding="utf-8").strip()
+        if not sql_file.exists():
+            missing.append(str(sql_file))
+            continue
 
-    if not sql:
-        raise HTTPException(
-            status_code=400,
-            detail="SQL file vuoto",
-        )
+        sql_text = sql_file.read_text(encoding="utf-8")
+        db.execute(text(sql_text))
+        executed.append(filename)
 
-    raw_conn = engine.raw_connection()
-    try:
-        cursor = raw_conn.cursor()
-        cursor.execute(sql)
-        raw_conn.commit()
-        cursor.close()
-    except Exception as e:
-        raw_conn.rollback()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Errore init BOM DB: {e}",
-        )
-    finally:
-        raw_conn.close()
+    db.commit()
 
     return {
-        "status": "ok",
-        "sql_file": str(SQL_FILE),
-        "tables_created": [
-            "bom_specs",
-            "bom_components",
-            "bom_operations",
-            "bom_markings",
-            "bom_controls",
-            "bom_variants",
-        ],
+        "ok": len(missing) == 0,
+        "sql_dir": str(SQL_DIR),
+        "executed_files": executed,
+        "missing_files": missing,
     }
