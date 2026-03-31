@@ -12,6 +12,11 @@ SQL_DIR = Path(__file__).resolve().parents[3] / "sql"
 
 SQL_FILES = [
     "003_bom_registry.sql",
+    "004_bom_variants_extension.sql",
+    "004_complessivi_registry.sql",
+    "004_view_complessivi.sql",
+    "004b_bom_variants_alter.sql",
+    "005_tl_variant_alert_view.sql",
     "006_component_usage_registry.sql",
     "006_view_componenti_critici.sql",
     "007_customer_demand_registry.sql",
