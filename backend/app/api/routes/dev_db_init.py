@@ -40,11 +40,22 @@ def init_bom_db(db: Session = Depends(get_db)):
             missing.append(str(sql_file))
             continue
 
-        sql_text = sql_file.read_text(encoding="utf-8")
-        db.execute(text(sql_text))
-        executed.append(filename)
-
-    db.commit()
+        try:
+            sql_text = sql_file.read_text(encoding="utf-8")
+            db.execute(text(sql_text))
+            db.commit()
+            executed.append(filename)
+        except Exception as exc:
+            db.rollback()
+            return {
+                "ok": False,
+                "sql_dir": str(SQL_DIR),
+                "executed_files": executed,
+                "missing_files": missing,
+                "failed_file": filename,
+                "error_type": exc.__class__.__name__,
+                "error": str(exc),
+            }
 
     return {
         "ok": len(missing) == 0,
