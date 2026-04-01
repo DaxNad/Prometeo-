@@ -5,7 +5,7 @@ from threading import Lock
 from typing import Dict, List
 from uuid import UUID
 
-from backend.app.models.event import Event, EventClose, EventCreate, EventUpdate
+from app.models.event import Event, EventClose, EventCreate, EventUpdate
 
 
 class EventService:
