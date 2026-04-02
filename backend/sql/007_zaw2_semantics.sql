@@ -63,3 +63,25 @@ COMMENT ON VIEW vw_zaw2_group_load IS
 'numero cicli reali ZAW-2 basati su unioni semilavorati';
 
 
+
+CREATE OR REPLACE VIEW vw_tl_zaw2_board AS
+SELECT
+    articolo,
+    zaw2_cycles AS priorita_carico_zaw2,
+    multi_cycle_flag,
+    gruppi_unione,
+    CASE
+        WHEN zaw2_cycles >= 3 THEN 'CARICO_ALTO'
+        WHEN zaw2_cycles = 2 THEN 'CARICO_MEDIO'
+        ELSE 'CARICO_BASE'
+    END AS classe_carico,
+    CASE
+        WHEN multi_cycle_flag = 1 THEN 'VALIDARE_CONTINUITA_MULTI_TURNO'
+        ELSE 'GESTIONE_STANDARD'
+    END AS azione_tl,
+    'ZAW2_GROUP_UNION' AS origine_logica
+FROM vw_zaw2_group_load
+ORDER BY zaw2_cycles DESC, articolo;
+
+COMMENT ON VIEW vw_tl_zaw2_board IS
+'Board TL ZAW-2 con evidenza carico multi-unione e continuita multi-turno';
