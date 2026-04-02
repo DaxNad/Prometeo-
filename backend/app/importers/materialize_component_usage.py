@@ -45,9 +45,22 @@ SELECT
         WHEN bc.postazione IN ('ZAW2', 'ZAW-2', 'ZAW 2') THEN 'ZAW-2'
         WHEN z2.articolo IS NOT NULL THEN 'ZAW-2'
 
+        WHEN bc.postazione ILIKE '%HENN%' THEN 'HENN'
+        WHEN h.articolo IS NOT NULL
+             AND (
+                 bc.codice_componente = '469122'
+                 OR bc.codice_componente = '469124'
+                 OR bc.codice_componente = ANY (
+                     string_to_array(
+                         replace(COALESCE(h.gruppi_henn, ''), ' | ', ','),
+                         ','
+                     )
+                 )
+             )
+        THEN 'HENN'
+
         WHEN bc.postazione ILIKE '%PIDMILL%' THEN 'PIDMILL'
         WHEN bc.postazione ILIKE '%ULTRASUONI%' THEN 'ULTRASUONI'
-        WHEN bc.postazione ILIKE '%HENN%' THEN 'HENN'
         ELSE NULL
     END AS postazione_critica,
 
@@ -115,6 +128,42 @@ SELECT
                 END
             )
 
+        WHEN (
+            bc.postazione ILIKE '%HENN%'
+            OR (
+                h.articolo IS NOT NULL
+                AND (
+                    bc.codice_componente = '469122'
+                    OR bc.codice_componente = '469124'
+                    OR bc.codice_componente = ANY (
+                        string_to_array(
+                            replace(COALESCE(h.gruppi_henn, ''), ' | ', ','),
+                            ','
+                        )
+                    )
+                )
+            )
+        ) THEN
+            CONCAT_WS(
+                ' | ',
+                bc.note,
+                CASE
+                    WHEN h.articolo IS NOT NULL THEN
+                        'HENN_CYCLES=' || h.henn_cycles::text
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN h.articolo IS NOT NULL THEN
+                        'HENN_MULTI=' || h.multi_cycle_flag::text
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN h.articolo IS NOT NULL AND h.gruppi_henn IS NOT NULL THEN
+                        'HENN_GROUPS=' || h.gruppi_henn
+                    ELSE NULL
+                END
+            )
+
         ELSE
             bc.note
     END AS note
@@ -124,6 +173,8 @@ LEFT JOIN vw_zaw_group_load z1
     ON z1.articolo = bc.articolo
 LEFT JOIN vw_zaw2_group_load z2
     ON z2.articolo = bc.articolo
+LEFT JOIN vw_henn_group_load h
+    ON h.articolo = bc.articolo
 WHERE bc.codice_componente IS NOT NULL;
 """
 
