@@ -328,3 +328,30 @@ def get_turn_plan(db: Session = Depends(get_db)):
         "assignments": plan.get("assignments", []),
     }
 
+
+
+@router.get("/machine-load")
+def get_machine_load(db: Session = Depends(get_db)):
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                station,
+                SUM(total_cycles) AS total_cycles
+            FROM vw_machine_load_summary
+            GROUP BY station
+            ORDER BY station
+            """
+        )
+    ).mappings().all()
+
+    return {
+        "ok": True,
+        "items": [
+            {
+                "station": r["station"],
+                "total_cycles": float(r["total_cycles"] or 0),
+            }
+            for r in rows
+        ],
+    }
