@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import json
+import os
+from datetime import date, datetime
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
 from fastapi import APIRouter
 
 from .smf.smf_adapter import SMFAdapter
@@ -8,9 +14,25 @@ router = APIRouter(prefix="/production", tags=["production-dashboard"])
 
 adapter = SMFAdapter()
 
+PROM_BASE = os.getenv("PROMETEO_INTERNAL_URL", "https://prometeo-production-3855.up.railway.app")
+
+
+def _safe_get(path: str) -> dict:
+    try:
+        req = Request(PROM_BASE + path, headers={"Accept": "application/json"})
+        with urlopen(req, timeout=2) as resp:
+            if resp.status != 200:
+                return {"ok": False}
+            return json.loads(resp.read().decode("utf-8"))
+    except (HTTPError, URLError, TimeoutError, ValueError):
+        return {"ok": False}
+
 
 def _orders_payload() -> dict:
-    return adapter.preview(sheet="Pianificazione", rows=5000)
+    payload = adapter.preview(sheet="Pianificazione", rows=5000)
+    rows_preview = payload.get("rows_preview") or []
+    payload["exists"] = bool(payload.get("exists", False)) or bool(rows_preview)
+    return payload
 
 
 def _is_meaningful_row(row: dict) -> bool:
@@ -30,72 +52,52 @@ def _filtered_rows() -> list[dict]:
     return [row for row in rows if _is_meaningful_row(row)]
 
 
-@router.get("/board")
-def production_board():
-    rows = _filtered_rows()
+def _semaforo_from_due(due_raw: str) -> str:
+    if not due_raw:
+        return ""
+    try:
+        due = datetime.strptime(str(due_raw).split("T")[0], "%Y-%m-%d").date()
+    except Exception:
+        return ""
+    today = date.today()
+    delta = (due - today).days
+    if delta < 0:
+        return "ROSSO"
+    if delta <= 1:
+        return "GIALLO"
+    return "VERDE"
 
-    board = []
-    for row in rows:
+
+def _fallback_board_rows() -> list[dict]:
+    seq = _safe_get("/production/sequence")
+    items = seq.get("items") or []
+
+    board: list[dict] = []
+    for x in items:
+        due = x.get("due_date", "")
         board.append(
             {
-                "order_id": row.get("ID ordine", ""),
-                "cliente": row.get("Cliente", ""),
-                "codice": row.get("Codice", ""),
-                "qta": row.get("Q.ta", ""),
-                "postazione": row.get("Postazione assegnata", ""),
-                "stato": row.get("Stato (da fare/in corso/finito)", ""),
-                "progress": row.get("Progress %", ""),
-                "semaforo": row.get("Semaforo scadenza", ""),
-                "due_date": row.get("Data richiesta cliente", ""),
-                "note": row.get("Note", ""),
+                "order_id": x.get("article", ""),
+                "cliente": "",
+                "codice": x.get("article", ""),
+                "qta": x.get("quantity", ""),
+                "postazione": x.get("critical_station", ""),
+                "stato": x.get("tl_action", "AVVIO_IMMEDIATO"),
+                "progress": "",
+                "semaforo": _semaforo_from_due(due),
+                "due_date": due,
+                "note": f"auto/sequence ({x.get('logic_origin','')})",
             }
         )
-
-    return {
-        "ok": True,
-        "count": len(board),
-        "items": board,
-    }
+    return board
 
 
-@router.get("/delays")
-def production_delays():
-    rows = _filtered_rows()
-
-    delayed = []
-    for row in rows:
-        semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
-        if semaforo in {"ROSSO", "GIALLO"}:
-            delayed.append(
-                {
-                    "order_id": row.get("ID ordine", ""),
-                    "codice": row.get("Codice", ""),
-                    "cliente": row.get("Cliente", ""),
-                    "postazione": row.get("Postazione assegnata", ""),
-                    "stato": row.get("Stato (da fare/in corso/finito)", ""),
-                    "progress": row.get("Progress %", ""),
-                    "semaforo": semaforo,
-                    "due_date": row.get("Data richiesta cliente", ""),
-                }
-            )
-
-    return {
-        "ok": True,
-        "count": len(delayed),
-        "items": delayed,
-    }
-
-
-@router.get("/load")
-def production_load():
-    rows = _filtered_rows()
-
+def _fallback_load_items(board_rows: list[dict]) -> list[dict]:
     load_map: dict[str, dict] = {}
 
-    for row in rows:
-        station = str(row.get("Postazione assegnata", "")).strip() or "NON_ASSEGNATA"
-        semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
-        stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip().lower()
+    for row in board_rows:
+        station = str(row.get("postazione", "")).strip() or "NON_ASSEGNATA"
+        semaforo = str(row.get("semaforo", "")).strip().upper()
 
         if station not in load_map:
             load_map[station] = {
@@ -109,11 +111,7 @@ def production_load():
             }
 
         load_map[station]["orders_total"] += 1
-
-        if stato == "finito":
-            load_map[station]["orders_done"] += 1
-        else:
-            load_map[station]["orders_open"] += 1
+        load_map[station]["orders_open"] += 1
 
         if semaforo == "ROSSO":
             load_map[station]["red"] += 1
@@ -122,10 +120,119 @@ def production_load():
         elif semaforo == "VERDE":
             load_map[station]["green"] += 1
 
-    items = sorted(load_map.values(), key=lambda x: x["postazione"])
+    return sorted(load_map.values(), key=lambda x: x["postazione"])
 
-    return {
-        "ok": True,
-        "count": len(items),
-        "items": items,
-    }
+
+@router.get("/board")
+def production_board():
+    payload = _orders_payload()
+    rows = _filtered_rows()
+
+    if payload.get("exists") and rows:
+        board: list[dict] = []
+        for row in rows:
+            board.append(
+                {
+                    "order_id": row.get("ID ordine", ""),
+                    "cliente": row.get("Cliente", ""),
+                    "codice": row.get("Codice", ""),
+                    "qta": row.get("Q.ta", ""),
+                    "postazione": row.get("Postazione assegnata", ""),
+                    "stato": row.get("Stato (da fare/in corso/finito)", ""),
+                    "progress": row.get("Progress %", ""),
+                    "semaforo": row.get("Semaforo scadenza", ""),
+                    "due_date": row.get("Data richiesta cliente", ""),
+                    "note": row.get("Note", ""),
+                }
+            )
+        return {"ok": True, "count": len(board), "items": board}
+
+    board = _fallback_board_rows()
+    return {"ok": True, "count": len(board), "items": board}
+
+
+@router.get("/delays")
+def production_delays():
+    payload = _orders_payload()
+    rows = _filtered_rows()
+
+    if payload.get("exists") and rows:
+        delayed: list[dict] = []
+        for row in rows:
+            semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
+            if semaforo in {"ROSSO", "GIALLO"}:
+                delayed.append(
+                    {
+                        "order_id": row.get("ID ordine", ""),
+                        "codice": row.get("Codice", ""),
+                        "cliente": row.get("Cliente", ""),
+                        "postazione": row.get("Postazione assegnata", ""),
+                        "stato": row.get("Stato (da fare/in corso/finito)", ""),
+                        "progress": row.get("Progress %", ""),
+                        "semaforo": semaforo,
+                        "due_date": row.get("Data richiesta cliente", ""),
+                    }
+                )
+        return {"ok": True, "count": len(delayed), "items": delayed}
+
+    board = _fallback_board_rows()
+    delayed = [row for row in board if str(row.get("semaforo", "")).upper() in {"ROSSO", "GIALLO"}]
+    items = [
+        {
+            "order_id": row.get("order_id", ""),
+            "codice": row.get("codice", ""),
+            "cliente": row.get("cliente", ""),
+            "postazione": row.get("postazione", ""),
+            "stato": row.get("stato", ""),
+            "progress": row.get("progress", ""),
+            "semaforo": row.get("semaforo", ""),
+            "due_date": row.get("due_date", ""),
+        }
+        for row in delayed
+    ]
+    return {"ok": True, "count": len(items), "items": items}
+
+
+@router.get("/load")
+def production_load():
+    payload = _orders_payload()
+    rows = _filtered_rows()
+
+    if payload.get("exists") and rows:
+        load_map: dict[str, dict] = {}
+        for row in rows:
+            station = str(row.get("Postazione assegnata", "")).strip() or "NON_ASSEGNATA"
+            semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
+            stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip().lower()
+
+            if station not in load_map:
+                load_map[station] = {
+                    "postazione": station,
+                    "orders_total": 0,
+                    "orders_open": 0,
+                    "orders_done": 0,
+                    "red": 0,
+                    "yellow": 0,
+                    "green": 0,
+                }
+
+            load_map[station]["orders_total"] += 1
+
+            if stato == "finito":
+                load_map[station]["orders_done"] += 1
+            else:
+                load_map[station]["orders_open"] += 1
+
+            if semaforo == "ROSSO":
+                load_map[station]["red"] += 1
+            elif semaforo == "GIALLO":
+                load_map[station]["yellow"] += 1
+            elif semaforo == "VERDE":
+                load_map[station]["green"] += 1
+
+        items = sorted(load_map.values(), key=lambda x: x["postazione"])
+        return {"ok": True, "count": len(items), "items": items}
+
+    board = _fallback_board_rows()
+    items = _fallback_load_items(board)
+    return {"ok": True, "count": len(items), "items": items}
