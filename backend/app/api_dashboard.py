@@ -1,31 +1,17 @@
 from __future__ import annotations
 
-import json
 import os
 from datetime import date, datetime
-from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
 
 from fastapi import APIRouter
 
+from .db.session import SessionLocal
+from .services.sequence_planner import sequence_planner_service
 from .smf.smf_adapter import SMFAdapter
 
 router = APIRouter(prefix="/production", tags=["production-dashboard"])
 
 adapter = SMFAdapter()
-
-PROM_BASE = os.getenv("PROMETEO_INTERNAL_URL", "https://prometeo-production-3855.up.railway.app")
-
-
-def _safe_get(path: str) -> dict:
-    try:
-        req = Request(PROM_BASE + path, headers={"Accept": "application/json"})
-        with urlopen(req, timeout=2) as resp:
-            if resp.status != 200:
-                return {"ok": False}
-            return json.loads(resp.read().decode("utf-8"))
-    except (HTTPError, URLError, TimeoutError, ValueError):
-        return {"ok": False}
 
 
 def _orders_payload() -> dict:
@@ -42,7 +28,6 @@ def _is_meaningful_row(row: dict) -> bool:
     postazione = str(row.get("Postazione assegnata", "")).strip()
     stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip()
     progress = str(row.get("Progress %", "")).strip()
-
     return any([order_id, codice, cliente, postazione, stato, progress])
 
 
@@ -69,8 +54,14 @@ def _semaforo_from_due(due_raw: str) -> str:
 
 
 def _fallback_board_rows() -> list[dict]:
-    seq = _safe_get("/production/sequence")
-    items = seq.get("items") or []
+    db = SessionLocal()
+    try:
+        sequence = sequence_planner_service.build_global_sequence(db) or {}
+        items = sequence.get("items") or []
+    except Exception:
+        items = []
+    finally:
+        db.close()
 
     board: list[dict] = []
     for x in items:
@@ -94,7 +85,6 @@ def _fallback_board_rows() -> list[dict]:
 
 def _fallback_load_items(board_rows: list[dict]) -> list[dict]:
     load_map: dict[str, dict] = {}
-
     for row in board_rows:
         station = str(row.get("postazione", "")).strip() or "NON_ASSEGNATA"
         semaforo = str(row.get("semaforo", "")).strip().upper()
