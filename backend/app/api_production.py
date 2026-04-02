@@ -256,7 +256,7 @@ def create_or_update_order(
     }
 
 
-@router.get("/board")
+@router.get("/board-state")
 def get_board(db: Session = Depends(get_db)):
     _ensure_tables(db)
 
