@@ -3,6 +3,7 @@ import {
   getProductionBoard,
   getProductionDelays,
   getProductionLoad,
+  getProductionMachineLoad,
   getProductionSequence,
   getProductionTurnPlan,
 } from "../lib/api/prometeo";
@@ -11,6 +12,7 @@ type DashboardState = {
   board: unknown;
   delays: unknown;
   load: unknown;
+  machineLoad: unknown;
   sequence: unknown;
   turnPlan: unknown;
 };
@@ -20,6 +22,7 @@ export function useProductionBoard() {
     board: null,
     delays: null,
     load: null,
+    machineLoad: null,
     sequence: null,
     turnPlan: null,
   });
@@ -32,10 +35,11 @@ export function useProductionBoard() {
     setError(null);
 
     try {
-      const [board, delays, load, sequence] = await Promise.all([
+      const [board, delays, load, machineLoad, sequence] = await Promise.all([
         getProductionBoard(),
         getProductionDelays(),
         getProductionLoad(),
+        getProductionMachineLoad(),
         getProductionSequence(),
       ]);
 
@@ -51,6 +55,7 @@ export function useProductionBoard() {
         board,
         delays,
         load,
+        machineLoad,
         sequence,
         turnPlan,
       });

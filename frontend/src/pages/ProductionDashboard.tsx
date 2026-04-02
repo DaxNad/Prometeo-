@@ -29,6 +29,7 @@ export default function ProductionDashboard() {
     <main style={{ display: "grid", gap: 16, padding: 16 }}>
       <h1 style={{ marginBottom: 0 }}>PROMETEO — TL Board</h1>
 
+      <Block title="Machine Load" value={data.machineLoad} />
       <Block title="Production Board" value={data.board} />
       <Block title="Production Delays" value={data.delays} />
       <Block title="Production Load" value={data.load} />

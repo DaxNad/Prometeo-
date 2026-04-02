@@ -1,6 +1,6 @@
 const API_BASE =
   import.meta.env.VITE_PROMETEO_API_BASE?.replace(/\/+$/, "") ||
-  "https://prometeo-production-3855.up.railway.app";
+  "https://prometeo-railway-bootstrap-production.up.railway.app";
 
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
@@ -17,6 +17,16 @@ async function apiGet<T>(path: string): Promise<T> {
 
   return res.json() as Promise<T>;
 }
+
+export type MachineLoadItem = {
+  station: string;
+  total_cycles: number;
+};
+
+export type MachineLoadResponse = {
+  ok: boolean;
+  items: MachineLoadItem[];
+};
 
 export async function getProductionBoard<T = unknown>() {
   return apiGet<T>("/production/board");
@@ -36,4 +46,8 @@ export async function getProductionSequence<T = unknown>() {
 
 export async function getProductionTurnPlan<T = unknown>() {
   return apiGet<T>("/production/turn-plan");
+}
+
+export async function getProductionMachineLoad() {
+  return apiGet<MachineLoadResponse>("/production/machine-load");
 }
