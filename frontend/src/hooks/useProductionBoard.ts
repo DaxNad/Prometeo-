@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  getAgentRuntimeOperationalSummary,
   getProductionBoard,
   getProductionDelays,
   getProductionLoad,
@@ -15,6 +16,7 @@ type DashboardState = {
   machineLoad: unknown;
   sequence: unknown;
   turnPlan: unknown;
+  agentRuntimeOperational: unknown;
 };
 
 export function useProductionBoard() {
@@ -25,6 +27,7 @@ export function useProductionBoard() {
     machineLoad: null,
     sequence: null,
     turnPlan: null,
+    agentRuntimeOperational: null,
   });
 
   const [loading, setLoading] = useState(true);
@@ -35,12 +38,20 @@ export function useProductionBoard() {
     setError(null);
 
     try {
-      const [board, delays, load, machineLoad, sequence] = await Promise.all([
+      const [
+        board,
+        delays,
+        load,
+        machineLoad,
+        sequence,
+        agentRuntimeOperational,
+      ] = await Promise.all([
         getProductionBoard(),
         getProductionDelays(),
         getProductionLoad(),
         getProductionMachineLoad(),
         getProductionSequence(),
+        getAgentRuntimeOperationalSummary("LINEA_A"),
       ]);
 
       let turnPlan: unknown = null;
@@ -58,6 +69,7 @@ export function useProductionBoard() {
         machineLoad,
         sequence,
         turnPlan,
+        agentRuntimeOperational,
       });
     } catch (err) {
       const message =

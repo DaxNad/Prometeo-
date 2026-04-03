@@ -28,6 +28,19 @@ export type MachineLoadResponse = {
   items: MachineLoadItem[];
 };
 
+export type AgentRuntimeOperationalSummary = {
+  line_id: string | null;
+  orders_total: number;
+  orders_monitor: number;
+  orders_investigate: number;
+  orders_ok: number;
+  orders_blocked: number;
+  orders_overdue: number;
+  orders_urgent: number;
+  legacy_bootstrap_count: number;
+  domain_order_count: number;
+};
+
 export async function getProductionBoard<T = unknown>() {
   return apiGet<T>("/production/board");
 }
@@ -50,4 +63,11 @@ export async function getProductionTurnPlan<T = unknown>() {
 
 export async function getProductionMachineLoad() {
   return apiGet<MachineLoadResponse>("/production/machine-load");
+}
+
+export async function getAgentRuntimeOperationalSummary(lineId: string) {
+  const safeLineId = encodeURIComponent(lineId);
+  return apiGet<AgentRuntimeOperationalSummary>(
+    `/agent-runtime/summary/operational?line_id=${safeLineId}`
+  );
 }
