@@ -2,7 +2,7 @@ CREATE OR REPLACE VIEW vw_zaw1_sequence_ranked AS
 WITH base AS (
     SELECT
         cur.codice_componente,
-        cd.articolo,
+        cur.articolo,
         cd.quantita,
         cd.data_spedizione,
         cd.priorita_cliente,
@@ -21,15 +21,16 @@ WITH base AS (
 component_clusters AS (
     SELECT
         codice_componente,
-        ARRAY_AGG(DISTINCT articolo ORDER BY articolo) AS sequenza_articoli
+        ARRAY_AGG(DISTINCT articolo ORDER BY articolo) AS sequenza_articoli,
+        COUNT(DISTINCT articolo) AS numero_articoli_cluster
     FROM base
     GROUP BY codice_componente
-    HAVING COUNT(DISTINCT articolo) > 1
 ),
 merged_clusters AS (
     SELECT
         STRING_AGG(codice_componente, ' | ' ORDER BY codice_componente) AS componenti_driver,
-        sequenza_articoli
+        sequenza_articoli,
+        MAX(numero_articoli_cluster) AS numero_articoli_cluster
     FROM component_clusters
     GROUP BY sequenza_articoli
 ),
@@ -52,6 +53,7 @@ article_level AS (
 expanded AS (
     SELECT
         mc.componenti_driver,
+        mc.numero_articoli_cluster,
         a.articolo,
         a.quantita,
         a.data_spedizione,
@@ -78,7 +80,11 @@ SELECT
     priorita_cliente,
     complessivo_articolo,
     'ZAW-1' AS postazione_critica,
-    'SEQUENZA_OPERATIVA_CONSIGLIATA' AS tipo_output
+    CASE
+        WHEN numero_articoli_cluster > 1
+        THEN 'SEQUENZA_OPERATIVA_CONDIVISA'
+        ELSE 'SEQUENZA_OPERATIVA_SINGOLA'
+    END AS tipo_output
 FROM expanded
 ORDER BY
     componenti_driver,
