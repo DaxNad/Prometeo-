@@ -1,15 +1,16 @@
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 from sqlalchemy import text
 
-from app.db.session import engine
+from ..db.session import engine
 
 
-BOM_DIR = Path("/mnt/data")
+DEFAULT_BOM_DIR = Path(__file__).resolve().parents[2] / "data" / "bom_inbox"
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -36,6 +37,40 @@ def _pick(data: dict[str, Any], *keys: str) -> Any:
     return None
 
 
+def _normalize_scalar(value: Any) -> Any:
+    if isinstance(value, list):
+        return None
+    if isinstance(value, dict):
+        return None
+    return value
+
+
+def _normalize_lunghezza_mm(value: Any) -> float | int | None:
+    if value is None:
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        s = value.strip().replace(",", ".")
+        try:
+            n = float(s)
+            return int(n) if n.is_integer() else n
+        except Exception:
+            return None
+    return None
+
+
+def _merge_note(base_note: Any, extra_note: str | None) -> str | None:
+    parts = []
+    if base_note not in (None, ""):
+        parts.append(str(base_note).strip())
+    if extra_note:
+        parts.append(extra_note.strip())
+    if not parts:
+        return None
+    return " | ".join(parts)
+
+
 def _detect_family(data: dict[str, Any]) -> str:
     src = json.dumps(data, ensure_ascii=False).upper()
 
@@ -45,6 +80,10 @@ def _detect_family(data: dict[str, Any]) -> str:
     has_double_zaw = zaw_count >= 2 or "DOPPIO_INNESTO" in src
     has_double_guaina = "GUAINA_DOPPIA" in src or "LUNGHEZZE_MM" in src
     has_taglio = "TAGLIO_SAGOMA" in src
+
+    explicit = _pick(data, "famiglia_processo", "famiglia_prometeo")
+    if explicit:
+        return str(explicit)
 
     if has_henn and has_pidmill and has_double_zaw:
         return "HENN_ZAW2_PIDMILL"
@@ -84,8 +123,8 @@ def _extract_specs(data: dict[str, Any], source_file: str) -> dict[str, Any]:
         "articolo": str(_pick(data, "articolo") or "").strip(),
         "codice_articolo": _pick(data, "codice_articolo", "codice_completo", "codice_sap", "codice"),
         "disegno": _pick(data, "disegno", "disegni"),
-        "rev": _pick(data, "rev"),
-        "documento_tipo": _pick(doc, "tipo"),
+        "rev": _pick(data, "rev", "documento_rev") or _pick(doc, "rev"),
+        "documento_tipo": _pick(doc, "tipo", "tipo_scheda", "tipo_record"),
         "data_sba": _pick(doc, "data_sba"),
         "qta_lotto": _pick(doc, "qta_lotto", "quantita_lotto"),
         "qta_imballo": _pick(doc, "qta_imballo", "quantita_imballo"),
@@ -100,33 +139,41 @@ def _extract_specs(data: dict[str, Any], source_file: str) -> dict[str, Any]:
 
 
 def _iter_components(data: dict[str, Any], articolo: str):
-    # struttura PROMETEO_BOM
     payload = data.get("PROMETEO_BOM", data)
-    component_keys = ["componenti", "componenti_base"]
+    component_keys = ["componenti", "componenti_base", "componenti_comuni"]
+
     for key in component_keys:
         for item in payload.get(key, []) or []:
+            raw_lunghezza = item.get("lunghezza_mm")
+            extra_note = None
+            if isinstance(raw_lunghezza, list):
+                extra_note = f"lunghezze_mm_multiple={raw_lunghezza}"
+
             yield {
                 "articolo": articolo,
                 "parent_articolo": articolo,
                 "codice_componente": item.get("codice"),
-                "tipo": item.get("tipo"),
+                "tipo": item.get("tipo") or item.get("classe"),
                 "ruolo": item.get("ruolo"),
-                "quantita": item.get("quantita"),
-                "lunghezza_mm": item.get("lunghezza_mm"),
+                "quantita": _normalize_scalar(item.get("quantita")),
+                "lunghezza_mm": _normalize_lunghezza_mm(raw_lunghezza),
                 "postazione": item.get("postazione"),
-                "tooling": item.get("tooling"),
-                "note": item.get("note"),
+                "tooling": item.get("tooling") or item.get("tool"),
+                "note": _merge_note(item.get("note") or item.get("dettaglio"), extra_note),
                 "extra": json.dumps(item, ensure_ascii=False),
             }
 
-    # strutture legacy/materiali
     materiali = payload.get("materiali", {}) or {}
     for key, item in materiali.items():
         if isinstance(item, dict):
             codice = _pick(item, "codice", "materiale_riferimento")
-            quantita = _pick(item, "quantita")
-            lunghezza = _pick(item, "lunghezza_mm", "lunghezza")
+            quantita = _normalize_scalar(_pick(item, "quantita"))
+            raw_lunghezza = _pick(item, "lunghezza_mm", "lunghezza")
             tooling = _pick(item, "tooling", "attrezzatura", "tooling_pidmill")
+            extra_note = None
+            if isinstance(raw_lunghezza, list):
+                extra_note = f"lunghezze_mm_multiple={raw_lunghezza}"
+
             yield {
                 "articolo": articolo,
                 "parent_articolo": articolo,
@@ -134,10 +181,10 @@ def _iter_components(data: dict[str, Any], articolo: str):
                 "tipo": key,
                 "ruolo": None,
                 "quantita": quantita,
-                "lunghezza_mm": None if isinstance(lunghezza, str) else lunghezza,
+                "lunghezza_mm": _normalize_lunghezza_mm(raw_lunghezza),
                 "postazione": _pick(item, "postazione"),
                 "tooling": tooling if isinstance(tooling, str) else None,
-                "note": _pick(item, "note", "descrizione", "istruzioni"),
+                "note": _merge_note(_pick(item, "note", "descrizione", "istruzioni"), extra_note),
                 "extra": json.dumps(item, ensure_ascii=False),
             }
         elif isinstance(item, list):
@@ -172,7 +219,7 @@ def _iter_components(data: dict[str, Any], articolo: str):
 
 def _iter_operations(data: dict[str, Any], articolo: str):
     payload = data.get("PROMETEO_BOM", data)
-    seq = payload.get("sequenza") or payload.get("operazioni_chiave") or []
+    seq = payload.get("sequenza") or payload.get("operazioni_chiave") or payload.get("operazioni_chiave_comuni") or []
     for idx, item in enumerate(seq, start=1):
         if isinstance(item, str):
             yield {
@@ -194,7 +241,7 @@ def _iter_operations(data: dict[str, Any], articolo: str):
                 "fase": _pick(item, "fase"),
                 "famiglia_operazione": _pick(item, "famiglia_operazione", "famiglia"),
                 "materiale_riferimento": _pick(item, "materiale_riferimento", "materiale", "codice", "componenti"),
-                "tooling": _pick(item, "tooling", "strumento"),
+                "tooling": _pick(item, "tooling", "strumento", "tool"),
                 "macchina": _pick(item, "macchina"),
                 "solo_per": _pick(item, "solo_per"),
                 "note": _pick(item, "dettagli", "vincolo", "file"),
@@ -251,6 +298,39 @@ def _iter_controls(data: dict[str, Any], articolo: str):
                 "note": _pick(item, "note"),
                 "extra": json.dumps(item, ensure_ascii=False),
             }
+
+
+def _iter_variants(data: dict[str, Any], articolo: str, source_file: str):
+    payload = data.get("PROMETEO_BOM", data)
+    for idx, item in enumerate(payload.get("varianti", []) or [], start=1):
+        codice_variante = _pick(item, "codice_variante", "codice_articolo", "codice")
+        disegno_variante = _pick(item, "disegno_variante", "disegno")
+        nome_variante = _pick(item, "nome_variante", "nome")
+        mercato = _pick(item, "mercato")
+        cliente = _pick(item, "cliente")
+        stato_processo = _pick(item, "stato_processo")
+        marcatura_tubo_centro = _pick(item, "marcatura_tubo_centro")
+        file_assemblaggio = _pick(item, "file_assemblaggio")
+        note = _pick(item, "note")
+        chiave = f"variant_{idx}"
+
+        yield {
+            "articolo": articolo,
+            "codice_variante": codice_variante,
+            "chiave": chiave,
+            "valore": nome_variante or codice_variante or chiave,
+            "extra": json.dumps(item, ensure_ascii=False),
+            "disegno_variante": disegno_variante,
+            "nome_variante": nome_variante,
+            "mercato": mercato,
+            "cliente": cliente,
+            "stato_processo": stato_processo,
+            "marcatura_tubo_centro": marcatura_tubo_centro,
+            "file_assemblaggio": file_assemblaggio,
+            "note": note,
+            "source_file": source_file,
+            "raw_json": json.dumps(item, ensure_ascii=False),
+        }
 
 
 def import_bom_file(path: Path) -> dict[str, Any]:
@@ -330,6 +410,20 @@ def import_bom_file(path: Path) -> dict[str, Any]:
                 )
             """), row)
 
+        variants = list(_iter_variants(payload, articolo, path.name))
+        for row in variants:
+            conn.execute(text("""
+                INSERT INTO bom_variants (
+                    articolo, codice_variante, chiave, valore, extra,
+                    disegno_variante, nome_variante, mercato, cliente, stato_processo,
+                    marcatura_tubo_centro, file_assemblaggio, note, source_file, raw_json
+                ) VALUES (
+                    :articolo, :codice_variante, :chiave, :valore, CAST(:extra AS JSONB),
+                    :disegno_variante, :nome_variante, :mercato, :cliente, :stato_processo,
+                    :marcatura_tubo_centro, :file_assemblaggio, :note, :source_file, CAST(:raw_json AS JSONB)
+                )
+            """), row)
+
     return {
         "articolo": articolo,
         "famiglia_processo": spec["famiglia_processo"],
@@ -337,6 +431,7 @@ def import_bom_file(path: Path) -> dict[str, Any]:
         "operations": len(operations),
         "markings": len(markings),
         "controls": len(controls),
+        "variants": len(variants),
         "source_file": path.name,
     }
 
@@ -350,6 +445,15 @@ def import_bom_dir(directory: Path) -> list[dict[str, Any]]:
     return results
 
 
-if __name__ == "__main__":
-    results = import_bom_dir(BOM_DIR)
+def main() -> None:
+    directory = Path(sys.argv[1]).resolve() if len(sys.argv) > 1 else DEFAULT_BOM_DIR
+    if directory.is_file():
+        results = [import_bom_file(directory)]
+    else:
+        directory.mkdir(parents=True, exist_ok=True)
+        results = import_bom_dir(directory)
     print(json.dumps(results, ensure_ascii=False, indent=2))
+
+
+if __name__ == "__main__":
+    main()

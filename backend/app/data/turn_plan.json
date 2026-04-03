@@ -1,21 +1,25 @@
 {
   "planner_stage": "TURN_PLAN_STAGE_4",
+  "source": "vw_tl_zaw1_board+vw_tl_zaw2_board",
   "rotation_logic": "SHIFT_TL_MULTI_CLUSTER",
-  "plan_date": "2026-03-30",
-  "clusters_count": 1,
-  "assignments_count": 3,
+  "plan_date": "2026-04-04",
+  "clusters_count": 2,
+  "assignments_count": 2,
   "assignments": [
     {
       "slot": 1,
-      "plan_date": "2026-03-30",
-      "shift": "MATTINA",
-      "team_leader": "Stefano",
+      "plan_date": "2026-04-04",
+      "shift": "NOTTE",
+      "team_leader": "Davide",
       "station": "ZAW-1",
       "article": "12063",
       "quantity": 80,
       "shared_components": [
         "468728",
-        "468796"
+        "468765",
+        "468796",
+        "CRT004",
+        "CRT007"
       ],
       "due_date": "2026-03-28",
       "customer_priority": "ALTA",
@@ -24,61 +28,43 @@
         "ZAW-1",
         [
           "468728",
-          "468796"
+          "468765",
+          "468796",
+          "CRT004",
+          "CRT007"
         ]
       ],
       "planning_status": "ASSEGNATO_MULTI_CLUSTER",
-      "planning_origin": "GLOBAL_SEQUENCE"
+      "planning_origin": "GLOBAL_SEQUENCE",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1
     },
     {
       "slot": 2,
-      "plan_date": "2026-03-30",
+      "plan_date": "2026-04-04",
       "shift": "MATTINA",
       "team_leader": "Stefano",
-      "station": "ZAW-1",
-      "article": "12377",
-      "quantity": 40,
+      "station": "ZAW-2",
+      "article": "12074",
+      "quantity": 50,
       "shared_components": [
-        "468728",
-        "468796"
+        "467660",
+        "468922"
       ],
-      "due_date": "2026-03-28",
+      "due_date": "2026-04-10",
       "customer_priority": "MEDIA",
-      "tl_action": "PREPARARE_CAMBIO_SERIE",
+      "tl_action": "AVVIO_IMMEDIATO",
       "cluster_key": [
-        "ZAW-1",
+        "ZAW-2",
         [
-          "468728",
-          "468796"
+          "467660",
+          "468922"
         ]
       ],
       "planning_status": "ASSEGNATO_MULTI_CLUSTER",
-      "planning_origin": "GLOBAL_SEQUENCE"
-    },
-    {
-      "slot": 3,
-      "plan_date": "2026-03-30",
-      "shift": "MATTINA",
-      "team_leader": "Stefano",
-      "station": "ZAW-1",
-      "article": "12066",
-      "quantity": 60,
-      "shared_components": [
-        "468728",
-        "468796"
-      ],
-      "due_date": "2026-03-29",
-      "customer_priority": "ALTA",
-      "tl_action": "PREPARARE_CAMBIO_SERIE",
-      "cluster_key": [
-        "ZAW-1",
-        [
-          "468728",
-          "468796"
-        ]
-      ],
-      "planning_status": "ASSEGNATO_MULTI_CLUSTER",
-      "planning_origin": "GLOBAL_SEQUENCE"
+      "planning_origin": "GLOBAL_SEQUENCE",
+      "source_view": "vw_tl_zaw2_board",
+      "station_rank": 1
     }
   ]
 }
