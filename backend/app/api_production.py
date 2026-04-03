@@ -107,6 +107,26 @@ def _ensure_tables(db: Session) -> None:
     db.commit()
 
 
+# ---------------------------------------------------------------------------
+# PROMETEO CORE – PRIMARY OPERATIONAL FLOW
+#
+# Questo modulo rappresenta il punto primario di ingresso per eventi
+# di produzione operativi.
+#
+# Flusso reale:
+#   /production/order  →  persist order state
+#                     →  write production_events
+#                     →  trigger agent_runtime
+#
+# Il ramo /events/create rimane secondario su questo backend.
+#
+# Ogni modifica futura al flusso decisionale deve mantenere
+# l'hook runtime attivo in questo punto.
+# ---------------------------------------------------------------------------
+
+from .agent_runtime.runtime_hook import trigger_runtime_analysis
+
+
 @router.post("/order")
 def create_or_update_order(
     payload: Dict[str, Any] = Body(...),
@@ -240,6 +260,31 @@ def create_or_update_order(
                 f"\"note\": \"{note.replace(chr(34), chr(39))}\""
                 "}"
             ),
+        },
+    )
+
+    trigger_runtime_analysis(
+        source="production_order_upsert",
+        line_id=postazione,
+        event_type="order_upserted",
+        severity=(
+            "low"
+            if str(semaforo).strip().upper() == "VERDE"
+            else "medium"
+            if str(semaforo).strip().upper() == "GIALLO"
+            else "high"
+        ),
+        payload={
+            "order_id": order_id,
+            "cliente": cliente,
+            "codice": codice,
+            "qta": qta,
+            "postazione": postazione,
+            "stato": stato,
+            "progress": progress,
+            "semaforo": semaforo,
+            "due_date": due_date,
+            "note": note,
         },
     )
 

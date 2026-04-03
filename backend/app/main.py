@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
+from .api.agent_runtime import router as agent_runtime_router
 from .api.devos import router as dev_router
 from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
@@ -91,6 +92,9 @@ def health():
         "postgres_message": postgres_probe["message"],
         "startup_db_init_ok": startup_db_init_ok,
         "startup_db_init_error": startup_db_init_error,
+        "primary_operational_flow": "/production/order",
+        "events_create_status": "secondary_not_aligned_on_current_backend",
+        "agent_runtime_enabled": True,
     }
 
 
@@ -128,6 +132,7 @@ app.include_router(dashboard_router)
 app.include_router(production_events_router)
 app.include_router(devos_status_router)
 app.include_router(dev_db_init_router)
+app.include_router(agent_runtime_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
