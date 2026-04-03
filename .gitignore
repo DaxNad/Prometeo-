@@ -37,3 +37,6 @@ _sources/
 # ambienti locali
 .venv/
 venv/
+
+# Agent Mod generated snapshots
+board/agent_mod_snapshots/agent_mod_snapshot_*.json
