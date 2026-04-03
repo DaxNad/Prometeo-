@@ -1,0 +1,138 @@
+{
+  "timestamp": "2026-04-03T22:19:42.144255+00:00",
+  "branch": "main",
+  "commit": "cc1007aa808d0df5ed8efb9a18a829eb38f358ff",
+  "files": [
+    "backend/app/api/events.py",
+    "backend/app/api_production.py",
+    "backend/app/data/global_sequence.json",
+    "backend/app/data/turn_plan.json",
+    "backend/app/importers/import_bom_json.py",
+    "backend/app/main.py",
+    "frontend/dist/assets/index-Cf21Sgq6.css",
+    "frontend/dist/index.html",
+    "frontend/src/hooks/useProductionBoard.ts",
+    "frontend/src/lib/api/prometeo.ts",
+    "frontend/src/pages/ProductionDashboard.tsx",
+    "backend/1",
+    "backend/app/agent_mod/",
+    "backend/app/agent_runtime/",
+    "backend/app/api/agent_runtime.py",
+    "backend/app/api/api_anomalies.py",
+    "backend/app/api_production.py.bak_20260330_110106",
+    "backend/app/importers/import_customer_demand.py",
+    "backend/app/services/anomaly_engine.py",
+    "backend/data/",
+    "backend/sql/007_view_zaw2_component_load.sql",
+    "backend/sql/dev_bootstrap_views.sql",
+    "board/BOM_REVIEW_PROGRESS.md",
+    "board/agent_mod_snapshots/"
+  ],
+  "hashes": {
+    "backend/app/api/events.py": "c433249c22dbcbdf8184ce862c471da96a644edca2e258ceee7297470cfadf71",
+    "backend/app/api_production.py": "8ee5e97c66d4b1d4b9ab61a1d6be0ed34b41741e05a9c48fe5b9e2074e9df1f7",
+    "backend/app/data/global_sequence.json": "3bbba3f26c047bc3329c9aaae3aa73d7e4a8301f034febcd2e58238f05fb1e57",
+    "backend/app/data/turn_plan.json": "9863cae4b8279572c7bcc63a27a3233dab450b14a24c9f00f5abd8cfbd3157ea",
+    "backend/app/importers/import_bom_json.py": "f9989e7f0f4f605ad1ee59e3e1b203faf625cefa95a3bdaeabd05d597bf79286",
+    "backend/app/main.py": "f6a0ee13aee07016effd1fa79702a1fb9462863d2c29e7c4fe1d2b81d0d398d1",
+    "frontend/dist/index.html": "b2bc32d84f04be747e5b9b8be33d31c8c50250dd15c052e7568fb0deaaf71ddb",
+    "frontend/src/hooks/useProductionBoard.ts": "2fe3b867f085c9c9e89b8eb95d43b93fe18bf2ec7b214d2d7b278bf33a4357d7",
+    "frontend/src/lib/api/prometeo.ts": "83cab6410c05fabf478728fcbd0a40af9c1f7f83570e000194e2a4b64b943f29",
+    "frontend/src/pages/ProductionDashboard.tsx": "6afaa60639b9978bb68da05c14e8547877dcd8009240e6d401b326a409247930",
+    "backend/1": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "backend/app/api/agent_runtime.py": "26ee20459cba0fd6e20a1431796676444caff176dfa927702a6dff698dda8f12",
+    "backend/app/api/api_anomalies.py": "604fdaf8978344616d15aee5c791d2a5e53fee3e3bea2ba70cb8e55140c79f7b",
+    "backend/app/api_production.py.bak_20260330_110106": "e312f633e5436eca96eabfd858291b086e8f65c99e2bdfea273ea5565d52a2e5",
+    "backend/app/importers/import_customer_demand.py": "f0a380a129bcf754390cb8642d87243a5524e03d9ed9d8b66a46dcc4ef4bd851",
+    "backend/app/services/anomaly_engine.py": "ddf253b16745faaa9cfdb4bd206cc7b21e1eb1461d4f314020fe4733512f3804",
+    "backend/sql/007_view_zaw2_component_load.sql": "6a4fbb0cce0f9039f9ec1756e30d9d44abe77b4a9ed4db9fc87e52757d7d2be5",
+    "backend/sql/dev_bootstrap_views.sql": "4f7fd082ef7e08329b6c101d73690b8ca8db20112383e1cbe1f49675520dda85",
+    "board/BOM_REVIEW_PROGRESS.md": "bd1206fe4176fd67ac68deb40b800756581813d39e69c1c85369adf5204f1325"
+  },
+  "gates": [
+    {
+      "gate": "G1",
+      "passed": true,
+      "checks": [
+        {
+          "name": "changed_files_detected",
+          "passed": true,
+          "details": "24 file rilevati"
+        },
+        {
+          "name": "critical_scope",
+          "passed": true,
+          "details": "10 file critici"
+        },
+        {
+          "name": "classified_scope",
+          "passed": true,
+          "details": "categorie assegnate"
+        }
+      ]
+    },
+    {
+      "gate": "G2",
+      "passed": true,
+      "checks": [
+        {
+          "name": "view_declared:sequence_planner:vw_tl_zaw1_board",
+          "passed": true,
+          "details": "view trovata negli sql"
+        },
+        {
+          "name": "view_declared:sequence_planner:vw_tl_zaw2_board",
+          "passed": true,
+          "details": "view trovata negli sql"
+        },
+        {
+          "name": "json_valid:backend/app/data/global_sequence.json",
+          "passed": true,
+          "details": "json valido"
+        },
+        {
+          "name": "json_valid:backend/app/data/turn_plan.json",
+          "passed": true,
+          "details": "json valido"
+        }
+      ]
+    },
+    {
+      "gate": "G3",
+      "passed": true,
+      "checks": [
+        {
+          "name": "runtime_skipped",
+          "passed": true,
+          "details": "skip runtime attivo"
+        }
+      ]
+    },
+    {
+      "gate": "G4",
+      "passed": true,
+      "checks": [
+        {
+          "name": "probe:/health",
+          "passed": true,
+          "details": "ok"
+        },
+        {
+          "name": "probe:/production/sequence",
+          "passed": true,
+          "details": "ok"
+        },
+        {
+          "name": "probe:/production/turn-plan",
+          "passed": true,
+          "details": "ok"
+        },
+        {
+          "name": "probe:/production/machine-load",
+          "passed": true,
+          "details": "ok"
+        }
+      ]
+    }
+  ]
+}
