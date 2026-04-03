@@ -11,6 +11,10 @@ class EventInspectorTool(BaseTool):
     description = "Ispeziona payload evento e produce segnali industriali minimi."
 
     STATION_OVERLOAD_THRESHOLD = 5
+    SHARED_COMPONENT_PRESSURE_THRESHOLD = 1
+    MULTI_ORDER_DEPENDENCY_THRESHOLD = 1
+    CLUSTER_SATURATION_THRESHOLD = 80.0
+    STATION_QUEUE_PRESSURE_THRESHOLD = 5
 
     async def run(self, payload: dict[str, Any]) -> dict[str, Any]:
         if "order_id" in payload or "postazione" in payload or "semaforo" in payload:
@@ -54,7 +58,9 @@ class EventInspectorTool(BaseTool):
         semaforo = str(payload.get("semaforo", "") or "").strip().upper()
         due_date_raw = str(payload.get("due_date", "") or "").strip()
         note = str(payload.get("note", "") or "")
-        priority_raw = str(payload.get("priority", payload.get("priorita", payload.get("priorita_cliente", ""))) or "").strip().upper()
+        priority_raw = str(
+            payload.get("priority", payload.get("priorita", payload.get("priorita_cliente", ""))) or ""
+        ).strip().upper()
         phase = str(payload.get("phase", payload.get("fase", "")) or "").strip()
 
         progress = self._safe_float(payload.get("progress"), default=0.0)
@@ -62,6 +68,11 @@ class EventInspectorTool(BaseTool):
             payload.get("station_load", payload.get("station_queue_pressure", payload.get("queue_size"))),
             default=0,
         )
+
+        shared_component_pressure = self._safe_int(payload.get("shared_component_pressure"), default=0)
+        multi_order_dependency = self._safe_int(payload.get("multi_order_dependency"), default=0)
+        cluster_saturation = self._safe_float(payload.get("cluster_saturation"), default=0.0)
+        station_queue_pressure = self._safe_int(payload.get("station_queue_pressure"), default=station_load)
 
         due_in_days: int | None = None
         overdue = False
@@ -85,6 +96,19 @@ class EventInspectorTool(BaseTool):
         order_stalled = stalled_order
         station_overload = station_load > self.STATION_OVERLOAD_THRESHOLD
 
+        shared_component_pressure_flag = (
+            shared_component_pressure > self.SHARED_COMPONENT_PRESSURE_THRESHOLD
+        )
+        multi_order_dependency_flag = (
+            multi_order_dependency > self.MULTI_ORDER_DEPENDENCY_THRESHOLD
+        )
+        cluster_saturation_flag = (
+            cluster_saturation >= self.CLUSTER_SATURATION_THRESHOLD
+        )
+        station_queue_pressure_flag = (
+            station_queue_pressure > self.STATION_QUEUE_PRESSURE_THRESHOLD
+        )
+
         anomaly_codes: list[str] = []
 
         if order_stalled:
@@ -101,6 +125,14 @@ class EventInspectorTool(BaseTool):
             anomaly_codes.append("ORDER_OVERDUE")
         if inconsistent_progress:
             anomaly_codes.append("INCONSISTENT_PROGRESS")
+        if shared_component_pressure_flag:
+            anomaly_codes.append("SHARED_COMPONENT_PRESSURE")
+        if multi_order_dependency_flag:
+            anomaly_codes.append("MULTI_ORDER_DEPENDENCY")
+        if cluster_saturation_flag:
+            anomaly_codes.append("CLUSTER_SATURATION")
+        if station_queue_pressure_flag:
+            anomaly_codes.append("STATION_QUEUE_PRESSURE")
 
         possible_anomaly = len(anomaly_codes) > 0
 
@@ -126,6 +158,14 @@ class EventInspectorTool(BaseTool):
             "priority_mismatch": priority_mismatch,
             "station_load": station_load,
             "station_overload": station_overload,
+            "shared_component_pressure": shared_component_pressure,
+            "shared_component_pressure_flag": shared_component_pressure_flag,
+            "multi_order_dependency": multi_order_dependency,
+            "multi_order_dependency_flag": multi_order_dependency_flag,
+            "cluster_saturation": cluster_saturation,
+            "cluster_saturation_flag": cluster_saturation_flag,
+            "station_queue_pressure": station_queue_pressure,
+            "station_queue_pressure_flag": station_queue_pressure_flag,
             "note_present": bool(note.strip()),
             "anomaly_codes": anomaly_codes,
             "possible_anomaly": possible_anomaly,

@@ -285,6 +285,10 @@ def create_or_update_order(
             "semaforo": semaforo,
             "due_date": due_date,
             "note": note,
+            "shared_component_pressure": payload.get("shared_component_pressure", 0),
+            "multi_order_dependency": payload.get("multi_order_dependency", 0),
+            "cluster_saturation": payload.get("cluster_saturation", 0),
+            "station_queue_pressure": payload.get("station_queue_pressure", 0),
         },
     )
 
