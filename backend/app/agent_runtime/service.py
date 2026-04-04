@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from .policy import RuntimePolicy
-from .providers.noop import NoOpProvider
+from .provider_factory import build_runtime_provider
 from .registry import ToolRegistry
 from .run_repository import AgentRunRepository
 from .schemas import AgentDecision, AgentAnalyzeResponse
@@ -11,7 +11,7 @@ class AgentRuntimeService:
     def __init__(self) -> None:
         self.registry = ToolRegistry()
         self.policy = RuntimePolicy()
-        self.provider = NoOpProvider()
+        self.provider = build_runtime_provider()
         self.run_repository = AgentRunRepository()
 
     async def analyze(
@@ -53,15 +53,21 @@ class AgentRuntimeService:
             )
             return response
 
-        llm_text = await self.provider.complete(
+        provider_text = await self.provider.complete(
             f"source={source}; line_id={line_id}; event_type={event_type}; "
             f"severity={severity}; inspection={inspection}"
         )
 
+        decision_mode = (
+            "local-escalation-atlas"
+            if getattr(self.provider, "name", "noop") == "atlas"
+            else "local-escalation"
+        )
+
         decision = AgentDecision(
-            decision_mode="local-escalation",
+            decision_mode=decision_mode,
             action="investigate",
-            explanation=llm_text,
+            explanation=provider_text,
         )
 
         response = AgentAnalyzeResponse(

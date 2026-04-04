@@ -1,21 +1,47 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-cd "$HOME/Documents/PROMETEO"
-source .venv/bin/activate
+ROOT_DIR="$HOME/Documents/PROMETEO"
+BACKEND_DIR="$ROOT_DIR/backend"
+
+if [ -x "$ROOT_DIR/.venv/bin/python" ]; then
+  PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
+elif [ -x "$BACKEND_DIR/.venv/bin/python" ]; then
+  PYTHON_BIN="$BACKEND_DIR/.venv/bin/python"
+else
+  PYTHON_BIN="python3"
+fi
 
 kill $(lsof -ti:8000) 2>/dev/null || true
 
-set -a
-source .env
-set +a
+if [ -f "$BACKEND_DIR/.env" ]; then
+  set -a
+  source "$BACKEND_DIR/.env"
+  set +a
+elif [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  source "$ROOT_DIR/.env"
+  set +a
+fi
 
-nohup uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 > prometeo.log 2>&1 &
+cd "$BACKEND_DIR"
+export PYTHONPATH=.
 
-sleep 2
+nohup "$PYTHON_BIN" -m uvicorn app.main:app \
+  --host 127.0.0.1 \
+  --port 8000 \
+  > "$ROOT_DIR/prometeo.log" 2>&1 &
+
+echo "=== WAIT HEALTH ==="
+for i in {1..20}; do
+  if curl -fsS http://127.0.0.1:8000/health >/dev/null 2>&1; then
+    break
+  fi
+  sleep 1
+done
 
 echo "=== HEALTH ==="
 curl -sS http://127.0.0.1:8000/health && echo
 
 echo "=== PID 8000 ==="
-lsof -nP -iTCP:8000 -sTCP:LISTEN
+lsof -nP -iTCP:8000 -sTCP:LISTEN || true
