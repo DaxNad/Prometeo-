@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import {
+  type AgentRuntimeOperationalSummary,
+  type MachineLoadResponse,
   getAgentRuntimeOperationalSummary,
   getProductionBoard,
   getProductionDelays,
@@ -13,10 +15,10 @@ type DashboardState = {
   board: unknown;
   delays: unknown;
   load: unknown;
-  machineLoad: unknown;
+  machineLoad: MachineLoadResponse | null;
   sequence: unknown;
   turnPlan: unknown;
-  agentRuntimeOperational: unknown;
+  agentRuntimeOperational: AgentRuntimeOperationalSummary | null;
 };
 
 export function useProductionBoard() {
@@ -51,7 +53,7 @@ export function useProductionBoard() {
         getProductionLoad(),
         getProductionMachineLoad(),
         getProductionSequence(),
-        getAgentRuntimeOperationalSummary("LINEA_A"),
+        getAgentRuntimeOperationalSummary("ZAW-1"),
       ]);
 
       let turnPlan: unknown = null;
