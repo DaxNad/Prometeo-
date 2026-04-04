@@ -66,10 +66,7 @@ def probe_postgres() -> dict:
         }
 
 
-def init_db() -> None:
-    if current_backend() == "postgres":
-        return
-
+def _init_sqlite_schema() -> None:
     with get_sqlite_connection() as conn:
         conn.execute(
             """
@@ -89,4 +86,88 @@ def init_db() -> None:
             )
             """
         )
+
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                source TEXT NOT NULL,
+                line_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                severity TEXT,
+                inspection_json TEXT NOT NULL,
+                decision_mode TEXT NOT NULL,
+                action TEXT NOT NULL,
+                explanation TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+
+        conn.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_agent_runs_created_at
+            ON agent_runs(created_at)
+            """
+        )
+
         conn.commit()
+
+
+def _init_postgres_schema() -> None:
+    with get_postgres_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_runs (
+                    id BIGSERIAL PRIMARY KEY,
+                    source TEXT NOT NULL,
+                    line_id TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    severity TEXT NULL,
+                    inspection_json JSONB NOT NULL,
+                    decision_mode TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    explanation TEXT NULL,
+                    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                )
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_runs_created_at
+                ON agent_runs(created_at DESC)
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_runs_line_id
+                ON agent_runs(line_id)
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_runs_action
+                ON agent_runs(action)
+                """
+            )
+
+            cur.execute(
+                """
+                CREATE INDEX IF NOT EXISTS idx_agent_runs_decision_mode
+                ON agent_runs(decision_mode)
+                """
+            )
+
+        conn.commit()
+
+
+def init_db() -> None:
+    if current_backend() == "postgres":
+        _init_postgres_schema()
+        return
+
+    _init_sqlite_schema()
