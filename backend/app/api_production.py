@@ -424,6 +424,12 @@ def create_or_update_order(
     }
 
 
+
+@router.get("/board")
+def get_board_compat(db: Session = Depends(get_db)):
+    return get_board(db)
+
+
 @router.get("/board-state")
 def get_board(db: Session = Depends(get_db)):
     _ensure_tables(db)
@@ -455,6 +461,12 @@ def get_board(db: Session = Depends(get_db)):
         "items": [dict(row) for row in rows],
     }
 
+
+@router.get("/sequence-compat-check")
+def get_sequence_compat_check(db: Session = Depends(get_db)):
+    return get_sequence(db)
+
+
 @router.get("/sequence")
 def get_sequence(db: Session = Depends(get_db)):
     payload = sequence_planner_service.build_global_sequence(db)
@@ -482,6 +494,12 @@ def get_turn_plan(db: Session = Depends(get_db)):
         "items": payload.get("assignments", []),
         "warnings": [],
     }
+
+
+
+@router.get("/load")
+def get_load_compat(db: Session = Depends(get_db)):
+    return get_machine_load(db)
 
 
 @router.get("/machine-load")
