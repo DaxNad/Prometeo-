@@ -18,3 +18,4 @@ DATA | MODULO | MODIFICA | STATO | NOTE
 2026-04-04 | db | bootstrap schema postgres agent_runs | COMPLETATO | init_db aggiornato per postgres
 2026-04-04 | core | baseline Agent Mod V1 stabilizzata | COMPLETATO | pipeline locale→railway validata
 
+2026-04-04 | agent-runtime | trigger automatico analyze su /production/order allineato al dominio order | COMPLETATO | payload runtime normalizzato con event_domain blocked overdue priority station_load

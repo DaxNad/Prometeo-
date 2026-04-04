@@ -1,9 +1,11 @@
+from datetime import date, datetime
 from typing import Any, Dict
 
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from .agent_runtime.runtime_hook import trigger_runtime_analysis
 from .db.session import get_db
 from .services.sequence_planner import sequence_planner_service
 
@@ -37,6 +39,53 @@ def _semaforo_from_stato(stato: str) -> str:
         "bloccato": "ROSSO",
     }
     return mapping.get(stato, "GIALLO")
+
+
+def _safe_json_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).replace(chr(34), chr(39))
+
+
+def _parse_due_date(value: Any) -> date | None:
+    if value is None:
+        return None
+
+    raw = str(value).strip()
+    if not raw:
+        return None
+
+    for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+        try:
+            return datetime.strptime(raw, fmt).date()
+        except ValueError:
+            continue
+
+    try:
+        return datetime.fromisoformat(raw).date()
+    except ValueError:
+        return None
+
+
+def _is_overdue(due_date_value: str, stato: str, semaforo: str) -> bool:
+    stato_norm = str(stato).strip().lower()
+    if stato_norm == "finito":
+        return False
+
+    if str(semaforo).strip().upper() == "ROSSO":
+        return True
+
+    parsed = _parse_due_date(due_date_value)
+    if parsed is None:
+        return False
+
+    return parsed < date.today()
+
+
+def _is_blocked(stato: str, semaforo: str) -> bool:
+    if str(stato).strip().lower() == "bloccato":
+        return True
+    return str(semaforo).strip().upper() == "ROSSO"
 
 
 def _ensure_tables(db: Session) -> None:
@@ -107,6 +156,50 @@ def _ensure_tables(db: Session) -> None:
     db.commit()
 
 
+def _build_machine_load(db: Session) -> dict[str, Any]:
+    _ensure_tables(db)
+
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                postazione,
+                COUNT(*) AS orders_total,
+                COUNT(*) FILTER (WHERE LOWER(stato) = 'bloccato') AS blocked_total,
+                COUNT(*) FILTER (WHERE UPPER(semaforo) = 'ROSSO') AS red_total,
+                COUNT(*) FILTER (WHERE UPPER(semaforo) = 'GIALLO') AS yellow_total,
+                COUNT(*) FILTER (WHERE UPPER(semaforo) = 'VERDE') AS green_total,
+                COALESCE(SUM(qta), 0) AS quantity_total
+            FROM board_state
+            GROUP BY postazione
+            ORDER BY postazione ASC
+            """
+        )
+    ).mappings().all()
+
+    items = []
+    for row in rows:
+        items.append(
+            {
+                "station": row["postazione"],
+                "orders_total": int(row["orders_total"] or 0),
+                "blocked_total": int(row["blocked_total"] or 0),
+                "red_total": int(row["red_total"] or 0),
+                "yellow_total": int(row["yellow_total"] or 0),
+                "green_total": int(row["green_total"] or 0),
+                "quantity_total": float(row["quantity_total"] or 0),
+            }
+        )
+
+    return {
+        "planner_stage": "MACHINE_LOAD_BOARD_STATE",
+        "source": "board_state",
+        "items_count": len(items),
+        "items": items,
+        "warnings": [],
+    }
+
+
 # ---------------------------------------------------------------------------
 # PROMETEO CORE – PRIMARY OPERATIONAL FLOW
 #
@@ -123,8 +216,6 @@ def _ensure_tables(db: Session) -> None:
 # Ogni modifica futura al flusso decisionale deve mantenere
 # l'hook runtime attivo in questo punto.
 # ---------------------------------------------------------------------------
-
-from .agent_runtime.runtime_hook import trigger_runtime_analysis
 
 
 @router.post("/order")
@@ -153,6 +244,18 @@ def create_or_update_order(
         return {"ok": False, "error": "codice mancante"}
     if not postazione:
         return {"ok": False, "error": "postazione mancante"}
+
+    blocked = _is_blocked(stato, semaforo)
+    overdue = _is_overdue(due_date, stato, semaforo)
+    priority = str(payload.get("priority", payload.get("priorita", "")) or "").strip().upper()
+    if not priority:
+        priority = "ALTA" if str(semaforo).strip().upper() == "ROSSO" else "MEDIA"
+
+    shared_component_pressure = int(payload.get("shared_component_pressure", 0) or 0)
+    multi_order_dependency = int(payload.get("multi_order_dependency", 0) or 0)
+    cluster_saturation = float(payload.get("cluster_saturation", 0) or 0)
+    station_queue_pressure = int(payload.get("station_queue_pressure", 0) or 0)
+    station_load = int(payload.get("station_load", station_queue_pressure) or 0)
 
     db.execute(
         text(
@@ -230,6 +333,30 @@ def create_or_update_order(
         },
     )
 
+    production_event_payload = (
+        "{"
+        f"\"event_domain\": \"order\", "
+        f"\"order_id\": \"{_safe_json_text(order_id)}\", "
+        f"\"cliente\": \"{_safe_json_text(cliente)}\", "
+        f"\"codice\": \"{_safe_json_text(codice)}\", "
+        f"\"qta\": {qta}, "
+        f"\"postazione\": \"{_safe_json_text(postazione)}\", "
+        f"\"stato\": \"{_safe_json_text(stato)}\", "
+        f"\"progress\": {progress}, "
+        f"\"semaforo\": \"{_safe_json_text(semaforo)}\", "
+        f"\"priority\": \"{_safe_json_text(priority)}\", "
+        f"\"due_date\": \"{_safe_json_text(due_date)}\", "
+        f"\"blocked\": {str(blocked).lower()}, "
+        f"\"overdue\": {str(overdue).lower()}, "
+        f"\"station_load\": {station_load}, "
+        f"\"shared_component_pressure\": {shared_component_pressure}, "
+        f"\"multi_order_dependency\": {multi_order_dependency}, "
+        f"\"cluster_saturation\": {cluster_saturation}, "
+        f"\"station_queue_pressure\": {station_queue_pressure}, "
+        f"\"note\": \"{_safe_json_text(note)}\""
+        "}"
+    )
+
     db.execute(
         text(
             """
@@ -246,20 +373,7 @@ def create_or_update_order(
         {
             "order_id": order_id,
             "event_type": "order_upserted",
-            "payload": (
-                "{"
-                f"\"order_id\": \"{order_id}\", "
-                f"\"cliente\": \"{cliente}\", "
-                f"\"codice\": \"{codice}\", "
-                f"\"qta\": {qta}, "
-                f"\"postazione\": \"{postazione}\", "
-                f"\"stato\": \"{stato}\", "
-                f"\"progress\": {progress}, "
-                f"\"semaforo\": \"{semaforo}\", "
-                f"\"due_date\": \"{due_date}\", "
-                f"\"note\": \"{note.replace(chr(34), chr(39))}\""
-                "}"
-            ),
+            "payload": production_event_payload,
         },
     )
 
@@ -275,6 +389,7 @@ def create_or_update_order(
             else "high"
         ),
         payload={
+            "event_domain": "order",
             "order_id": order_id,
             "cliente": cliente,
             "codice": codice,
@@ -283,12 +398,16 @@ def create_or_update_order(
             "stato": stato,
             "progress": progress,
             "semaforo": semaforo,
+            "priority": priority,
             "due_date": due_date,
+            "blocked": blocked,
+            "overdue": overdue,
             "note": note,
-            "shared_component_pressure": payload.get("shared_component_pressure", 0),
-            "multi_order_dependency": payload.get("multi_order_dependency", 0),
-            "cluster_saturation": payload.get("cluster_saturation", 0),
-            "station_queue_pressure": payload.get("station_queue_pressure", 0),
+            "station_load": station_load,
+            "shared_component_pressure": shared_component_pressure,
+            "multi_order_dependency": multi_order_dependency,
+            "cluster_saturation": cluster_saturation,
+            "station_queue_pressure": station_queue_pressure,
         },
     )
 
@@ -322,7 +441,8 @@ def get_board(db: Session = Depends(get_db)):
                 progress,
                 semaforo,
                 due_date,
-                note
+                note,
+                updated_at
             FROM board_state
             ORDER BY updated_at DESC, order_id ASC
             """
@@ -332,75 +452,46 @@ def get_board(db: Session = Depends(get_db)):
     return {
         "ok": True,
         "count": len(rows),
-        "items": [
-            {
-                "order_id": r["order_id"],
-                "cliente": r["cliente"],
-                "codice": r["codice"],
-                "qta": float(r["qta"]) if r["qta"] is not None else 0.0,
-                "postazione": r["postazione"],
-                "stato": r["stato"],
-                "progress": float(r["progress"]) if r["progress"] is not None else 0.0,
-                "semaforo": r["semaforo"],
-                "due_date": r["due_date"] or "",
-                "note": r["note"] or "",
-            }
-            for r in rows
-        ],
+        "items": [dict(row) for row in rows],
     }
 
 @router.get("/sequence")
 def get_sequence(db: Session = Depends(get_db)):
-    _ensure_tables(db)
-
-    sequence = sequence_planner_service.build_global_sequence(db)
-
+    payload = sequence_planner_service.build_global_sequence(db)
     return {
         "ok": True,
-        "planner_stage": sequence.get("planner_stage"),
-        "source_view": sequence.get("source_view"),
-        "items_count": sequence.get("items_count", 0),
-        "items": sequence.get("items", []),
+        "planner_stage": payload.get("planner_stage"),
+        "source": payload.get("source_view"),
+        "items_count": payload.get("items_count", 0),
+        "items": payload.get("items", []),
+        "warnings": [],
     }
+
 
 @router.get("/turn-plan")
 def get_turn_plan(db: Session = Depends(get_db)):
-    _ensure_tables(db)
-
-    plan = sequence_planner_service.build_turn_plan(db)
-
+    payload = sequence_planner_service.build_turn_plan(db)
     return {
         "ok": True,
-        "planner_stage": plan.get("planner_stage"),
-        "source": plan.get("source"),
-        "assignments_count": plan.get("assignments_count", 0),
-        "assignments": plan.get("assignments", []),
+        "planner_stage": payload.get("planner_stage"),
+        "source": payload.get("source"),
+        "plan_date": payload.get("plan_date"),
+        "rotation_logic": payload.get("rotation_logic"),
+        "clusters_count": payload.get("clusters_count", 0),
+        "assignments_count": payload.get("assignments_count", 0),
+        "items": payload.get("assignments", []),
+        "warnings": [],
     }
-
 
 
 @router.get("/machine-load")
 def get_machine_load(db: Session = Depends(get_db)):
-    rows = db.execute(
-        text(
-            """
-            SELECT
-                station,
-                SUM(total_cycles) AS total_cycles
-            FROM vw_machine_load_summary
-            GROUP BY station
-            ORDER BY station
-            """
-        )
-    ).mappings().all()
-
+    payload = _build_machine_load(db)
     return {
         "ok": True,
-        "items": [
-            {
-                "station": r["station"],
-                "total_cycles": float(r["total_cycles"] or 0),
-            }
-            for r in rows
-        ],
+        "planner_stage": payload.get("planner_stage"),
+        "source": payload.get("source"),
+        "items_count": payload.get("items_count", 0),
+        "items": payload.get("items", []),
+        "warnings": payload.get("warnings", []),
     }
