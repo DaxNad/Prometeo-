@@ -8,6 +8,12 @@ from ..agent_runtime.service import AgentRuntimeService
 router = APIRouter(prefix="/agent-runtime", tags=["agent-runtime"])
 
 
+@router.get("/status")
+async def get_status():
+    service = AgentRuntimeService()
+    return await service.status()
+
+
 @router.post("/analyze", response_model=AgentAnalyzeResponse)
 async def analyze_agent_runtime(
     payload: AgentAnalyzeRequest,

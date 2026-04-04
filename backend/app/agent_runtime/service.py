@@ -1,18 +1,14 @@
 from __future__ import annotations
 
-from .policy import RuntimePolicy
-from .provider_factory import build_runtime_provider
-from .registry import ToolRegistry
+from .decision_engine import decide
+from .inspectors import inspect_event
 from .run_repository import AgentRunRepository
-from .schemas import AgentDecision, AgentAnalyzeResponse
+from .schemas import AgentAnalyzeResponse
 
 
 class AgentRuntimeService:
     def __init__(self) -> None:
-        self.registry = ToolRegistry()
-        self.policy = RuntimePolicy()
-        self.provider = build_runtime_provider()
-        self.run_repository = AgentRunRepository()
+        self.repo = AgentRunRepository()
 
     async def analyze(
         self,
@@ -20,62 +16,22 @@ class AgentRuntimeService:
         source: str,
         line_id: str,
         event_type: str,
-        severity: str,
-        payload: dict,
+        severity: str = "info",
+        payload: dict | None = None,
     ) -> AgentAnalyzeResponse:
-        inspector = self.registry.get("event_inspector")
-        inspection = await inspector.run(payload)
+        payload = payload or {}
 
-        escalate = self.policy.should_escalate(severity=severity, inspection=inspection)
-
-        if not escalate:
-            decision = AgentDecision(
-                decision_mode="local-rule",
-                action="monitor",
-                explanation=(
-                    f"Evento {event_type} su {line_id} analizzato localmente: "
-                    "nessuna escalation necessaria."
-                ),
-            )
-            response = AgentAnalyzeResponse(
-                inspection=inspection,
-                decision=decision,
-            )
-            self.run_repository.save(
-                source=source,
-                line_id=line_id,
-                event_type=event_type,
-                severity=severity,
-                inspection=inspection,
-                decision_mode=decision.decision_mode,
-                action=decision.action,
-                explanation=decision.explanation,
-            )
-            return response
-
-        provider_text = await self.provider.complete(
-            f"source={source}; line_id={line_id}; event_type={event_type}; "
-            f"severity={severity}; inspection={inspection}"
+        inspection = inspect_event(
+            source=source,
+            line_id=line_id,
+            event_type=event_type,
+            severity=severity,
+            payload=payload,
         )
 
-        decision_mode = (
-            "local-escalation-atlas"
-            if getattr(self.provider, "name", "noop") == "atlas"
-            else "local-escalation"
-        )
+        decision = decide(inspection)
 
-        decision = AgentDecision(
-            decision_mode=decision_mode,
-            action="investigate",
-            explanation=provider_text,
-        )
-
-        response = AgentAnalyzeResponse(
-            inspection=inspection,
-            decision=decision,
-        )
-
-        self.run_repository.save(
+        self.repo.save(
             source=source,
             line_id=line_id,
             event_type=event_type,
@@ -86,7 +42,10 @@ class AgentRuntimeService:
             explanation=decision.explanation,
         )
 
-        return response
+        return AgentAnalyzeResponse(
+            inspection=inspection,
+            decision=decision,
+        )
 
     async def list_runs(
         self,
@@ -95,28 +54,63 @@ class AgentRuntimeService:
         action: str | None = None,
         decision_mode: str | None = None,
         limit: int = 50,
-    ):
-        return self.run_repository.list_recent(
+    ) -> dict:
+        items = self.repo.list_recent(
             line_id=line_id,
             action=action,
             decision_mode=decision_mode,
             limit=limit,
         )
 
+        return {
+            "ok": True,
+            "count": len(items),
+            "items": items,
+        }
+
     async def summary(
         self,
         *,
         line_id: str | None = None,
-    ):
-        return self.run_repository.summary(
-            line_id=line_id,
-        )
+    ) -> dict:
+        data = self.repo.summary(line_id=line_id)
+
+        return {
+            "ok": True,
+            "summary": data,
+        }
 
     async def operational_summary(
         self,
         *,
         line_id: str | None = None,
-    ):
-        return self.run_repository.operational_summary(
-            line_id=line_id,
-        )
+    ) -> dict:
+        data = self.repo.operational_summary(line_id=line_id)
+
+        return {
+            "ok": True,
+            "summary": data,
+        }
+
+    async def status(self) -> dict:
+        summary_data = self.repo.summary()
+
+        return {
+            "ok": True,
+            "agent_runtime": "enabled",
+            "repository": "ready",
+            "summary_available": True,
+            "summary_contract": {
+                "has_local_rule_count": "local_rule_count" in summary_data,
+                "has_local_escalation_count": "local_escalation_count" in summary_data,
+                "has_escalation_total_count": "escalation_total_count" in summary_data,
+                "has_atlas_escalation_count": "atlas_escalation_count" in summary_data,
+            },
+            "totals": {
+                "total_runs": summary_data.get("total_runs", 0),
+                "monitor_count": summary_data.get("monitor_count", 0),
+                "investigate_count": summary_data.get("investigate_count", 0),
+                "escalation_total_count": summary_data.get("escalation_total_count", 0),
+                "atlas_escalation_count": summary_data.get("atlas_escalation_count", 0),
+            },
+        }
