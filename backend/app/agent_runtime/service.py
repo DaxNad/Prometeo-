@@ -4,11 +4,55 @@ from .decision_engine import decide
 from .inspectors import inspect_event
 from .run_repository import AgentRunRepository
 from .schemas import AgentAnalyzeResponse
+from app.services.anthropic_provider import claude_chat
+from app.services.prompt_builder import build_agent_runtime_prompt
 
 
 class AgentRuntimeService:
     def __init__(self) -> None:
         self.repo = AgentRunRepository()
+
+    def _build_explanation_with_claude(
+        self,
+        *,
+        source: str,
+        line_id: str,
+        event_type: str,
+        severity: str,
+        payload: dict,
+        inspection: dict,
+        local_action: str,
+        fallback_explanation: str | None,
+    ) -> str:
+        try:
+            prompt = build_agent_runtime_prompt(
+                source=source,
+                line_id=line_id,
+                event_type=event_type,
+                severity=severity,
+                payload=payload,
+                inspection=inspection,
+                local_decision_action=local_action,
+            )
+
+            result = claude_chat(
+                prompt=prompt,
+                max_tokens=180,
+                temperature=0.1,
+            )
+
+            text = result.get("text", "").strip()
+            if text:
+                return text
+
+        except Exception:
+            pass
+
+        return fallback_explanation or (
+            f"AZIONE_TL: {local_action}\n"
+            f"MOTIVO: spiegazione non disponibile\n"
+            f"PRIORITA: {severity.upper()}"
+        )
 
     async def analyze(
         self,
@@ -30,6 +74,17 @@ class AgentRuntimeService:
         )
 
         decision = decide(inspection)
+
+        decision.explanation = self._build_explanation_with_claude(
+            source=source,
+            line_id=line_id,
+            event_type=event_type,
+            severity=severity,
+            payload=payload,
+            inspection=inspection,
+            local_action=decision.action,
+            fallback_explanation=decision.explanation,
+        )
 
         self.repo.save(
             source=source,
