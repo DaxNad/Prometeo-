@@ -28,8 +28,6 @@ def inspect_event(
 
     if inspection["event_domain"] == "order":
 
-        due_date = payload.get("due_date")
-
         if payload.get("blocked") is True:
             inspection["blocked_order"] = True
             inspection["possible_anomaly"] = True
@@ -38,7 +36,10 @@ def inspect_event(
             inspection["overdue"] = True
             inspection["possible_anomaly"] = True
 
-        if payload.get("priority") == "ALTA":
+        priority_raw = payload.get("priority")
+        priority = str(priority_raw).strip().upper() if priority_raw is not None else ""
+
+        if priority in {"ALTA", "HIGH", "URGENT", "CRITICAL"}:
             inspection["urgent_order"] = True
 
     if inspection["event_domain"] == "machine":
