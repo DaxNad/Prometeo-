@@ -1,5 +1,10 @@
-import { useEffect, useState } from "react";
-import { updateOrder, type AgentRuntimeOperationalSummary, type MachineLoadItem } from "../lib/api/prometeo";
+import { useEffect, useRef, useState } from "react";
+import {
+  getAgentRuntimeOperationalSummary,
+  updateOrder,
+  type AgentRuntimeOperationalSummary,
+  type MachineLoadItem,
+} from "../lib/api/prometeo";
 import { useProductionBoard } from "../hooks/useProductionBoard";
 import type { BoardItem, Semaforo, Stato } from "../types/production";
 
@@ -615,15 +620,44 @@ const sectionTitle: React.CSSProperties = {
 export default function ProductionDashboard() {
   const { data, loading, error, reload } = useProductionBoard();
 
-  // Overlay ottimistico: aggiornamenti locali in attesa di conferma
-  const [optimistic, setOptimistic] = useState<Map<string, BoardItem>>(
-    new Map()
-  );
+  // ── Selettore linea + summary ────────────────────────────────────────────
+  // null = globale (tutte le postazioni)
+  const [selectedLine, setSelectedLine] = useState<string | null>(null);
+  const [summary, setSummary] = useState<AgentRuntimeOperationalSummary | null>(null);
+
+  // Si attiva al cambio di linea O ad ogni auto-refresh del board (lastUpdated)
+  useEffect(() => {
+    let cancelled = false;
+    void getAgentRuntimeOperationalSummary(selectedLine ?? undefined).then((r) => {
+      if (!cancelled) setSummary(r);
+    });
+    return () => { cancelled = true; };
+  }, [selectedLine, data.lastUpdated]);
+
+  // ── Aggiornamento ottimistico ────────────────────────────────────────────
+  const [optimistic, setOptimistic] = useState<Map<string, BoardItem>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
 
-  // Pulisce l'overlay quando arrivano dati freschi dal server
+  // Ref sempre aggiornato: evita stale closure nell'effect di cleanup
+  const pendingIdsRef = useRef<Set<string>>(new Set());
   useEffect(() => {
-    setOptimistic(new Map());
+    pendingIdsRef.current = pendingIds;
+  }, [pendingIds]);
+
+  // Fix race condition: pulisce l'overlay solo per voci NON in-flight
+  useEffect(() => {
+    setOptimistic((prev) => {
+      if (prev.size === 0) return prev;
+      const next = new Map(prev);
+      let changed = false;
+      for (const key of prev.keys()) {
+        if (!pendingIdsRef.current.has(key)) {
+          next.delete(key);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
   }, [data.boardItems]);
 
   const effectiveItems = data.boardItems.map(
@@ -721,7 +755,7 @@ export default function ProductionDashboard() {
         <h1 style={{ margin: 0, fontSize: 17, fontWeight: 700, flex: 1 }}>
           PROMETEO — TL Board
         </h1>
-        <GlobalBadge summary={data.agentRuntimeOperational} />
+        <GlobalBadge summary={summary} />
         {lastUpdated && (
           <span style={{ fontSize: 11, color: "#444" }}>
             agg. {lastUpdated}
@@ -738,9 +772,37 @@ export default function ProductionDashboard() {
         </button>
       </div>
 
+      {/* ── Selettore linea ── */}
+      {postazioni.length > 0 && (
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+          <span style={{ fontSize: 11, color: "#444", marginRight: 4 }}>Linea:</span>
+          {[null, ...postazioni].map((p) => {
+            const active = selectedLine === p;
+            return (
+              <button
+                key={p ?? "__globale__"}
+                onClick={() => setSelectedLine(p)}
+                style={{
+                  fontSize: 11,
+                  padding: "3px 12px",
+                  borderRadius: 999,
+                  border: active ? "1px solid #5dade2" : "1px solid #2a2a2a",
+                  background: active ? "#0d1e2b" : "#181818",
+                  color: active ? "#5dade2" : "#666",
+                  cursor: "pointer",
+                  fontWeight: active ? 700 : 400,
+                }}
+              >
+                {p ?? "Globale"}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* ── KPI strip ── */}
-      {data.agentRuntimeOperational && (
-        <KPIStrip summary={data.agentRuntimeOperational} />
+      {summary && (
+        <KPIStrip summary={summary} />
       )}
 
       {/* ── Board ordini ── */}
@@ -806,7 +868,7 @@ export default function ProductionDashboard() {
       <MachineLoadSection items={machineItems} />
 
       {/* ── Agent Runtime summary ── */}
-      {data.agentRuntimeOperational && (
+      {summary && (
         <section style={cardStyle}>
           <h2 style={sectionTitle}>Agent Runtime</h2>
           <div
@@ -820,10 +882,10 @@ export default function ProductionDashboard() {
           >
             {(
               [
-                ["Linea",        data.agentRuntimeOperational.line_id ?? "globale"],
-                ["Monitor",      data.agentRuntimeOperational.orders_monitor],
-                ["Ordini totali", data.agentRuntimeOperational.orders_total],
-                ["Domain order", data.agentRuntimeOperational.domain_order_count],
+                ["Linea",         summary.line_id ?? "globale"],
+                ["Monitor",       summary.orders_monitor],
+                ["Ordini totali", summary.orders_total],
+                ["Domain order",  summary.domain_order_count],
               ] as [string, string | number][]
             ).map(([label, val]) => (
               <div key={label}>

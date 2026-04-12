@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  type AgentRuntimeOperationalSummary,
   type MachineLoadResponse,
-  getAgentRuntimeOperationalSummary,
   getProductionBoardState,
   getProductionMachineLoad,
 } from "../lib/api/prometeo";
@@ -13,14 +11,12 @@ const AUTO_REFRESH_MS = 30_000;
 type DashboardState = {
   boardItems: BoardItem[];
   machineLoad: MachineLoadResponse | null;
-  agentRuntimeOperational: AgentRuntimeOperationalSummary | null;
   lastUpdated: Date | null;
 };
 
 const EMPTY: DashboardState = {
   boardItems: [],
   machineLoad: null,
-  agentRuntimeOperational: null,
   lastUpdated: null,
 };
 
@@ -42,9 +38,6 @@ export function useProductionBoard() {
       }),
       getProductionMachineLoad().then((r) => {
         next.machineLoad = r;
-      }),
-      getAgentRuntimeOperationalSummary("ZAW-1").then((r) => {
-        next.agentRuntimeOperational = r;
       }),
     ]);
 

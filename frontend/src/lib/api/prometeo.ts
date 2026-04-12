@@ -68,9 +68,9 @@ export async function getProductionMachineLoad() {
   return apiGet<MachineLoadResponse>("/production/machine-load");
 }
 
-export async function getAgentRuntimeOperationalSummary(lineId: string) {
-  const safeLineId = encodeURIComponent(lineId);
+export async function getAgentRuntimeOperationalSummary(lineId?: string | null) {
+  const query = lineId ? `?line_id=${encodeURIComponent(lineId)}` : "";
   return apiGet<AgentRuntimeOperationalSummary>(
-    `/agent-runtime/summary/operational?line_id=${safeLineId}`
+    `/agent-runtime/summary/operational${query}`
   );
 }
