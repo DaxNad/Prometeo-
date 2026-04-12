@@ -56,7 +56,7 @@ function isOverdue(item: BoardItem): boolean {
   if (item.semaforo === "ROSSO") return true;
   if (!item.due_date) return false;
   try {
-    const p = item.due_date.split(/[/\-]/);
+    const p = item.due_date.split(/[/-]/);
     const d =
       p[0].length === 4
         ? new Date(+p[0], +p[1] - 1, +p[2])
@@ -70,7 +70,7 @@ function isOverdue(item: BoardItem): boolean {
 function fmtDate(raw: string): string {
   if (!raw) return "";
   try {
-    const p = raw.split(/[/\-]/);
+    const p = raw.split(/[/-]/);
     return p[0].length === 4 ? `${p[2]}/${p[1]}/${p[0]}` : raw;
   } catch {
     return raw;
@@ -637,6 +637,7 @@ export default function ProductionDashboard() {
   // ── Aggiornamento ottimistico ────────────────────────────────────────────
   const [optimistic, setOptimistic] = useState<Map<string, BoardItem>>(new Map());
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
+  const [updateError, setUpdateError] = useState<string | null>(null);
 
   // Ref sempre aggiornato: evita stale closure nell'effect di cleanup
   const pendingIdsRef = useRef<Set<string>>(new Set());
@@ -681,16 +682,18 @@ export default function ProductionDashboard() {
     setPendingIds((s) => new Set([...s, next.order_id]));
 
     try {
-      const { updated_at: _discard, ...payload } = next;
-      await updateOrder(payload);
+      await updateOrder(next);
+      setUpdateError(null);
     } catch {
-      // Rollback in caso di errore
+      // Rollback + feedback visibile
       setOptimistic((m) => {
         const next2 = new Map(m);
         if (prev) next2.set(prev.order_id, prev);
         else next2.delete(next.order_id);
         return next2;
       });
+      setUpdateError(`Aggiornamento ${next.order_id} fallito — riprova.`);
+      setTimeout(() => setUpdateError(null), 5000);
     } finally {
       setPendingIds((s) => {
         const next2 = new Set(s);
@@ -771,6 +774,22 @@ export default function ProductionDashboard() {
           ↻ Ricarica
         </button>
       </div>
+
+      {/* ── Errore aggiornamento ── */}
+      {updateError && (
+        <div
+          style={{
+            padding: "8px 14px",
+            background: "#1e0d0d",
+            border: "1px solid #5a2020",
+            borderRadius: 8,
+            color: "#e74c3c",
+            fontSize: 12,
+          }}
+        >
+          {updateError}
+        </div>
+      )}
 
       {/* ── Selettore linea ── */}
       {postazioni.length > 0 && (

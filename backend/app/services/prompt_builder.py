@@ -1,3 +1,6 @@
+import json
+
+
 def build_agent_runtime_prompt(
     *,
     source: str,
@@ -48,7 +51,7 @@ Decisione locale già calcolata:
 action: {local_decision_action}
 
 Inspection:
-{inspection}
+{json.dumps(inspection, ensure_ascii=False, indent=2)}
 
 Genera una spiegazione TL sintetica coerente con l'azione locale.
 """.strip()

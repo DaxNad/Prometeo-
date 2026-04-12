@@ -47,6 +47,8 @@ export function useProductionBoard() {
   }, []);
 
   useEffect(() => {
+    // Pattern di data-fetching: setState avviene nelle callback async, non inline.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadAll();
     const timer = setInterval(() => void loadAll(), AUTO_REFRESH_MS);
     return () => clearInterval(timer);
