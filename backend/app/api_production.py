@@ -1,3 +1,4 @@
+import json
 from datetime import date, datetime
 from typing import Any, Dict
 
@@ -40,11 +41,6 @@ def _semaforo_from_stato(stato: str) -> str:
     }
     return mapping.get(stato, "GIALLO")
 
-
-def _safe_json_text(value: Any) -> str:
-    if value is None:
-        return ""
-    return str(value).replace(chr(34), chr(39))
 
 
 def _parse_due_date(value: Any) -> date | None:
@@ -91,23 +87,6 @@ def _is_blocked(stato: str, semaforo: str) -> bool:
 def _ensure_tables(db: Session) -> None:
     statements = [
         """
-        CREATE TABLE IF NOT EXISTS production_orders (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL UNIQUE,
-            cliente TEXT NOT NULL,
-            codice TEXT NOT NULL,
-            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
-            postazione TEXT NOT NULL,
-            stato TEXT NOT NULL DEFAULT 'da fare',
-            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
-            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
-            due_date TEXT NOT NULL DEFAULT '',
-            note TEXT NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
         CREATE TABLE IF NOT EXISTS board_state (
             id BIGSERIAL PRIMARY KEY,
             order_id TEXT NOT NULL UNIQUE,
@@ -131,10 +110,6 @@ def _ensure_tables(db: Session) -> None:
             payload JSONB NOT NULL DEFAULT '{}'::jsonb,
             created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
-        ON production_orders(order_id)
         """,
         """
         CREATE INDEX IF NOT EXISTS idx_board_state_order_id
@@ -260,44 +235,6 @@ def create_or_update_order(
     db.execute(
         text(
             """
-            INSERT INTO production_orders (
-                order_id, cliente, codice, qta, postazione, stato,
-                progress, semaforo, due_date, note
-            )
-            VALUES (
-                :order_id, :cliente, :codice, :qta, :postazione, :stato,
-                :progress, :semaforo, :due_date, :note
-            )
-            ON CONFLICT (order_id) DO UPDATE SET
-                cliente = EXCLUDED.cliente,
-                codice = EXCLUDED.codice,
-                qta = EXCLUDED.qta,
-                postazione = EXCLUDED.postazione,
-                stato = EXCLUDED.stato,
-                progress = EXCLUDED.progress,
-                semaforo = EXCLUDED.semaforo,
-                due_date = EXCLUDED.due_date,
-                note = EXCLUDED.note,
-                updated_at = NOW()
-            """
-        ),
-        {
-            "order_id": order_id,
-            "cliente": cliente,
-            "codice": codice,
-            "qta": qta,
-            "postazione": postazione,
-            "stato": stato,
-            "progress": progress,
-            "semaforo": semaforo,
-            "due_date": due_date,
-            "note": note,
-        },
-    )
-
-    db.execute(
-        text(
-            """
             INSERT INTO board_state (
                 order_id, cliente, codice, qta, postazione, stato,
                 progress, semaforo, due_date, note
@@ -333,29 +270,27 @@ def create_or_update_order(
         },
     )
 
-    production_event_payload = (
-        "{"
-        f"\"event_domain\": \"order\", "
-        f"\"order_id\": \"{_safe_json_text(order_id)}\", "
-        f"\"cliente\": \"{_safe_json_text(cliente)}\", "
-        f"\"codice\": \"{_safe_json_text(codice)}\", "
-        f"\"qta\": {qta}, "
-        f"\"postazione\": \"{_safe_json_text(postazione)}\", "
-        f"\"stato\": \"{_safe_json_text(stato)}\", "
-        f"\"progress\": {progress}, "
-        f"\"semaforo\": \"{_safe_json_text(semaforo)}\", "
-        f"\"priority\": \"{_safe_json_text(priority)}\", "
-        f"\"due_date\": \"{_safe_json_text(due_date)}\", "
-        f"\"blocked\": {str(blocked).lower()}, "
-        f"\"overdue\": {str(overdue).lower()}, "
-        f"\"station_load\": {station_load}, "
-        f"\"shared_component_pressure\": {shared_component_pressure}, "
-        f"\"multi_order_dependency\": {multi_order_dependency}, "
-        f"\"cluster_saturation\": {cluster_saturation}, "
-        f"\"station_queue_pressure\": {station_queue_pressure}, "
-        f"\"note\": \"{_safe_json_text(note)}\""
-        "}"
-    )
+    production_event_payload = json.dumps({
+        "event_domain": "order",
+        "order_id": order_id,
+        "cliente": cliente,
+        "codice": codice,
+        "qta": qta,
+        "postazione": postazione,
+        "stato": stato,
+        "progress": progress,
+        "semaforo": semaforo,
+        "priority": priority,
+        "due_date": due_date,
+        "blocked": blocked,
+        "overdue": overdue,
+        "station_load": station_load,
+        "shared_component_pressure": shared_component_pressure,
+        "multi_order_dependency": multi_order_dependency,
+        "cluster_saturation": cluster_saturation,
+        "station_queue_pressure": station_queue_pressure,
+        "note": note,
+    }, ensure_ascii=False)
 
     db.execute(
         text(

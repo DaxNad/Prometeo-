@@ -225,17 +225,39 @@ class AgentRunRepository:
         *,
         line_id: str | None = None,
     ) -> dict[str, Any]:
-        filters = ["inspection_json->>'event_domain' IN ('order', 'legacy_bootstrap')"]
+        line_filter = ""
         params: dict[str, Any] = {}
 
         if line_id:
-            filters.append("line_id = :line_id")
+            line_filter = "AND line_id = :line_id"
             params["line_id"] = line_id
 
-        where_clause = "WHERE " + " AND ".join(filters)
-
+        # CTE che deduplica per order_id (solo l'ultimo run per ordine)
+        # e unisce i legacy_bootstrap (nessun order_id → nessuna dedup)
         stmt = text(
             f"""
+            WITH deduped AS (
+                SELECT inspection_json, action
+                FROM (
+                    SELECT inspection_json, action,
+                           ROW_NUMBER() OVER (
+                               PARTITION BY inspection_json->>'order_id'
+                               ORDER BY created_at DESC
+                           ) AS rn
+                    FROM agent_runs
+                    WHERE inspection_json->>'event_domain' = 'order'
+                      AND inspection_json->>'order_id' IS NOT NULL
+                      {line_filter}
+                ) ranked
+                WHERE rn = 1
+
+                UNION ALL
+
+                SELECT inspection_json, action
+                FROM agent_runs
+                WHERE inspection_json->>'event_domain' = 'legacy_bootstrap'
+                  {line_filter}
+            )
             SELECT
                 COUNT(*) AS orders_total,
                 COUNT(*) FILTER (WHERE action = 'monitor') AS orders_monitor,
@@ -260,8 +282,7 @@ class AgentRunRepository:
                 COUNT(*) FILTER (
                     WHERE inspection_json->>'event_domain' = 'order'
                 ) AS domain_order_count
-            FROM agent_runs
-            {where_clause}
+            FROM deduped
             """
         )
 
