@@ -1,123 +1,63 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AgentRuntimeOperationalSummary,
   type MachineLoadResponse,
   getAgentRuntimeOperationalSummary,
+  getProductionBoardState,
   getProductionMachineLoad,
-  getProductionSequence,
-  getProductionTurnPlan,
 } from "../lib/api/prometeo";
+import type { BoardItem } from "../types/production";
+
+const AUTO_REFRESH_MS = 30_000;
 
 type DashboardState = {
-  board: unknown;
-  delays: unknown;
-  load: unknown;
+  boardItems: BoardItem[];
   machineLoad: MachineLoadResponse | null;
-  sequence: unknown;
-  turnPlan: unknown;
   agentRuntimeOperational: AgentRuntimeOperationalSummary | null;
+  lastUpdated: Date | null;
+};
+
+const EMPTY: DashboardState = {
+  boardItems: [],
+  machineLoad: null,
+  agentRuntimeOperational: null,
+  lastUpdated: null,
 };
 
 export function useProductionBoard() {
-  const [data, setData] = useState<DashboardState>({
-    board: {
-      warning: "endpoint /production/board non allineato su questo backend",
-    },
-    delays: {
-      warning: "endpoint /production/delays non allineato su questo backend",
-    },
-    load: {
-      warning: "endpoint /production/load non allineato su questo backend",
-    },
-    machineLoad: null,
-    sequence: null,
-    turnPlan: null,
-    agentRuntimeOperational: null,
-  });
-
+  const [data, setData] = useState<DashboardState>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadedOnce = useRef(false);
 
-  async function loadAll() {
-    setLoading(true);
+  const loadAll = useCallback(async () => {
+    if (!loadedOnce.current) setLoading(true);
     setError(null);
 
-    const nextData: DashboardState = {
-      board: {
-        warning: "endpoint /production/board non allineato su questo backend",
-      },
-      delays: {
-        warning: "endpoint /production/delays non allineato su questo backend",
-      },
-      load: {
-        warning: "endpoint /production/load non allineato su questo backend",
-      },
-      machineLoad: null,
-      sequence: null,
-      turnPlan: null,
-      agentRuntimeOperational: null,
-    };
+    const next: DashboardState = { ...EMPTY, lastUpdated: new Date() };
 
-    try {
-      nextData.machineLoad = await getProductionMachineLoad();
-    } catch (err) {
-      nextData.machineLoad = {
-        ok: false,
-        items: [],
-        warnings: [
-          err instanceof Error ? err.message : "machine-load non disponibile",
-        ],
-      } as MachineLoadResponse;
-    }
+    await Promise.allSettled([
+      getProductionBoardState().then((r) => {
+        next.boardItems = r.items ?? [];
+      }),
+      getProductionMachineLoad().then((r) => {
+        next.machineLoad = r;
+      }),
+      getAgentRuntimeOperationalSummary("ZAW-1").then((r) => {
+        next.agentRuntimeOperational = r;
+      }),
+    ]);
 
-    try {
-      nextData.sequence = await getProductionSequence();
-    } catch (err) {
-      nextData.sequence = {
-        warning:
-          err instanceof Error ? err.message : "sequence non disponibile",
-      };
-    }
-
-    try {
-      nextData.turnPlan = await getProductionTurnPlan();
-    } catch (err) {
-      nextData.turnPlan = {
-        warning:
-          err instanceof Error ? err.message : "turn-plan non disponibile",
-      };
-    }
-
-    try {
-      nextData.agentRuntimeOperational =
-        await getAgentRuntimeOperationalSummary("ZAW-1");
-    } catch (err) {
-      nextData.agentRuntimeOperational = {
-        line_id: "ZAW-1",
-        orders_total: 0,
-        orders_monitor: 0,
-        orders_investigate: 0,
-        orders_ok: 0,
-        orders_blocked: 0,
-        orders_overdue: 0,
-        orders_urgent: 0,
-        legacy_bootstrap_count: 0,
-        domain_order_count: 0,
-      };
-    }
-
-    setData(nextData);
+    setData(next);
     setLoading(false);
-  }
+    loadedOnce.current = true;
+  }, []);
 
   useEffect(() => {
     void loadAll();
-  }, []);
+    const timer = setInterval(() => void loadAll(), AUTO_REFRESH_MS);
+    return () => clearInterval(timer);
+  }, [loadAll]);
 
-  return {
-    data,
-    loading,
-    error,
-    reload: loadAll,
-  };
+  return { data, loading, error, reload: loadAll };
 }

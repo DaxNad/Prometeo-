@@ -1,3 +1,5 @@
+import type { BoardItem, BoardResponse } from "../../types/production";
+
 const API_BASE =
   import.meta.env.VITE_PROMETEO_API_BASE?.replace(/\/+$/, "") ||
   "https://prometeo-railway-bootstrap-production.up.railway.app";
@@ -5,9 +7,7 @@ const API_BASE =
 async function apiGet<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`, {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-    },
+    headers: { Accept: "application/json" },
   });
 
   if (!res.ok) {
@@ -20,12 +20,18 @@ async function apiGet<T>(path: string): Promise<T> {
 
 export type MachineLoadItem = {
   station: string;
-  total_cycles: number;
+  orders_total: number;
+  blocked_total: number;
+  red_total: number;
+  yellow_total: number;
+  green_total: number;
+  quantity_total: number;
 };
 
 export type MachineLoadResponse = {
   ok: boolean;
   items: MachineLoadItem[];
+  warnings?: string[];
 };
 
 export type AgentRuntimeOperationalSummary = {
@@ -41,24 +47,21 @@ export type AgentRuntimeOperationalSummary = {
   domain_order_count: number;
 };
 
-export async function getProductionBoard<T = unknown>() {
-  return apiGet<T>("/production/board");
+export async function getProductionBoardState() {
+  return apiGet<BoardResponse>("/production/board-state");
 }
 
-export async function getProductionDelays<T = unknown>() {
-  return apiGet<T>("/production/delays");
-}
-
-export async function getProductionLoad<T = unknown>() {
-  return apiGet<T>("/production/load");
-}
-
-export async function getProductionSequence<T = unknown>() {
-  return apiGet<T>("/production/sequence");
-}
-
-export async function getProductionTurnPlan<T = unknown>() {
-  return apiGet<T>("/production/turn-plan");
+export async function updateOrder(order: Omit<BoardItem, "updated_at">) {
+  const res = await fetch(`${API_BASE}/production/order`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Accept: "application/json" },
+    body: JSON.stringify(order),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST /production/order failed: ${res.status} ${text}`);
+  }
+  return res.json() as Promise<{ ok: boolean; order_id: string }>;
 }
 
 export async function getProductionMachineLoad() {

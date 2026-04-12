@@ -1,15 +1,22 @@
-export type JsonValue =
-  | string
-  | number
-  | boolean
-  | null
-  | JsonValue[]
-  | { [key: string]: JsonValue };
+export type Stato = "da fare" | "in corso" | "finito" | "bloccato";
+export type Semaforo = "VERDE" | "GIALLO" | "ROSSO";
 
-export type GenericApiResponse = Record<string, JsonValue>;
+export type BoardItem = {
+  order_id: string;
+  cliente: string;
+  codice: string;
+  qta: number;
+  postazione: string;
+  stato: Stato;
+  progress: number;
+  semaforo: Semaforo;
+  due_date: string;
+  note: string;
+  updated_at: string;
+};
 
-export interface ProductionBoardResponse extends GenericApiResponse {}
-export interface ProductionDelaysResponse extends GenericApiResponse {}
-export interface ProductionLoadResponse extends GenericApiResponse {}
-export interface ProductionSequenceResponse extends GenericApiResponse {}
-export interface ProductionTurnPlanResponse extends GenericApiResponse {}
+export type BoardResponse = {
+  ok: boolean;
+  count: number;
+  items: BoardItem[];
+};
