@@ -68,6 +68,8 @@ def probe_postgres() -> dict:
 
 def init_db() -> None:
     if current_backend() == "postgres":
+        from .repositories.postgres_events_repository import PostgresEventsRepository
+        PostgresEventsRepository().ensure_schema()
         return
 
     with get_sqlite_connection() as conn:
