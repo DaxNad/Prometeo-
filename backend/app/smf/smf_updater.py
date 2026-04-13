@@ -34,7 +34,18 @@ class SMFUpdater:
         updates: dict,
     ) -> dict:
         mode = os.getenv("SMF_SCHEMA_MODE", "validate").strip().lower() or "validate"
-        df = pd.read_excel(self.path, sheet_name=sheet)
+        try:
+            xls = pd.ExcelFile(self.path)
+        except Exception:
+            return {"ok": False, "error": "workbook not readable"}
+
+        if sheet not in xls.sheet_names:
+            return {"ok": False, "error": f"sheet {sheet} not found"}
+
+        try:
+            df = pd.read_excel(self.path, sheet_name=sheet)
+        except Exception:
+            return {"ok": False, "error": "sheet read error"}
 
         # schema guard: ensure required columns exist on the target sheet
         required = REQUIRED_SCHEMA.get(sheet, [])
@@ -48,7 +59,7 @@ class SMFUpdater:
 
         match_columns = [column for column in self._candidate_columns(id_column) if column in df.columns]
         if not match_columns:
-            return {"error": f"column {id_column} not found"}
+            return {"ok": False, "error": f"column {id_column} not found"}
 
         target = str(id_value).strip()
         mask = pd.Series(False, index=df.index)
@@ -62,6 +73,7 @@ class SMFUpdater:
 
         if int(mask.sum()) == 0:
             return {
+                "ok": False,
                 "error": "row not found",
                 "matched_column": None,
                 "written_columns": [],
@@ -75,13 +87,16 @@ class SMFUpdater:
                 df.loc[mask, key] = value
                 written_columns.append(key)
 
-        with pd.ExcelWriter(
-            self.path,
-            engine="openpyxl",
-            mode="a",
-            if_sheet_exists="replace",
-        ) as writer:
-            df.to_excel(writer, sheet_name=sheet, index=False)
+        try:
+            with pd.ExcelWriter(
+                self.path,
+                engine="openpyxl",
+                mode="a",
+                if_sheet_exists="replace",
+            ) as writer:
+                df.to_excel(writer, sheet_name=sheet, index=False)
+        except Exception:
+            return {"ok": False, "error": "write failed"}
 
         return {
             "ok": True,
