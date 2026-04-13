@@ -239,6 +239,8 @@ def smf_debug_bootstrap():
         except Exception:
             err_summary = "bootstrap_error"
 
+    schema = adapter.validate_structure()
+
     return {
         "base_path": str(base_path),
         "master_path": str(master),
@@ -248,6 +250,11 @@ def smf_debug_bootstrap():
         "writable_check": writable,
         "bootstrap_attempted": bool(getattr(adapter, "_bootstrap_attempted", False)),
         "bootstrap_error": err_summary,
+        "schema_ok": bool(schema.get("ok")),
+        "missing_counts": {
+            "sheets": len(schema.get("sheets_missing", [])),
+            "columns": sum(len(v) for v in schema.get("columns_missing", {}).values()),
+        },
     }
 
 
