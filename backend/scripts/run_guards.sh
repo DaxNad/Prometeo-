@@ -6,8 +6,8 @@ echo "PROMETEO GUARD RAILS"
 echo "========================================"
 
 echo
-echo "STEP 1 — pytest"
-pytest -q
+echo "STEP 1 — pytest (backend config)"
+pytest -q -c backend/pytest.ini
 
 echo
 echo "STEP 2 — quality_gate"

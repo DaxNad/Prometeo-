@@ -2,6 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 import pandas as pd
+import os
+
+from .smf_schema import REQUIRED_SCHEMA
 
 HEADER_ALIASES = {
     "ID ordine": "order_id",
@@ -24,12 +27,23 @@ class SMFWriter:
         self.path = path
 
     def append_row(self, sheet: str, row: dict) -> dict:
+        mode = os.getenv("SMF_SCHEMA_MODE", "validate").strip().lower() or "validate"
         xls = pd.ExcelFile(self.path)
 
         if sheet not in xls.sheet_names:
             return {"error": f"sheet {sheet} not found"}
 
         df = pd.read_excel(self.path, sheet_name=sheet)
+
+        # schema guard: ensure required columns for the sheet
+        required = REQUIRED_SCHEMA.get(sheet, [])
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            if mode == "repair":
+                for c in missing:
+                    df[c] = None
+            else:
+                return {"ok": False, "error": f"missing columns: {', '.join(missing)}"}
         normalized_row = self._normalize_row(row, list(df.columns))
         requested_columns = list(row.keys())
         written_columns = [
@@ -54,6 +68,7 @@ class SMFWriter:
             "requested_columns": requested_columns,
             "written_columns": written_columns,
             "matched_column": None,
+            "schema_mode": mode,
         }
 
     def _normalize_row(self, row: dict, columns: list[str]) -> dict:

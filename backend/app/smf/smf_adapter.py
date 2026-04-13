@@ -11,6 +11,7 @@ from typing import Any
 from .smf_reader import SMFReader
 from .smf_writer import SMFWriter
 from .smf_updater import SMFUpdater
+from .smf_schema import REQUIRED_SCHEMA
 
 
 MASTER_NAME = "SuperMegaFile_Master.xlsx"
@@ -82,6 +83,44 @@ class SMFAdapter:
         )
 
         return payload
+
+    def validate_structure(self) -> dict:
+        """Validate presence of required sheets and columns.
+
+        Returns a dict with `ok`, and details about missing/extra parts.
+        """
+        import pandas as pd
+
+        result = {
+            "ok": False,
+            "sheets_missing": [],
+            "columns_missing": {},
+            "columns_extra": {},
+        }
+
+        if not self.available():
+            result["sheets_missing"] = list(REQUIRED_SCHEMA.keys())
+            return result
+
+        xls = pd.ExcelFile(self.master_path())
+        available = set(xls.sheet_names)
+        required = set(REQUIRED_SCHEMA.keys())
+        missing_sheets = sorted(list(required - available))
+        result["sheets_missing"] = missing_sheets
+
+        for sheet in sorted(required & available):
+            df = pd.read_excel(self.master_path(), sheet_name=sheet)
+            have = set(map(str, list(df.columns)))
+            need = set(REQUIRED_SCHEMA[sheet])
+            missing_cols = sorted(list(need - have))
+            extra_cols = sorted(list(have - need))
+            if missing_cols:
+                result.setdefault("columns_missing", {})[sheet] = missing_cols
+            if extra_cols:
+                result.setdefault("columns_extra", {})[sheet] = extra_cols
+
+        result["ok"] = not result["sheets_missing"] and not result["columns_missing"]
+        return result
 
     # --- internal ---------------------------------------------------------
     def _bootstrap_if_missing(self) -> None:

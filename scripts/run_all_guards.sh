@@ -7,11 +7,10 @@ cd "$ROOT_DIR"
 echo "==> Backend guards"
 backend/scripts/run_guards.sh
 
-echo "==> Frontend UI guard (Vitest)"
+echo "==> Frontend UI structural guard"
 (
   cd frontend
-  npm run -s test
+  ../frontend/scripts/guard_tl_board.sh
 )
 
 echo "ALL GUARDS (backend+frontend) PASS"
-

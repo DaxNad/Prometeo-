@@ -3,6 +3,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pandas as pd
+import os
+
+from .smf_schema import REQUIRED_SCHEMA
 
 HEADER_ALIASES = {
     "ID ordine": "order_id",
@@ -30,7 +33,18 @@ class SMFUpdater:
         id_value,
         updates: dict,
     ) -> dict:
+        mode = os.getenv("SMF_SCHEMA_MODE", "validate").strip().lower() or "validate"
         df = pd.read_excel(self.path, sheet_name=sheet)
+
+        # schema guard: ensure required columns exist on the target sheet
+        required = REQUIRED_SCHEMA.get(sheet, [])
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            if mode == "repair":
+                for c in missing:
+                    df[c] = None
+            else:
+                return {"ok": False, "error": f"missing columns: {', '.join(missing)}"}
 
         match_columns = [column for column in self._candidate_columns(id_column) if column in df.columns]
         if not match_columns:
@@ -75,6 +89,7 @@ class SMFUpdater:
             "matched_column": matched_column,
             "requested_columns": requested_columns,
             "written_columns": written_columns,
+            "schema_mode": mode,
         }
 
     def _candidate_columns(self, column: str) -> list[str]:
