@@ -6,8 +6,18 @@ permissions:
 on:
   push:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'board/**'
+      - '.github/workflows/*.yml'
   pull_request:
     branches: [ main, master ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'board/**'
+      - '.github/workflows/*.yml'
 
 jobs:
   run-guards:

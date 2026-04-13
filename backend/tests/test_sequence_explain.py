@@ -14,8 +14,14 @@ def test_explain_builder_adds_reasons(monkeypatch):
                 {
                     "priorita_operativa": 1,
                     "articolo": "CODE-ZAW-A",
+                    "componenti_condivisi": "",
                     "quantita": 5,
+                    "data_spedizione": None,
+                    "priorita_cliente": "MEDIA",
+                    "complessivo_articolo": "GRP-A",
                     "postazione_critica": "ZAW-1",
+                    "azione_tl": "PREPARARE_CAMBIO_SERIE",
+                    "origine_logica": view_name,
                 }
             ]
 
