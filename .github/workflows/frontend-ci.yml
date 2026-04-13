@@ -2,11 +2,6 @@ name: Frontend CI
 
 on:
   pull_request:
-    paths:
-      - 'frontend/**'
-      - 'frontend_legacy/**'
-      - 'integrations/webhook/**'
-      - '.github/workflows/frontend-ci.yml'
   workflow_dispatch: {}
 
 jobs:
@@ -17,6 +12,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Determine changed files (PR)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          git diff --name-only FETCH_HEAD... > changed_files.txt
+          echo "Changed files:"; cat changed_files.txt || true
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
@@ -26,23 +28,38 @@ jobs:
             frontend/package-lock.json
             integrations/webhook/package-lock.json
 
-      - name: Install & test frontend
-        if: ${{ hashFiles('frontend/package.json') != '' }}
+      - name: Install & test frontend (only if frontend changed)
         working-directory: frontend
         run: |
-          npm ci
-          npm test --if-present --silent
+          SHOULD_RUN=0
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if grep -E '^(frontend/)' ../changed_files.txt >/dev/null 2>&1; then
+              SHOULD_RUN=1
+            fi
+          else
+            SHOULD_RUN=1
+          fi
+          if [ "$SHOULD_RUN" = "1" ] && [ -f package.json ]; then
+            npm ci
+            npm test --if-present --silent
+          else
+            echo "No frontend changes detected: skip tests"
+          fi
 
-      - name: Build frontend
-        if: ${{ hashFiles('frontend/package.json') != '' }}
+      - name: Build frontend (only if frontend changed)
         working-directory: frontend
         run: |
-          npm run build --if-present
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(frontend/)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No frontend changes detected: skip build"
+            exit 0
+          fi
+          [ -f package.json ] && npm run build --if-present || true
 
-      - name: Test integrations/webhook
-        if: ${{ hashFiles('integrations/webhook/package.json') != '' }}
+      - name: Test integrations/webhook (only if changed)
         working-directory: integrations/webhook
         run: |
-          npm ci
-          npm test --if-present --silent
-
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(integrations/webhook/)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No integrations/webhook changes detected: skip"
+            exit 0
+          fi
+          [ -f package.json ] && npm ci && npm test --if-present --silent || true

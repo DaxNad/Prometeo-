@@ -2,12 +2,6 @@ name: SMF Backend Tests
 
 on:
   pull_request:
-    paths:
-      - 'backend/app/smf/**'
-      - 'backend/tests/test_smf_*'
-      - 'backend/tests/test_smoke_api.py'
-      - 'backend/requirements.txt'
-      - '.github/workflows/smf-backend-tests.yml'
   workflow_dispatch: {}
 
 jobs:
@@ -22,6 +16,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Determine changed files (PR)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
+          git diff --name-only FETCH_HEAD... > changed_files.txt
+          echo "Changed files:"; cat changed_files.txt || true
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -29,20 +30,35 @@ jobs:
           cache: 'pip'
           cache-dependency-path: backend/requirements.txt
 
-      - name: Install dependencies
+      - name: Install dependencies (only if SMF/backend changed)
         run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.txt pytest
+          NEED_RUN=0
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' changed_files.txt >/dev/null 2>&1; then
+              NEED_RUN=1
+            fi
+          else
+            NEED_RUN=1
+          fi
+          if [ "$NEED_RUN" = "1" ]; then
+            python -m pip install --upgrade pip
+            pip install -r backend/requirements.txt pytest
+          else
+            echo "No SMF/backend changes detected: skip install"
+          fi
 
       - name: Prepare SMF base path
         run: |
           mkdir -p "$SMF_BASE_PATH"
 
-      - name: Run SMF tests
+      - name: Run SMF tests (only if SMF/backend changed)
         working-directory: backend
         run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No SMF/backend changes detected: passing no-op"
+            exit 0
+          fi
           pytest -q \
             tests/test_smoke_api.py \
             tests/test_smf_ingest.py \
             tests/test_smf_schema_guard.py
-
