@@ -52,4 +52,3 @@ def explain_global_sequence(seq_payload: Dict[str, Any]) -> Dict[str, Any]:
         })
 
     return {**seq_payload, "items": explained, "explainable": True}
-
