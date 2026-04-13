@@ -49,6 +49,16 @@ def startup_event() -> None:
     global startup_db_init_ok, startup_db_init_error
     try:
         init_db()
+        # Se siamo su Postgres, garantiamo anche lo schema 'events' legacy
+        # usato da sequence planner e machine-load per le segnalazioni operative.
+        try:
+            if settings.postgres_configured:
+                from .repositories.postgres_events_repository import PostgresEventsRepository
+
+                PostgresEventsRepository().ensure_schema()
+        except Exception as e:
+            # Non blocca l'avvio: gli endpoint gestiranno con fallback
+            print(f"EVENTS schema ensure skipped: {e}")
         startup_db_init_ok = True
         startup_db_init_error = None
         print("DB INIT OK")
@@ -146,4 +156,3 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
-
