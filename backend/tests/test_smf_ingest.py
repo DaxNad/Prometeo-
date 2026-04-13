@@ -184,6 +184,24 @@ def test_write_extracted_order_to_smf_append_and_update(tmp_path: Path):
     assert update_result["smf_write"]["matched_column"] == "order_id"
     assert "Cliente" in update_result["smf_write"]["written_columns"]
 
+    # No-op update: stessi valori → nessuna colonna scritta
+    noop_result = write_extracted_order_to_smf(
+        {
+            "order_id": "EXIST-LOWER",
+            "cliente": "Legacy Updated",
+            "codice": "COD-UPD",
+            "qta": 9,
+            "postazione": "LINEA9",
+            "note": "update test",
+            "source_type": "ocr_json",
+        },
+        adapter=adapter,
+    )
+    assert noop_result["ok"] is True
+    assert noop_result["smf_write"]["mode"] == "update_order"
+    assert isinstance(noop_result["smf_write"].get("written_columns", []), list)
+    assert len(noop_result["smf_write"].get("written_columns", [])) == 0
+
     append_without_id_result = write_extracted_order_to_smf(
         {
             "cliente": "Senza ID",
