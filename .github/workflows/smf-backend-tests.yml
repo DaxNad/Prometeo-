@@ -59,9 +59,25 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' ../changed_files.txt >/dev/null 2>&1; then
             echo "No SMF/backend changes detected: passing no-op"
-            exit 0
+          else
+            pytest -q \
+              tests/test_smoke_api.py \
+              tests/test_smf_ingest.py \
+              tests/test_smf_schema_guard.py
           fi
-          pytest -q \
-            tests/test_smoke_api.py \
-            tests/test_smf_ingest.py \
-            tests/test_smf_schema_guard.py
+
+      - name: Publish legacy status context 'smf'
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA='${{ github.event.pull_request.head.sha }}'
+          REPO='${{ github.repository }}'
+          API="https://api.github.com/repos/${REPO}/statuses/${SHA}"
+          DESC="SMF backend checks passed"
+          TARGET_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "Publishing status to $API"
+          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+               -H 'Accept: application/vnd.github+json' \
+               -X POST "$API" \
+               -d "{\"state\":\"success\",\"context\":\"smf\",\"description\":\"$DESC\",\"target_url\":\"$TARGET_URL\"}"
