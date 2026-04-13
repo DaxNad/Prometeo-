@@ -1,0 +1,22 @@
+name: Events Seed
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "PROMETEO base URL (Railway o locale)"
+        required: true
+      station:
+        description: "Station (es. ZAW-1)"
+        required: true
+        default: "ZAW-1"
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Seed Event
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/seed_events.sh "${{ inputs.station }}"
