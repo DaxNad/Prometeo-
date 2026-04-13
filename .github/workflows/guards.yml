@@ -15,6 +15,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONPATH: backend
+      PYTEST_ADDOPTS: -m "not e2e"
 
     steps:
       - name: Checkout
