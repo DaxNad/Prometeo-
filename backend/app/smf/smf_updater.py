@@ -93,8 +93,17 @@ class SMFUpdater:
                 except Exception:
                     # fallback silenzioso: in caso non sia disponibile pandas.api.types
                     pass
-                df.loc[mask, key] = value
-                written_columns.append(key)
+                # Idempotenza: scrivi solo se cambia davvero almeno un valore nella riga target
+                try:
+                    current_vals = df.loc[mask, key].fillna("").astype(str).str.strip()
+                    new_val = "" if value is None else str(value).strip()
+                    if not bool((current_vals == new_val).all()):
+                        df.loc[mask, key] = value
+                        written_columns.append(key)
+                except Exception:
+                    # In caso di problemi nel confronto, assegna comunque
+                    df.loc[mask, key] = value
+                    written_columns.append(key)
 
         try:
             with pd.ExcelWriter(

@@ -1,7 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Seed minimal production orders dataset (3 records on ZAW-1)
+# Seed realistic demo dataset for production orders
+# Requirements:
+# - 3 orders on ZAW-1
+# - 1 order on ZAW-2
+# - 1 order with shared component pressure
+# - priority mix (ALTA, MEDIA)
+# - at least 1 blocked order
 # Usage:
 #   BASE_URL=https://your-app.railway.app scripts/seed_orders.sh
 # Defaults to localhost if BASE_URL is not set.
@@ -14,7 +20,7 @@ post() {
   local payload="$1"
   curl -sS -X POST -H 'Content-Type: application/json' \
     --data "${payload}" \
-    "${BASE_URL}/production/order" | jq '{ok, target_sheet: .target_sheet, order_id: .normalized.order_id, write_mode: .write_mode}'
+    "${BASE_URL}/production/order" | jq '{ok, order_id: .order_id, rows: .rows, smf: .smf_sync.ok}'
 }
 
 post '{
@@ -23,7 +29,9 @@ post '{
   "codice": "CODE-ZAW-A",
   "qta": 5,
   "postazione": "ZAW-1",
-  "stato": "da fare"
+  "stato": "da fare",
+  "priorita": "ALTA",
+  "station_queue_pressure": 2
 }'
 
 post '{
@@ -32,7 +40,9 @@ post '{
   "codice": "CODE-ZAW-B",
   "qta": 3,
   "postazione": "ZAW-1",
-  "stato": "da fare"
+  "stato": "da fare",
+  "priorita": "MEDIA",
+  "station_queue_pressure": 1
 }'
 
 post '{
@@ -41,7 +51,33 @@ post '{
   "codice": "CODE-ZAW-C",
   "qta": 2,
   "postazione": "ZAW-1",
-  "stato": "da fare"
+  "stato": "bloccato",
+  "priorita": "ALTA",
+  "station_queue_pressure": 3
+}'
+
+# ZAW-2 (MEDIA)
+post '{
+  "order_id": "ZAW-SEED-004",
+  "cliente": "SeedCustomer",
+  "codice": "CODE-ZAW-D",
+  "qta": 4,
+  "postazione": "ZAW-2",
+  "stato": "da fare",
+  "priorita": "MEDIA",
+  "station_queue_pressure": 1
+}'
+
+# Shared component pressure (associato a ZAW-1)
+post '{
+  "order_id": "ZAW-SEED-SHARED-001",
+  "cliente": "SeedCustomer",
+  "codice": "CODE-SHARED-X",
+  "qta": 1,
+  "postazione": "ZAW-1",
+  "stato": "da fare",
+  "priorita": "MEDIA",
+  "shared_component_pressure": 1
 }'
 
 echo "[SEED:ORDERS] Done"

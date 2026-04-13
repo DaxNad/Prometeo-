@@ -16,3 +16,14 @@ jobs:
           BASE_URL: ${{ inputs.base_url }}
         run: |
           bash scripts/seed_orders.sh
+      - name: Seed Event (ZAW-1)
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/seed_events.sh ZAW-1
+      - name: Postdeploy Smoke
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/smoke_postdeploy.sh
+
