@@ -11,7 +11,7 @@ jobs:
     env:
       PROMETEO_DB_BACKEND: sqlite
       DATABASE_URL: ''
-      SMF_BASE_PATH: ${{ runner.temp }}/smf
+      SMF_BASE_PATH: /tmp/smf
     steps:
       - name: Checkout
         uses: actions/checkout@v4
