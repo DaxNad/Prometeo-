@@ -230,6 +230,15 @@ def smf_debug_bootstrap():
     except Exception:
         writable = False
 
+    # keep diagnostics concise and production-safe
+    err = getattr(adapter, "_bootstrap_error", None)
+    err_summary = None
+    if isinstance(err, str) and err.strip():
+        try:
+            err_summary = err.strip().splitlines()[-1]
+        except Exception:
+            err_summary = "bootstrap_error"
+
     return {
         "base_path": str(base_path),
         "master_path": str(master),
@@ -238,7 +247,7 @@ def smf_debug_bootstrap():
         "master_exists": master.exists(),
         "writable_check": writable,
         "bootstrap_attempted": bool(getattr(adapter, "_bootstrap_attempted", False)),
-        "bootstrap_error": getattr(adapter, "_bootstrap_error", None),
+        "bootstrap_error": err_summary,
     }
 
 

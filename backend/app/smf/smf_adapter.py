@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import os
 from pathlib import Path
+import logging
 import traceback
 from openpyxl import Workbook
 from typing import Any
@@ -95,14 +96,15 @@ class SMFAdapter:
         base = self.base_path
         master = self.master_path()
         try:
-            print(f"[SMF_BOOTSTRAP] base_path={base} master_path={master}")
+            logger = logging.getLogger(__name__)
+            logger.debug("SMF bootstrap: base_path=%s master_path=%s", base, master)
             base.mkdir(parents=True, exist_ok=True)
-            print(
-                f"[SMF_BOOTSTRAP] base_exists={base.exists()} base_is_dir={base.is_dir()} "
-                f"master_exists_before={master.exists()} writable_check={self._writable_check(base)}"
+            logger.debug(
+                "SMF bootstrap env: base_exists=%s base_is_dir=%s master_exists_before=%s writable_check=%s",
+                base.exists(), base.is_dir(), master.exists(), self._writable_check(base)
             )
             if master.exists():
-                print("[SMF_BOOTSTRAP] master already present, skipping creation")
+                logger.debug("SMF bootstrap: master already present, skipping creation")
                 return
 
             wb = Workbook()
@@ -145,10 +147,11 @@ class SMFAdapter:
             ])
 
             wb.save(master)
-            print(f"[SMF_BOOTSTRAP] workbook saved: master_exists_after={master.exists()}")
+            logger.info("SMF bootstrap: created new workbook at %s (exists_after=%s)", master, master.exists())
         except Exception:
             self._bootstrap_error = traceback.format_exc()
-            print(f"[SMF_BOOTSTRAP][ERROR] {self._bootstrap_error}")
+            # Avoid dumping full trace to stdout in production; keep it attached for diagnostics endpoint
+            logging.getLogger(__name__).error("SMF bootstrap failed: %s", str(self._bootstrap_error).splitlines()[-1])
 
     def _writable_check(self, path: Path) -> bool:
         try:
