@@ -119,6 +119,25 @@ def _init_postgres_schema() -> None:
         with conn.cursor() as cur:
             cur.execute(
                 """
+                CREATE TABLE IF NOT EXISTS events (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    line TEXT NOT NULL,
+                    station TEXT NOT NULL,
+                    event_type TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    note TEXT,
+                    source TEXT,
+                    opened_at TIMESTAMP NOT NULL,
+                    closed_at TIMESTAMP NULL,
+                    closed_by TEXT NULL
+                )
+                """
+            )
+
+            cur.execute(
+                """
                 CREATE TABLE IF NOT EXISTS agent_runs (
                     id BIGSERIAL PRIMARY KEY,
                     source TEXT NOT NULL,

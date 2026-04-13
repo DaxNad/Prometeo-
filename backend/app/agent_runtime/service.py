@@ -23,7 +23,8 @@ class AgentRuntimeService:
         inspection: dict,
         local_action: str,
         fallback_explanation: str | None,
-    ) -> str:
+    ) -> tuple[str, bool]:
+        """Restituisce (spiegazione, atlas_used)."""
         try:
             prompt = build_agent_runtime_prompt(
                 source=source,
@@ -43,16 +44,17 @@ class AgentRuntimeService:
 
             text = result.get("text", "").strip()
             if text:
-                return text
+                return text, True
 
         except Exception:
             pass
 
-        return fallback_explanation or (
+        fallback = fallback_explanation or (
             f"AZIONE_TL: {local_action}\n"
             f"MOTIVO: spiegazione non disponibile\n"
             f"PRIORITA: {severity.upper()}"
         )
+        return fallback, False
 
     async def analyze(
         self,
@@ -75,7 +77,7 @@ class AgentRuntimeService:
 
         decision = decide(inspection)
 
-        decision.explanation = self._build_explanation_with_claude(
+        explanation, atlas_used = self._build_explanation_with_claude(
             source=source,
             line_id=line_id,
             event_type=event_type,
@@ -85,6 +87,10 @@ class AgentRuntimeService:
             local_action=decision.action,
             fallback_explanation=decision.explanation,
         )
+        decision.explanation = explanation
+
+        if atlas_used and decision.decision_mode == "local-escalation":
+            decision.decision_mode = "local-escalation-atlas"
 
         self.repo.save(
             source=source,
