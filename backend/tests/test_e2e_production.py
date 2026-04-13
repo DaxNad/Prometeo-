@@ -1,7 +1,13 @@
 import uuid
 import httpx
+import pytest
 
+# Per E2E reali serve un server all'indirizzo indicato.
+# Manteniamo il default attuale senza imporre variabili d'ambiente.
 BASE_URL = "http://127.0.0.1:8000"
+
+
+pytestmark = pytest.mark.e2e
 
 
 def test_health():

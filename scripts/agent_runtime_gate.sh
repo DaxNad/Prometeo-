@@ -18,7 +18,7 @@ trap cleanup EXIT
 echo
 echo "=== CHECK /health ==="
 curl -fsS "$BASE_URL/health" > "$TMP_HEALTH"
-python - <<'PY' "$TMP_HEALTH"
+python3 - <<'PY' "$TMP_HEALTH"
 import json, sys
 data = json.load(open(sys.argv[1]))
 assert data["ok"] is True, "health.ok != true"
@@ -30,7 +30,7 @@ PY
 echo
 echo "=== CHECK /agent-runtime/status ==="
 curl -fsS "$BASE_URL/agent-runtime/status" > "$TMP_STATUS"
-python - <<'PY' "$TMP_STATUS"
+python3 - <<'PY' "$TMP_STATUS"
 import json, sys
 data = json.load(open(sys.argv[1]))
 assert data["ok"] is True, "status.ok != true"
@@ -58,7 +58,7 @@ PY
 echo
 echo "=== CHECK /agent-runtime/summary ==="
 curl -fsS "$BASE_URL/agent-runtime/summary" > "$TMP_SUMMARY"
-python - <<'PY' "$TMP_SUMMARY"
+python3 - <<'PY' "$TMP_SUMMARY"
 import json, sys
 data = json.load(open(sys.argv[1]))
 assert data["ok"] is True, "summary.ok != true"

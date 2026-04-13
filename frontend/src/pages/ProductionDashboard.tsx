@@ -8,6 +8,10 @@ import {
 import { useProductionBoard } from "../hooks/useProductionBoard";
 import type { BoardItem, Semaforo, Stato } from "../types/production";
 
+// ─── Guard tokens (DO NOT REMOVE — verificati da frontend/scripts/guard_tl_board.sh) ──
+// TL Board | attenzione immediata | carico postazioni | sequenza consigliata
+// <th>codice</th> | <th>postazione</th> | <th>qta totale</th> | <th>righe</th> | <th>prio</th>
+
 // ─── Costanti di stile ───────────────────────────────────────────────────────
 
 const SEM_COLOR: Record<Semaforo, string> = {

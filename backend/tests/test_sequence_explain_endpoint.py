@@ -1,0 +1,58 @@
+import os
+from fastapi.testclient import TestClient
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
+
+# Forza backend SQLite per evitare dipendenze da PostgreSQL in test
+os.environ.setdefault("PROMETEO_DB_BACKEND", "sqlite")
+os.environ.setdefault("DATABASE_URL", "")
+
+from app.main import app  # noqa: E402
+from app.db.session import SessionLocal  # noqa: E402
+
+
+def test_sequence_explain_endpoint_with_open_event():
+    db: Session = SessionLocal()
+    try:
+        # Assicura tabella events ed inserisce 1 evento OPEN su ZAW-1
+        db.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS events (
+                    id TEXT PRIMARY KEY,
+                    title TEXT NOT NULL,
+                    station TEXT NOT NULL,
+                    status TEXT NOT NULL,
+                    opened_at TEXT
+                )
+                """
+            )
+        )
+        db.execute(
+            text(
+                """
+                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
+                VALUES ('E-EXPL-ENDPOINT-1', 'Explain endpoint test', 'ZAW-1', 'OPEN', '2026-04-13T10:05:00')
+                """
+            )
+        )
+        db.commit()
+    finally:
+        db.close()
+
+    client = TestClient(app)
+    r = client.get("/production/sequence/explain")
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True
+    assert data.get("explainable") is True
+    assert data.get("items_count", 0) >= 0
+    items = data.get("items", [])
+    # L'item per ZAW-1 dovrebbe riflettere l'impatto evento
+    match = [i for i in items if i.get("critical_station") == "ZAW-1"]
+    if match:
+        expl = match[0].get("explain", {})
+        ev = (expl.get("signals") or {}).get("events") or {}
+        assert ev.get("open", 0) >= 1
+

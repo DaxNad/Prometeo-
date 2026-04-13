@@ -26,6 +26,8 @@ export type MachineLoadItem = {
   yellow_total: number;
   green_total: number;
   quantity_total: number;
+  open_events_total?: number;
+  event_titles?: string;
 };
 
 export type MachineLoadResponse = {

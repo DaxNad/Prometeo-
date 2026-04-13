@@ -1,16 +1,20 @@
 from __future__ import annotations
 
+import asyncio
 from datetime import date, datetime
 
 from fastapi import APIRouter
 
+from .agent_runtime.service import AgentRuntimeService
 from .db.session import SessionLocal
 from .services.sequence_planner import sequence_planner_service
+from .station_normalizer import normalize_station
 from .smf.smf_adapter import SMFAdapter
 
 router = APIRouter(prefix="/production", tags=["production-dashboard"])
 
 adapter = SMFAdapter()
+agent_runtime = AgentRuntimeService()
 
 ACTION_PRIORITY = {
     "AVVIO_IMMEDIATO": 3,
@@ -24,6 +28,28 @@ SEMAFORO_PRIORITY = {
     "VERDE": 1,
     "": 0,
 }
+
+
+def _agent_monitor(
+    *,
+    event_type: str,
+    severity: str = "info",
+    payload: dict | None = None,
+) -> None:
+    try:
+        asyncio.run(
+            agent_runtime.analyze(
+                source="api_dashboard",
+                line_id="api_dashboard",
+                event_type=event_type,
+                severity=severity,
+                payload=payload or {},
+            )
+        )
+    except RuntimeError:
+        pass
+    except Exception:
+        pass
 
 
 def _orders_payload() -> dict:
@@ -106,7 +132,7 @@ def _fallback_board_rows() -> list[dict]:
         due = str(x.get("due_date", "")).strip()
         semaforo = _semaforo_from_due(due)
         action = str(x.get("tl_action", "")).strip() or "MONITORARE"
-        station = str(x.get("critical_station", "")).strip() or "NON_ASSEGNATA"
+        station = normalize_station(x.get("critical_station", ""))
         qty = x.get("quantity", 0) or 0
         logic_origin = str(x.get("logic_origin", "")).strip()
         shared_components = [str(c).strip() for c in (x.get("shared_components") or []) if str(c).strip()]
@@ -197,7 +223,7 @@ def _fallback_board_rows() -> list[dict]:
 def _fallback_load_items(board_rows: list[dict]) -> list[dict]:
     load_map: dict[str, dict] = {}
     for row in board_rows:
-        station = str(row.get("postazione", "")).strip() or "NON_ASSEGNATA"
+        station = normalize_station(row.get("postazione", ""))
         semaforo = str(row.get("semaforo", "")).strip().upper()
 
         if station not in load_map:
@@ -246,10 +272,29 @@ def production_board():
                     "note": row.get("Note", ""),
                 }
             )
-        return {"ok": True, "count": len(board), "items": board}
+
+        result = {"ok": True, "count": len(board), "items": board}
+        _agent_monitor(
+            event_type="production_board_endpoint",
+            payload={
+                "endpoint": "/production/board",
+                "mode": "smf",
+                "count": result["count"],
+            },
+        )
+        return result
 
     board = _fallback_board_rows()
-    return {"ok": True, "count": len(board), "items": board}
+    result = {"ok": True, "count": len(board), "items": board}
+    _agent_monitor(
+        event_type="production_board_endpoint",
+        payload={
+            "endpoint": "/production/board",
+            "mode": "fallback_sequence",
+            "count": result["count"],
+        },
+    )
+    return result
 
 
 @router.get("/delays")
@@ -274,7 +319,17 @@ def production_delays():
                         "due_date": row.get("Data richiesta cliente", ""),
                     }
                 )
-        return {"ok": True, "count": len(delayed), "items": delayed}
+
+        result = {"ok": True, "count": len(delayed), "items": delayed}
+        _agent_monitor(
+            event_type="production_delays_endpoint",
+            payload={
+                "endpoint": "/production/delays",
+                "mode": "smf",
+                "count": result["count"],
+            },
+        )
+        return result
 
     board = _fallback_board_rows()
     delayed = [row for row in board if str(row.get("semaforo", "")).upper() in {"ROSSO", "GIALLO"}]
@@ -291,7 +346,16 @@ def production_delays():
         }
         for row in delayed
     ]
-    return {"ok": True, "count": len(items), "items": items}
+    result = {"ok": True, "count": len(items), "items": items}
+    _agent_monitor(
+        event_type="production_delays_endpoint",
+        payload={
+            "endpoint": "/production/delays",
+            "mode": "fallback_sequence",
+            "count": result["count"],
+        },
+    )
+    return result
 
 
 @router.get("/load")
@@ -302,7 +366,7 @@ def production_load():
     if payload.get("exists") and rows:
         load_map: dict[str, dict] = {}
         for row in rows:
-            station = str(row.get("Postazione assegnata", "")).strip() or "NON_ASSEGNATA"
+            station = normalize_station(row.get("Postazione assegnata", ""))
             semaforo = str(row.get("Semaforo scadenza", "")).strip().upper()
             stato = str(row.get("Stato (da fare/in corso/finito)", "")).strip().lower()
 
@@ -332,8 +396,26 @@ def production_load():
                 load_map[station]["green"] += 1
 
         items = sorted(load_map.values(), key=lambda x: x["postazione"])
-        return {"ok": True, "count": len(items), "items": items}
+        result = {"ok": True, "count": len(items), "items": items}
+        _agent_monitor(
+            event_type="production_load_endpoint",
+            payload={
+                "endpoint": "/production/load",
+                "mode": "smf",
+                "count": result["count"],
+            },
+        )
+        return result
 
     board = _fallback_board_rows()
     items = _fallback_load_items(board)
-    return {"ok": True, "count": len(items), "items": items}
+    result = {"ok": True, "count": len(items), "items": items}
+    _agent_monitor(
+        event_type="production_load_endpoint",
+        payload={
+            "endpoint": "/production/load",
+            "mode": "fallback_sequence",
+            "count": result["count"],
+        },
+    )
+    return result
