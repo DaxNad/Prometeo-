@@ -1,0 +1,9 @@
+{
+  "expected_item_keys": [
+    "station",
+    "open_events_total",
+    "blocked_total",
+    "red_total",
+    "event_titles"
+  ]
+}

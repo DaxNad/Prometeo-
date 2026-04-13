@@ -1,0 +1,10 @@
+{
+  "expected_item_keys": [
+    "critical_station",
+    "open_events_total",
+    "event_impact",
+    "priority",
+    "workload",
+    "source"
+  ]
+}
