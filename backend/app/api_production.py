@@ -9,6 +9,7 @@ from .agent_runtime.runtime_hook import trigger_runtime_analysis
 from .db.session import get_db
 from .services.sequence_planner import sequence_planner_service
 from .services.sequence_explain import explain_global_sequence
+from .services.explainability import build_tl_explanation
 from .smf.smf_adapter import SMFAdapter
 from .station_normalizer import normalize_station
 
@@ -799,4 +800,24 @@ def machine_load_requested(
     return {
         "ok": True,
         **payload,
+    }
+
+
+@router.get("/explain")
+def get_explain(db: Session = Depends(get_db)):
+    """Endpoint diagnostico: arricchisce gli item della sequenza
+    con priority_reason, risk_level e signals, senza modificare
+    il ranking del planner né l'architettura."""
+    seq = sequence_planner_service.build_global_sequence(db)
+    enriched: list[dict[str, Any]] = []
+    for it in seq.get("items", []) or []:
+        expl = build_tl_explanation(it)
+        enriched.append({**it, **expl})
+
+    return {
+        "ok": True,
+        "planner_stage": seq.get("planner_stage"),
+        "source": seq.get("source_view"),
+        "items_count": len(enriched),
+        "items": enriched,
     }

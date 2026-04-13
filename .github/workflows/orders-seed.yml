@@ -1,0 +1,29 @@
+name: Orders Seed
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "PROMETEO base URL (Railway o locale)"
+        required: true
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Seed Orders
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/seed_orders.sh
+      - name: Seed Event (ZAW-1)
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/seed_events.sh ZAW-1
+      - name: Postdeploy Smoke
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/smoke_postdeploy.sh
+
