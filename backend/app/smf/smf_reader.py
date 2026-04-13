@@ -18,9 +18,12 @@ class SMFReader:
     def sheets(self) -> list[str]:
         if not self.exists():
             return []
-
-        xls = pd.ExcelFile(self.path)
-        return list(xls.sheet_names)
+        try:
+            xls = pd.ExcelFile(self.path)
+            return list(xls.sheet_names)
+        except Exception:
+            # workbook non leggibile o corrotto
+            return []
 
     def preview(self, sheet: str | None = None, rows: int = 5) -> dict:
         if not self.exists():
@@ -33,8 +36,19 @@ class SMFReader:
                 "available_sheets": [],
             }
 
-        xls = pd.ExcelFile(self.path)
-        available_sheets = list(xls.sheet_names)
+        try:
+            xls = pd.ExcelFile(self.path)
+            available_sheets = list(xls.sheet_names)
+        except Exception:
+            return {
+                "exists": True,
+                "sheet": None,
+                "columns": [],
+                "rows_preview": [],
+                "row_count": 0,
+                "available_sheets": [],
+                "error": "workbook not readable",
+            }
 
         if not available_sheets:
             return {
@@ -60,7 +74,18 @@ class SMFReader:
                 "error": f"Foglio non trovato: {sheet}",
             }
 
-        df = pd.read_excel(self.path, sheet_name=sheet)
+        try:
+            df = pd.read_excel(self.path, sheet_name=sheet)
+        except Exception:
+            return {
+                "exists": True,
+                "sheet": sheet,
+                "columns": [],
+                "rows_preview": [],
+                "row_count": 0,
+                "available_sheets": available_sheets,
+                "error": "sheet read error",
+            }
 
         return {
             "exists": True,
@@ -94,7 +119,18 @@ class SMFReader:
                 "code": normalized_code,
             }
 
-        xls = pd.ExcelFile(self.path)
+        try:
+            xls = pd.ExcelFile(self.path)
+        except Exception:
+            return {
+                "ok": False,
+                "found": False,
+                "sheet": sheet,
+                "column": column,
+                "matched_column": None,
+                "code": normalized_code,
+                "error": "workbook not readable",
+            }
         if sheet not in xls.sheet_names:
             return {
                 "ok": False,
@@ -106,7 +142,18 @@ class SMFReader:
                 "error": f"sheet {sheet} not found",
             }
 
-        df = pd.read_excel(self.path, sheet_name=sheet)
+        try:
+            df = pd.read_excel(self.path, sheet_name=sheet)
+        except Exception:
+            return {
+                "ok": False,
+                "found": False,
+                "sheet": sheet,
+                "column": column,
+                "matched_column": None,
+                "code": normalized_code,
+                "error": "sheet read error",
+            }
         candidate_columns = [c for c in (column, *CODE_COLUMN_CANDIDATES) if c in df.columns]
         candidate_columns = list(dict.fromkeys(candidate_columns))
         if not candidate_columns:
@@ -161,7 +208,18 @@ class SMFReader:
                 "station": normalized_station,
             }
 
-        xls = pd.ExcelFile(self.path)
+        try:
+            xls = pd.ExcelFile(self.path)
+        except Exception:
+            return {
+                "ok": False,
+                "found": False,
+                "sheet": sheet,
+                "column": column,
+                "matched_column": None,
+                "station": normalized_station,
+                "error": "workbook not readable",
+            }
         if sheet not in xls.sheet_names:
             return {
                 "ok": False,
@@ -173,7 +231,18 @@ class SMFReader:
                 "error": f"sheet {sheet} not found",
             }
 
-        df = pd.read_excel(self.path, sheet_name=sheet)
+        try:
+            df = pd.read_excel(self.path, sheet_name=sheet)
+        except Exception:
+            return {
+                "ok": False,
+                "found": False,
+                "sheet": sheet,
+                "column": column,
+                "matched_column": None,
+                "station": normalized_station,
+                "error": "sheet read error",
+            }
         candidate_columns = [c for c in (column, *STATION_COLUMN_CANDIDATES) if c in df.columns]
         candidate_columns = list(dict.fromkeys(candidate_columns))
         if not candidate_columns:

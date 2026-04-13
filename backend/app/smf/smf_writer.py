@@ -28,12 +28,18 @@ class SMFWriter:
 
     def append_row(self, sheet: str, row: dict) -> dict:
         mode = os.getenv("SMF_SCHEMA_MODE", "validate").strip().lower() or "validate"
-        xls = pd.ExcelFile(self.path)
+        try:
+            xls = pd.ExcelFile(self.path)
+        except Exception:
+            return {"ok": False, "error": "workbook not readable"}
 
         if sheet not in xls.sheet_names:
-            return {"error": f"sheet {sheet} not found"}
+            return {"ok": False, "error": f"sheet {sheet} not found"}
 
-        df = pd.read_excel(self.path, sheet_name=sheet)
+        try:
+            df = pd.read_excel(self.path, sheet_name=sheet)
+        except Exception:
+            return {"ok": False, "error": "sheet read error"}
 
         # schema guard: ensure required columns for the sheet
         required = REQUIRED_SCHEMA.get(sheet, [])
@@ -53,14 +59,16 @@ class SMFWriter:
 
         df = pd.concat([df, pd.DataFrame([normalized_row], columns=df.columns)], ignore_index=True)
 
-        with pd.ExcelWriter(
-            self.path,
-            engine="openpyxl",
-            mode="a",
-            if_sheet_exists="replace"
-        ) as writer:
-
-            df.to_excel(writer, sheet_name=sheet, index=False)
+        try:
+            with pd.ExcelWriter(
+                self.path,
+                engine="openpyxl",
+                mode="a",
+                if_sheet_exists="replace"
+            ) as writer:
+                df.to_excel(writer, sheet_name=sheet, index=False)
+        except Exception:
+            return {"ok": False, "error": "write failed"}
 
         return {
             "ok": True,

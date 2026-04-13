@@ -1,5 +1,7 @@
 import os
 from fastapi.testclient import TestClient
+import tempfile
+from pathlib import Path
 
 
 # Forza backend SQLite per evitare dipendenze da PostgreSQL in test
@@ -63,3 +65,38 @@ def test_smoke_health_and_smf_endpoints():
     body = r_parse.json()
     assert body.get("ok") is True
     assert body.get("flow") == "parse_only"
+
+
+def test_smf_endpoints_with_corrupted_workbook():
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp)
+        os.environ["SMF_BASE_PATH"] = str(base)
+        # invalida il master con contenuto non-Excel
+        master = base / "SuperMegaFile_Master.xlsx"
+        base.mkdir(parents=True, exist_ok=True)
+        master.write_text("NOT_AN_EXCEL_FILE", encoding="utf-8")
+        # resetta l'adapter globale per forzare ri-creazione con nuovo base_path
+        import app.api_smf as api_smf
+        api_smf.adapter = None  # type: ignore
+
+        client = TestClient(app)
+
+        r_structure = client.get("/smf/structure")
+        assert r_structure.status_code == 200
+        data = r_structure.json()
+        assert data.get("exists") in {True, False}
+
+        r_preview = client.get("/smf/preview")
+        assert r_preview.status_code == 200
+        prev = r_preview.json()
+        # su workbook corrotto non deve esplodere né esporre traceback
+        assert isinstance(prev, dict)
+        assert "rows_preview" in prev
+        # opzionalmente può riportare un errore sintetico
+        if "error" in prev:
+            assert prev["error"] in {"workbook not readable", "sheet read error"}
+
+        r_debug = client.get("/smf/debug-bootstrap")
+        assert r_debug.status_code == 200
+        dbg = r_debug.json()
+        assert "schema_ok" in dbg

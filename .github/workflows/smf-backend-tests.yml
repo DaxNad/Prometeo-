@@ -1,0 +1,48 @@
+name: SMF Backend Tests
+
+on:
+  pull_request:
+    paths:
+      - 'backend/app/smf/**'
+      - 'backend/tests/test_smf_*'
+      - 'backend/tests/test_smoke_api.py'
+      - 'backend/requirements.txt'
+      - '.github/workflows/smf-backend-tests.yml'
+  workflow_dispatch: {}
+
+jobs:
+  smf-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PROMETEO_DB_BACKEND: sqlite
+      DATABASE_URL: ''
+      SMF_BASE_PATH: ${{ runner.temp }}/smf
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt pytest
+
+      - name: Prepare SMF base path
+        run: |
+          mkdir -p "$SMF_BASE_PATH"
+
+      - name: Run SMF tests
+        working-directory: backend
+        run: |
+          pytest -q \
+            tests/test_smoke_api.py \
+            tests/test_smf_ingest.py \
+            tests/test_smf_schema_guard.py
+

@@ -102,14 +102,23 @@ class SMFAdapter:
             result["sheets_missing"] = list(REQUIRED_SCHEMA.keys())
             return result
 
-        xls = pd.ExcelFile(self.master_path())
-        available = set(xls.sheet_names)
+        try:
+            xls = pd.ExcelFile(self.master_path())
+            available = set(xls.sheet_names)
+        except Exception:
+            # workbook non leggibile: tutti i fogli mancanti
+            result["sheets_missing"] = list(REQUIRED_SCHEMA.keys())
+            return result
         required = set(REQUIRED_SCHEMA.keys())
         missing_sheets = sorted(list(required - available))
         result["sheets_missing"] = missing_sheets
 
         for sheet in sorted(required & available):
-            df = pd.read_excel(self.master_path(), sheet_name=sheet)
+            try:
+                df = pd.read_excel(self.master_path(), sheet_name=sheet)
+            except Exception:
+                result.setdefault("columns_missing", {})[sheet] = REQUIRED_SCHEMA[sheet]
+                continue
             have = set(map(str, list(df.columns)))
             need = set(REQUIRED_SCHEMA[sheet])
             missing_cols = sorted(list(need - have))
