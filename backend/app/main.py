@@ -6,6 +6,7 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .api.agent_runtime import router as agent_runtime_router
+from .api.mobile_ui import router as mobile_ui_router
 from .api.devos import router as dev_router
 from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
@@ -29,6 +30,7 @@ app = FastAPI(
     title="PROMETEO CORE",
     version=settings.version,
 )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -110,15 +112,17 @@ def ping_head():
 
 @app.get("/mobile")
 def mobile():
-    mobile_file = FRONTEND_DIST_DIR / "mobile.html"
-    if mobile_file.exists():
-        return FileResponse(mobile_file)
-
-    legacy_mobile = FRONTEND_DIR / "mobile.html"
-    if legacy_mobile.exists():
-        return FileResponse(legacy_mobile)
-
-    return Response(status_code=404)
+    return {
+        "ui": "prometeo-tl-mobile",
+        "entry": "http://localhost:3000",
+        "description": "Interfaccia Team Leader mobile",
+        "recommended_views": [
+            "/production/sequence",
+            "/production/turn-plan",
+            "/production/machine-load",
+            "/agent-runtime/summary"
+        ]
+    }
 
 
 app.include_router(dev_router)
@@ -133,6 +137,7 @@ app.include_router(production_events_router)
 app.include_router(devos_status_router)
 app.include_router(dev_db_init_router)
 app.include_router(agent_runtime_router)
+app.include_router(mobile_ui_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
@@ -141,3 +146,4 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
+

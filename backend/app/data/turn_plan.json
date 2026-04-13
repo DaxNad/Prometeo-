@@ -1,70 +1,109 @@
 {
-  "planner_stage": "TURN_PLAN_STAGE_4",
+  "planner_stage": "TURN_PLAN_STAGE_4_EVENT_AWARE",
   "source": "vw_tl_zaw1_board+vw_tl_zaw2_board",
   "rotation_logic": "SHIFT_TL_MULTI_CLUSTER",
-  "plan_date": "2026-04-04",
-  "clusters_count": 2,
-  "assignments_count": 2,
+  "plan_date": "2026-04-12",
+  "clusters_count": 1,
+  "assignments_count": 4,
   "assignments": [
     {
       "slot": 1,
-      "plan_date": "2026-04-04",
-      "shift": "NOTTE",
-      "team_leader": "Davide",
+      "plan_date": "2026-04-12",
+      "shift": "POMERIGGIO",
+      "team_leader": "Nino",
       "station": "ZAW-1",
       "article": "12063",
-      "quantity": 80,
-      "shared_components": [
-        "468728",
-        "468765",
-        "468796",
-        "CRT004",
-        "CRT007"
-      ],
-      "due_date": "2026-03-28",
-      "customer_priority": "ALTA",
-      "tl_action": "AVVIO_IMMEDIATO",
+      "quantity": 10,
+      "shared_components": [],
+      "due_date": "2026-04-03",
+      "customer_priority": "CRITICA",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
       "cluster_key": [
         "ZAW-1",
-        [
-          "468728",
-          "468765",
-          "468796",
-          "CRT004",
-          "CRT007"
-        ]
+        []
       ],
       "planning_status": "ASSEGNATO_MULTI_CLUSTER",
       "planning_origin": "GLOBAL_SEQUENCE",
       "source_view": "vw_tl_zaw1_board",
-      "station_rank": 1
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true
     },
     {
       "slot": 2,
-      "plan_date": "2026-04-04",
-      "shift": "MATTINA",
-      "team_leader": "Stefano",
-      "station": "ZAW-2",
-      "article": "12074",
-      "quantity": 50,
-      "shared_components": [
-        "467660",
-        "468922"
-      ],
-      "due_date": "2026-04-10",
-      "customer_priority": "MEDIA",
-      "tl_action": "AVVIO_IMMEDIATO",
+      "plan_date": "2026-04-12",
+      "shift": "POMERIGGIO",
+      "team_leader": "Nino",
+      "station": "ZAW-1",
+      "article": "12063",
+      "quantity": 10,
+      "shared_components": [],
+      "due_date": "2026-04-03",
+      "customer_priority": "CRITICA",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
       "cluster_key": [
-        "ZAW-2",
-        [
-          "467660",
-          "468922"
-        ]
+        "ZAW-1",
+        []
       ],
       "planning_status": "ASSEGNATO_MULTI_CLUSTER",
       "planning_origin": "GLOBAL_SEQUENCE",
-      "source_view": "vw_tl_zaw2_board",
-      "station_rank": 1
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true
+    },
+    {
+      "slot": 3,
+      "plan_date": "2026-04-12",
+      "shift": "POMERIGGIO",
+      "team_leader": "Nino",
+      "station": "ZAW-1",
+      "article": "12063",
+      "quantity": 10,
+      "shared_components": [],
+      "due_date": "2026-04-30",
+      "customer_priority": "CRITICA",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "cluster_key": [
+        "ZAW-1",
+        []
+      ],
+      "planning_status": "ASSEGNATO_MULTI_CLUSTER",
+      "planning_origin": "GLOBAL_SEQUENCE",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true
+    },
+    {
+      "slot": 4,
+      "plan_date": "2026-04-12",
+      "shift": "POMERIGGIO",
+      "team_leader": "Nino",
+      "station": "ZAW-1",
+      "article": "12063",
+      "quantity": 12,
+      "shared_components": [],
+      "due_date": "2026-04-30",
+      "customer_priority": "CRITICA",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "cluster_key": [
+        "ZAW-1",
+        []
+      ],
+      "planning_status": "ASSEGNATO_MULTI_CLUSTER",
+      "planning_origin": "GLOBAL_SEQUENCE",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true
     }
+  ],
+  "warnings": [
+    "postazioni con segnalazioni operative aperte in sequenza: ZAW-1"
   ]
 }

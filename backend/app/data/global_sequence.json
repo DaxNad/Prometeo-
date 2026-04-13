@@ -1,44 +1,78 @@
 {
-  "planner_stage": "ZAW_MULTI_SQL_BRIDGE",
+  "planner_stage": "ZAW_MULTI_SQL_EVENT_AWARE",
   "source_view": "vw_tl_zaw1_board+vw_tl_zaw2_board",
-  "items_count": 2,
+  "items_count": 4,
   "items": [
     {
-      "rank": 1,
       "article": "12063",
-      "shared_components": [
-        "468728",
-        "468765",
-        "468796",
-        "CRT004",
-        "CRT007"
-      ],
-      "quantity": 80,
-      "due_date": "2026-03-28",
-      "customer_priority": "ALTA",
+      "shared_components": [],
+      "quantity": 10,
+      "due_date": "2026-04-03",
+      "customer_priority": "CRITICA",
       "assembly_group": "12063",
       "critical_station": "ZAW-1",
-      "tl_action": "AVVIO_IMMEDIATO",
-      "logic_origin": "ZAW1_CLUSTER_COMPONENTI",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "logic_origin": "board_state",
       "source_view": "vw_tl_zaw1_board",
-      "station_rank": 1
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true,
+      "rank": 1
     },
     {
-      "rank": 2,
-      "article": "12074",
-      "shared_components": [
-        "467660",
-        "468922"
-      ],
-      "quantity": 50,
-      "due_date": "2026-04-10",
-      "customer_priority": "MEDIA",
-      "assembly_group": "12074",
-      "critical_station": "ZAW-2",
-      "tl_action": "AVVIO_IMMEDIATO",
-      "logic_origin": "ZAW2_CLUSTER_COMPONENTI",
-      "source_view": "vw_tl_zaw2_board",
-      "station_rank": 1
+      "article": "12063",
+      "shared_components": [],
+      "quantity": 10,
+      "due_date": "2026-04-03",
+      "customer_priority": "CRITICA",
+      "assembly_group": "12063",
+      "critical_station": "ZAW-1",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "logic_origin": "board_state",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true,
+      "rank": 2
+    },
+    {
+      "article": "12063",
+      "shared_components": [],
+      "quantity": 10,
+      "due_date": "2026-04-30",
+      "customer_priority": "CRITICA",
+      "assembly_group": "12063",
+      "critical_station": "ZAW-1",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "logic_origin": "board_state",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true,
+      "rank": 3
+    },
+    {
+      "article": "12063",
+      "shared_components": [],
+      "quantity": 12,
+      "due_date": "2026-04-30",
+      "customer_priority": "CRITICA",
+      "assembly_group": "12063",
+      "critical_station": "ZAW-1",
+      "tl_action": "VERIFICA_SEGNALAZIONE_OPERATIVA",
+      "logic_origin": "board_state",
+      "source_view": "vw_tl_zaw1_board",
+      "station_rank": 1,
+      "open_events_total": 1,
+      "event_titles": "mancanza componente condiviso",
+      "event_impact": true,
+      "rank": 4
     }
+  ],
+  "warnings": [
+    "postazioni con segnalazioni operative aperte in sequenza: ZAW-1"
   ]
 }

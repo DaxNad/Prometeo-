@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from collections import defaultdict
 from datetime import date
@@ -9,6 +10,9 @@ from typing import Any
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+from ..station_normalizer import normalize_station
+from app.agent_runtime.service import AgentRuntimeService
+
 
 class SequencePlannerService:
     SHIFT_SEQUENCE = ["NOTTE", "MATTINA", "POMERIGGIO"]
@@ -16,6 +20,7 @@ class SequencePlannerService:
     ROTATION_LOGIC = "SHIFT_TL_MULTI_CLUSTER"
 
     PRIORITY_RANK = {
+        "CRITICA": 0,
         "ALTA": 1,
         "MEDIA": 2,
         "BASSA": 3,
@@ -33,6 +38,8 @@ class SequencePlannerService:
 
         self.global_sequence_file = self.data_dir / "global_sequence.json"
         self.turn_plan_file = self.data_dir / "turn_plan.json"
+
+        self.agent_runtime = AgentRuntimeService()
 
     def fetch_station_board(self, db: Session, view_name: str) -> list[dict[str, Any]]:
         sql = f"""
@@ -82,12 +89,24 @@ class SequencePlannerService:
 
     def build_global_sequence(self, db: Session) -> dict[str, Any]:
         rows = self.fetch_global_board(db)
+        open_events = _get_open_events_by_station(db)
 
         items: list[dict[str, Any]] = []
-        for idx, r in enumerate(rows, start=1):
+        for r in rows:
+            critical_station = normalize_station(r["postazione_critica"])
+            event_data = open_events.get(critical_station, {})
+            open_events_total = int(event_data.get("open_events", 0) or 0)
+            event_titles = str(event_data.get("titles", "") or "")
+
+            customer_priority = r["priorita_cliente"]
+            tl_action = r["azione_tl"]
+
+            if open_events_total > 0:
+                customer_priority = "CRITICA"
+                tl_action = "VERIFICA_SEGNALAZIONE_OPERATIVA"
+
             items.append(
                 {
-                    "rank": idx,
                     "article": str(r["articolo"]),
                     "shared_components": self._split(r["componenti_condivisi"]),
                     "quantity": int(r["quantita"] or 0),
@@ -96,24 +115,58 @@ class SequencePlannerService:
                         if r["data_spedizione"]
                         else None
                     ),
-                    "customer_priority": r["priorita_cliente"],
+                    "customer_priority": customer_priority,
                     "assembly_group": r["complessivo_articolo"],
-                    "critical_station": r["postazione_critica"],
-                    "tl_action": r["azione_tl"],
+                    "critical_station": critical_station,
+                    "tl_action": tl_action,
                     "logic_origin": r["origine_logica"],
                     "source_view": r["_source_view"],
                     "station_rank": int(r["priorita_operativa"] or 0),
+                    "open_events_total": open_events_total,
+                    "event_titles": event_titles,
+                    "event_impact": open_events_total > 0,
                 }
             )
 
+        items.sort(
+            key=lambda item: (
+                self._priority_value(item.get("customer_priority")),
+                item.get("due_date") or "9999-12-31",
+                str(item.get("critical_station") or ""),
+                int(item.get("station_rank") or 999999),
+                str(item.get("article") or ""),
+            )
+        )
+
+        ranked_items: list[dict[str, Any]] = []
+        for idx, item in enumerate(items, start=1):
+            ranked_item = dict(item)
+            ranked_item["rank"] = idx
+            ranked_items.append(ranked_item)
+
         payload = {
-            "planner_stage": "ZAW_MULTI_SQL_BRIDGE",
+            "planner_stage": "ZAW_MULTI_SQL_EVENT_AWARE",
             "source_view": "+".join(source["view"] for source in self.BOARD_SOURCES),
-            "items_count": len(items),
-            "items": items,
+            "items_count": len(ranked_items),
+            "items": ranked_items,
+            "warnings": self._build_warnings(ranked_items),
         }
 
         self._save(self.global_sequence_file, payload)
+
+        self._agent_monitor(
+            source="sequence_planner",
+            line_id="planner",
+            event_type="build_global_sequence",
+            severity="info",
+            payload={
+                "planner_stage": payload["planner_stage"],
+                "items_count": payload["items_count"],
+                "source_view": payload["source_view"],
+                "warnings": payload["warnings"],
+            },
+        )
+
         return payload
 
     def build_turn_plan(self, db: Session) -> dict[str, Any]:
@@ -138,7 +191,7 @@ class SequencePlannerService:
                         "plan_date": today.isoformat(),
                         "shift": shift,
                         "team_leader": tl,
-                        "station": item["critical_station"],
+                        "station": normalize_station(item["critical_station"]),
                         "article": item["article"],
                         "quantity": item["quantity"],
                         "shared_components": item["shared_components"],
@@ -150,6 +203,9 @@ class SequencePlannerService:
                         "planning_origin": "GLOBAL_SEQUENCE",
                         "source_view": item["source_view"],
                         "station_rank": item["station_rank"],
+                        "open_events_total": item.get("open_events_total", 0),
+                        "event_titles": item.get("event_titles", ""),
+                        "event_impact": item.get("event_impact", False),
                     }
                 )
 
@@ -158,17 +214,49 @@ class SequencePlannerService:
         assignments.sort(key=lambda x: x["slot"])
 
         payload = {
-            "planner_stage": "TURN_PLAN_STAGE_4",
+            "planner_stage": "TURN_PLAN_STAGE_4_EVENT_AWARE",
             "source": "+".join(source["view"] for source in self.BOARD_SOURCES),
             "rotation_logic": self.ROTATION_LOGIC,
             "plan_date": today.isoformat(),
             "clusters_count": len(clusters),
             "assignments_count": len(assignments),
             "assignments": assignments,
+            "warnings": sequence.get("warnings", []),
         }
 
         self._save(self.turn_plan_file, payload)
+
+        self._agent_monitor(
+            source="sequence_planner",
+            line_id="planner",
+            event_type="build_turn_plan",
+            severity="info",
+            payload={
+                "planner_stage": payload["planner_stage"],
+                "assignments_count": payload["assignments_count"],
+                "clusters_count": payload["clusters_count"],
+                "rotation_logic": payload["rotation_logic"],
+                "warnings": payload["warnings"],
+            },
+        )
+
         return payload
+
+    def _build_warnings(self, items: list[dict[str, Any]]) -> list[str]:
+        impacted_stations: list[str] = []
+        for item in items:
+            if item.get("open_events_total", 0) > 0:
+                station = str(item.get("critical_station") or "")
+                if station and station not in impacted_stations:
+                    impacted_stations.append(station)
+
+        if not impacted_stations:
+            return []
+
+        return [
+            "postazioni con segnalazioni operative aperte in sequenza: "
+            + ", ".join(impacted_stations)
+        ]
 
     def _cluster(self, items: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
         groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
@@ -213,5 +301,56 @@ class SequencePlannerService:
             encoding="utf-8",
         )
 
+    def _agent_monitor(
+        self,
+        *,
+        source: str,
+        line_id: str,
+        event_type: str,
+        severity: str = "info",
+        payload: dict[str, Any] | None = None,
+    ) -> None:
+        try:
+            asyncio.run(
+                self.agent_runtime.analyze(
+                    source=source,
+                    line_id=line_id,
+                    event_type=event_type,
+                    severity=severity,
+                    payload=payload or {},
+                )
+            )
+        except RuntimeError:
+            pass
+        except Exception:
+            pass
+
 
 sequence_planner_service = SequencePlannerService()
+
+
+def _get_open_events_by_station(db: Session) -> dict[str, dict[str, Any]]:
+    rows = db.execute(
+        text(
+            """
+            SELECT
+                station,
+                COUNT(*) AS open_events,
+                STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS titles
+            FROM events
+            WHERE status = 'OPEN'
+            GROUP BY station
+            """
+        )
+    ).mappings().all()
+
+    result: dict[str, dict[str, Any]] = {}
+
+    for r in rows:
+        station = normalize_station(r["station"])
+        result[station] = {
+            "open_events": int(r["open_events"] or 0),
+            "titles": str(r["titles"] or ""),
+        }
+
+    return result

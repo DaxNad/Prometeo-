@@ -20,7 +20,14 @@ async function apiGet<T>(path: string): Promise<T> {
 
 export type MachineLoadItem = {
   station: string;
-  total_cycles: number;
+  orders_total: number;
+  blocked_total: number;
+  red_total: number;
+  yellow_total: number;
+  green_total: number;
+  quantity_total: number;
+  open_events_total?: number;
+  event_titles?: string;
 };
 
 export type MachineLoadResponse = {

@@ -8,8 +8,23 @@ from sqlalchemy.orm import Session
 from .agent_runtime.runtime_hook import trigger_runtime_analysis
 from .db.session import get_db
 from .services.sequence_planner import sequence_planner_service
+from .smf.smf_adapter import SMFAdapter
+from .station_normalizer import normalize_station
 
 router = APIRouter(prefix="/production", tags=["production"])
+smf_adapter = SMFAdapter()
+SMF_MUTABLE_ORDER_COLUMNS = (
+    "Cliente",
+    "Codice",
+    "Q.ta",
+    "Postazione assegnata",
+    "Stato (da fare/in corso/finito)",
+    "Progress %",
+    "Semaforo scadenza",
+    "Data richiesta cliente",
+    "Note",
+    "Priorità",
+)
 
 
 def _normalize_stato(value: Any) -> str:
@@ -88,6 +103,68 @@ def _is_blocked(stato: str, semaforo: str) -> bool:
     return str(semaforo).strip().upper() == "ROSSO"
 
 
+def _build_smf_order_row(
+    *,
+    order_id: str,
+    cliente: str,
+    codice: str,
+    qta: float,
+    postazione: str,
+    stato: str,
+    progress: float,
+    semaforo: str,
+    due_date: str,
+    note: str,
+    priority: str,
+) -> dict[str, Any]:
+    return {
+        "ID ordine": order_id,
+        "Cliente": cliente,
+        "Codice": codice,
+        "Q.ta": qta,
+        "Postazione assegnata": postazione,
+        "Stato (da fare/in corso/finito)": stato,
+        "Progress %": progress,
+        "Semaforo scadenza": semaforo,
+        "Data richiesta cliente": due_date,
+        "Note": note,
+        "Priorità": priority,
+    }
+
+
+def _build_smf_order_updates(
+    *,
+    cliente: str,
+    codice: str,
+    qta: float,
+    postazione: str,
+    stato: str,
+    progress: float,
+    semaforo: str,
+    due_date: str,
+    note: str,
+    priority: str,
+) -> dict[str, Any]:
+    row = _build_smf_order_row(
+        order_id="",
+        cliente=cliente,
+        codice=codice,
+        qta=qta,
+        postazione=postazione,
+        stato=stato,
+        progress=progress,
+        semaforo=semaforo,
+        due_date=due_date,
+        note=note,
+        priority=priority,
+    )
+    return {
+        key: value
+        for key, value in row.items()
+        if key in SMF_MUTABLE_ORDER_COLUMNS
+    }
+
+
 def _ensure_tables(db: Session) -> None:
     statements = [
         """
@@ -159,7 +236,7 @@ def _ensure_tables(db: Session) -> None:
 def _build_machine_load(db: Session) -> dict[str, Any]:
     _ensure_tables(db)
 
-    rows = db.execute(
+    board_rows = db.execute(
         text(
             """
             SELECT
@@ -177,26 +254,78 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
         )
     ).mappings().all()
 
-    items = []
-    for row in rows:
-        items.append(
-            {
-                "station": row["postazione"],
-                "orders_total": int(row["orders_total"] or 0),
-                "blocked_total": int(row["blocked_total"] or 0),
-                "red_total": int(row["red_total"] or 0),
-                "yellow_total": int(row["yellow_total"] or 0),
-                "green_total": int(row["green_total"] or 0),
-                "quantity_total": float(row["quantity_total"] or 0),
+    event_rows = db.execute(
+        text(
+            """
+            SELECT
+                station AS postazione,
+                COUNT(*) AS open_events_total,
+                STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS event_titles
+            FROM events
+            WHERE status = 'OPEN'
+            GROUP BY station
+            """
+        )
+    ).mappings().all()
+
+    board_by_station: dict[str, dict[str, Any]] = {}
+    for row in board_rows:
+        station = normalize_station(row["postazione"])
+        board_by_station[station] = {
+            "station": station,
+            "orders_total": int(row["orders_total"] or 0),
+            "blocked_total": int(row["blocked_total"] or 0),
+            "red_total": int(row["red_total"] or 0),
+            "yellow_total": int(row["yellow_total"] or 0),
+            "green_total": int(row["green_total"] or 0),
+            "quantity_total": float(row["quantity_total"] or 0),
+            "open_events_total": 0,
+            "event_titles": "",
+        }
+
+    for row in event_rows:
+        station = normalize_station(row["postazione"])
+        open_events_total = int(row["open_events_total"] or 0)
+        event_titles = str(row["event_titles"] or "")
+
+        if station not in board_by_station:
+            board_by_station[station] = {
+                "station": station,
+                "orders_total": 0,
+                "blocked_total": 0,
+                "red_total": 0,
+                "yellow_total": 0,
+                "green_total": 0,
+                "quantity_total": 0.0,
+                "open_events_total": 0,
+                "event_titles": "",
             }
+
+        board_by_station[station]["open_events_total"] += open_events_total
+        board_by_station[station]["blocked_total"] += open_events_total
+        board_by_station[station]["red_total"] += open_events_total
+
+        if event_titles:
+            existing_titles = board_by_station[station]["event_titles"]
+            board_by_station[station]["event_titles"] = (
+                f"{existing_titles} | {event_titles}" if existing_titles else event_titles
+            )
+
+    items = sorted(board_by_station.values(), key=lambda x: x["station"])
+
+    warnings = []
+    active_event_stations = [item["station"] for item in items if item["open_events_total"] > 0]
+    if active_event_stations:
+        warnings.append(
+            f"postazioni con segnalazioni operative aperte: {', '.join(active_event_stations)}"
         )
 
     return {
-        "planner_stage": "MACHINE_LOAD_BOARD_STATE",
-        "source": "board_state",
+        "planner_stage": "MACHINE_LOAD_EVENT_AWARE",
+        "source": "board_state+events",
         "items_count": len(items),
         "items": items,
-        "warnings": [],
+        "warnings": warnings,
     }
 
 
@@ -244,6 +373,18 @@ def create_or_update_order(
         return {"ok": False, "error": "codice mancante"}
     if not postazione:
         return {"ok": False, "error": "postazione mancante"}
+
+    existing_order = db.execute(
+        text(
+            """
+            SELECT 1
+            FROM production_orders
+            WHERE order_id = :order_id
+            LIMIT 1
+            """
+        ),
+        {"order_id": order_id},
+    ).first()
 
     blocked = _is_blocked(stato, semaforo)
     overdue = _is_overdue(due_date, stato, semaforo)
@@ -413,6 +554,56 @@ def create_or_update_order(
 
     db.commit()
 
+    smf_sync: dict[str, Any]
+    if smf_adapter.available():
+        try:
+            if existing_order is None:
+                smf_sync = {
+                    "mode": "append_order",
+                    **smf_adapter.append_order(
+                        _build_smf_order_row(
+                            order_id=order_id,
+                            cliente=cliente,
+                            codice=codice,
+                            qta=qta,
+                            postazione=postazione,
+                            stato=stato,
+                            progress=progress,
+                            semaforo=semaforo,
+                            due_date=due_date,
+                            note=note,
+                            priority=priority,
+                        )
+                    ),
+                }
+            else:
+                smf_sync = {
+                    "mode": "update_order",
+                    **smf_adapter.update_order(
+                        order_id,
+                        _build_smf_order_updates(
+                            cliente=cliente,
+                            codice=codice,
+                            qta=qta,
+                            postazione=postazione,
+                            stato=stato,
+                            progress=progress,
+                            semaforo=semaforo,
+                            due_date=due_date,
+                            note=note,
+                            priority=priority,
+                        ),
+                    ),
+                }
+        except Exception as exc:
+            smf_sync = {
+                "ok": False,
+                "mode": "append_order" if existing_order is None else "update_order",
+                "error": f"{exc.__class__.__name__}: {exc}",
+            }
+    else:
+        smf_sync = {"ok": False, "mode": "smf_unavailable"}
+
     total_rows = db.execute(
         text("SELECT COUNT(*) AS total FROM board_state")
     ).mappings().first()
@@ -421,8 +612,8 @@ def create_or_update_order(
         "ok": True,
         "order_id": order_id,
         "rows": int(total_rows["total"]) if total_rows else 0,
+        "smf_sync": smf_sync,
     }
-
 
 
 @router.get("/board")
@@ -455,10 +646,23 @@ def get_board(db: Session = Depends(get_db)):
         )
     ).mappings().all()
 
+    items = [dict(row) for row in rows]
+
+    trigger_runtime_analysis(
+        source="production_board_state",
+        line_id="production",
+        event_type="board_state_requested",
+        severity="info",
+        payload={
+            "event_domain": "board_state",
+            "count": len(items),
+        },
+    )
+
     return {
         "ok": True,
-        "count": len(rows),
-        "items": [dict(row) for row in rows],
+        "count": len(items),
+        "items": items,
     }
 
 
@@ -470,6 +674,20 @@ def get_sequence_compat_check(db: Session = Depends(get_db)):
 @router.get("/sequence")
 def get_sequence(db: Session = Depends(get_db)):
     payload = sequence_planner_service.build_global_sequence(db)
+
+    trigger_runtime_analysis(
+        source="production_sequence",
+        line_id="planner",
+        event_type="sequence_requested",
+        severity="info",
+        payload={
+            "event_domain": "sequence",
+            "planner_stage": payload.get("planner_stage"),
+            "source": payload.get("source_view"),
+            "items_count": payload.get("items_count", 0),
+        },
+    )
+
     return {
         "ok": True,
         "planner_stage": payload.get("planner_stage"),
@@ -483,6 +701,23 @@ def get_sequence(db: Session = Depends(get_db)):
 @router.get("/turn-plan")
 def get_turn_plan(db: Session = Depends(get_db)):
     payload = sequence_planner_service.build_turn_plan(db)
+
+    trigger_runtime_analysis(
+        source="production_turn_plan",
+        line_id="planner",
+        event_type="turn_plan_requested",
+        severity="info",
+        payload={
+            "event_domain": "turn_plan",
+            "planner_stage": payload.get("planner_stage"),
+            "source": payload.get("source"),
+            "plan_date": payload.get("plan_date"),
+            "rotation_logic": payload.get("rotation_logic"),
+            "clusters_count": payload.get("clusters_count", 0),
+            "assignments_count": payload.get("assignments_count", 0),
+        },
+    )
+
     return {
         "ok": True,
         "planner_stage": payload.get("planner_stage"),
@@ -496,7 +731,6 @@ def get_turn_plan(db: Session = Depends(get_db)):
     }
 
 
-
 @router.get("/load")
 def get_load_compat(db: Session = Depends(get_db)):
     return get_machine_load(db)
@@ -505,6 +739,21 @@ def get_load_compat(db: Session = Depends(get_db)):
 @router.get("/machine-load")
 def get_machine_load(db: Session = Depends(get_db)):
     payload = _build_machine_load(db)
+
+    trigger_runtime_analysis(
+        source="production_machine_load",
+        line_id="production",
+        event_type="machine_load_requested",
+        severity="info",
+        payload={
+            "event_domain": "machine_load",
+            "planner_stage": payload.get("planner_stage"),
+            "source": payload.get("source"),
+            "items_count": payload.get("items_count", 0),
+            "warnings": payload.get("warnings", []),
+        },
+    )
+
     return {
         "ok": True,
         "planner_stage": payload.get("planner_stage"),
@@ -512,4 +761,15 @@ def get_machine_load(db: Session = Depends(get_db)):
         "items_count": payload.get("items_count", 0),
         "items": payload.get("items", []),
         "warnings": payload.get("warnings", []),
+    }
+
+
+@router.get("/machine_load")
+def machine_load_requested(
+    db: Session = Depends(get_db),
+):
+    payload = _build_machine_load(db)
+    return {
+        "ok": True,
+        **payload,
     }

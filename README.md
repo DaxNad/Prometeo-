@@ -1,5 +1,7 @@
 # PROMETEO
 
+[![Guards](https://github.com/DaxNad/Prometeo-/actions/workflows/guards.yml/badge.svg)](https://github.com/DaxNad/Prometeo-/actions/workflows/guards.yml)
+
 Monorepo ufficiale del sistema PROMETEO.
 
 ## Struttura

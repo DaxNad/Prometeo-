@@ -1,123 +1,62 @@
 import { useEffect, useState } from "react";
+
 import {
-  type AgentRuntimeOperationalSummary,
-  type MachineLoadResponse,
-  getAgentRuntimeOperationalSummary,
   getProductionMachineLoad,
   getProductionSequence,
   getProductionTurnPlan,
+  getAgentRuntimeOperationalSummary,
 } from "../lib/api/prometeo";
 
-type DashboardState = {
-  board: unknown;
-  delays: unknown;
-  load: unknown;
-  machineLoad: MachineLoadResponse | null;
-  sequence: unknown;
-  turnPlan: unknown;
-  agentRuntimeOperational: AgentRuntimeOperationalSummary | null;
+import {
+  normalizeStationName,
+  dedupeByArticle,
+} from "../services/normalize";
+
+type GenericItem = Record<string, unknown>;
+
+type SequenceApiResponse = {
+  items?: GenericItem[];
+};
+
+type MachineLoadApiResponse = {
+  items?: GenericItem[];
 };
 
 export function useProductionBoard() {
-  const [data, setData] = useState<DashboardState>({
-    board: {
-      warning: "endpoint /production/board non allineato su questo backend",
-    },
-    delays: {
-      warning: "endpoint /production/delays non allineato su questo backend",
-    },
-    load: {
-      warning: "endpoint /production/load non allineato su questo backend",
-    },
-    machineLoad: null,
-    sequence: null,
-    turnPlan: null,
-    agentRuntimeOperational: null,
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<any>(null);
 
   async function loadAll() {
-    setLoading(true);
-    setError(null);
+    const machineLoadUnknown = await getProductionMachineLoad();
+    const sequenceUnknown = await getProductionSequence();
+    const turnPlan = await getProductionTurnPlan();
+    const summary = await getAgentRuntimeOperationalSummary("ZAW-1");
 
-    const nextData: DashboardState = {
-      board: {
-        warning: "endpoint /production/board non allineato su questo backend",
-      },
-      delays: {
-        warning: "endpoint /production/delays non allineato su questo backend",
-      },
-      load: {
-        warning: "endpoint /production/load non allineato su questo backend",
-      },
-      machineLoad: null,
-      sequence: null,
-      turnPlan: null,
-      agentRuntimeOperational: null,
-    };
+    const machineLoad = machineLoadUnknown as MachineLoadApiResponse;
+    const sequenceRaw = sequenceUnknown as SequenceApiResponse;
 
-    try {
-      nextData.machineLoad = await getProductionMachineLoad();
-    } catch (err) {
-      nextData.machineLoad = {
-        ok: false,
-        items: [],
-        warnings: [
-          err instanceof Error ? err.message : "machine-load non disponibile",
-        ],
-      } as MachineLoadResponse;
-    }
+    const sequence = dedupeByArticle(
+      (sequenceRaw.items ?? []).map((i: GenericItem) => ({
+        ...i,
+        critical_station: normalizeStationName(String(i.critical_station ?? "")),
+      })),
+    );
 
-    try {
-      nextData.sequence = await getProductionSequence();
-    } catch (err) {
-      nextData.sequence = {
-        warning:
-          err instanceof Error ? err.message : "sequence non disponibile",
-      };
-    }
+    const load = (machineLoad.items ?? []).map((i: GenericItem) => ({
+      ...i,
+      station: normalizeStationName(String(i.station ?? "")),
+    }));
 
-    try {
-      nextData.turnPlan = await getProductionTurnPlan();
-    } catch (err) {
-      nextData.turnPlan = {
-        warning:
-          err instanceof Error ? err.message : "turn-plan non disponibile",
-      };
-    }
-
-    try {
-      nextData.agentRuntimeOperational =
-        await getAgentRuntimeOperationalSummary("ZAW-1");
-    } catch (err) {
-      nextData.agentRuntimeOperational = {
-        line_id: "ZAW-1",
-        orders_total: 0,
-        orders_monitor: 0,
-        orders_investigate: 0,
-        orders_ok: 0,
-        orders_blocked: 0,
-        orders_overdue: 0,
-        orders_urgent: 0,
-        legacy_bootstrap_count: 0,
-        domain_order_count: 0,
-      };
-    }
-
-    setData(nextData);
-    setLoading(false);
+    setData({
+      sequence,
+      load,
+      turnPlan,
+      summary,
+    });
   }
 
   useEffect(() => {
     void loadAll();
   }, []);
 
-  return {
-    data,
-    loading,
-    error,
-    reload: loadAll,
-  };
+  return data;
 }
