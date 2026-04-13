@@ -254,19 +254,23 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
         )
     ).mappings().all()
 
-    event_rows = db.execute(
-        text(
-            """
-            SELECT
-                station AS postazione,
-                COUNT(*) AS open_events_total,
-                STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS event_titles
-            FROM events
-            WHERE status = 'OPEN'
-            GROUP BY station
-            """
-        )
-    ).mappings().all()
+    try:
+        event_rows = db.execute(
+            text(
+                """
+                SELECT
+                    station AS postazione,
+                    COUNT(*) AS open_events_total,
+                    STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS event_titles
+                FROM events
+                WHERE status = 'OPEN'
+                GROUP BY station
+                """
+            )
+        ).mappings().all()
+    except Exception:
+        # relazione 'events' non disponibile: fallback safe
+        event_rows = []
 
     board_by_station: dict[str, dict[str, Any]] = {}
     for row in board_rows:
