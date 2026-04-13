@@ -67,6 +67,7 @@ def test_smoke_health_and_smf_endpoints():
     assert body.get("flow") == "parse_only"
 
 
+
 def test_smf_endpoints_with_corrupted_workbook():
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)
