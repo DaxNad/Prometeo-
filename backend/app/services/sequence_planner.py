@@ -34,6 +34,10 @@ class SequencePlannerService:
         self.global_sequence_file = self.data_dir / "global_sequence.json"
         self.turn_plan_file = self.data_dir / "turn_plan.json"
 
+    # ------------------------------------------------------------------
+    # Lettura da viste SQL ZAW (percorso principale)
+    # ------------------------------------------------------------------
+
     def fetch_station_board(self, db: Session, view_name: str) -> list[dict[str, Any]]:
         sql = f"""
             SELECT
@@ -53,8 +57,14 @@ class SequencePlannerService:
                 data_spedizione ASC NULLS LAST,
                 articolo ASC
         """
-        rows = db.execute(text(sql)).mappings().all()
-        return [dict(r) for r in rows]
+        try:
+            rows = db.execute(text(sql)).mappings().all()
+            return [dict(r) for r in rows]
+        except Exception:
+            # Vista non esistente o errore SQL: restituisce lista vuota
+            # senza propagare l'eccezione al chiamante.
+            db.rollback()
+            return []
 
     def fetch_global_board(self, db: Session) -> list[dict[str, Any]]:
         combined: list[dict[str, Any]] = []
@@ -68,6 +78,10 @@ class SequencePlannerService:
                 item["_source_view"] = view_name
                 combined.append(item)
 
+        # Fallback: se le viste non esistono o sono vuote legge board_state
+        if not combined:
+            combined = self._fetch_from_board_state(db)
+
         combined.sort(
             key=lambda r: (
                 self._priority_value(r.get("priorita_cliente")),
@@ -80,8 +94,90 @@ class SequencePlannerService:
 
         return combined
 
+    # ------------------------------------------------------------------
+    # Fallback: lettura diretta da board_state
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _parse_date_str(raw: Any) -> date | None:
+        if not raw:
+            return None
+        s = str(raw).strip().split("T")[0]
+        for fmt in ("%Y-%m-%d", "%Y/%m/%d", "%d/%m/%Y"):
+            try:
+                from datetime import datetime
+                return datetime.strptime(s, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    @staticmethod
+    def _azione_tl_from_row(stato: str, semaforo: str) -> str:
+        if semaforo == "ROSSO" or stato == "bloccato":
+            return "AVVIO_IMMEDIATO"
+        if stato == "in corso":
+            return "MONITORARE"
+        return "PREPARARE_CAMBIO_SERIE"
+
+    def _fetch_from_board_state(self, db: Session) -> list[dict[str, Any]]:
+        try:
+            rows = db.execute(
+                text(
+                    """
+                    SELECT order_id, cliente, codice, qta, postazione,
+                           stato, semaforo, due_date, note
+                    FROM board_state
+                    ORDER BY
+                        CASE UPPER(semaforo)
+                            WHEN 'ROSSO'  THEN 1
+                            WHEN 'GIALLO' THEN 2
+                            ELSE 3
+                        END,
+                        due_date ASC NULLS LAST,
+                        codice ASC
+                    """
+                )
+            ).mappings().all()
+        except Exception:
+            db.rollback()
+            return []
+
+        result: list[dict[str, Any]] = []
+        for i, r in enumerate(rows, start=1):
+            semaforo = str(r["semaforo"] or "GIALLO").upper()
+            stato = str(r["stato"] or "da fare").lower()
+            due = self._parse_date_str(r["due_date"])
+
+            priorita_op = 1 if semaforo == "ROSSO" else 2 if semaforo == "GIALLO" else 3
+
+            result.append(
+                {
+                    "priorita_operativa": priorita_op,
+                    "articolo": r["codice"],
+                    "componenti_condivisi": "",
+                    "quantita": int(r["qta"] or 0),
+                    "data_spedizione": due,
+                    "priorita_cliente": semaforo,
+                    "complessivo_articolo": r["codice"],
+                    "postazione_critica": r["postazione"],
+                    "azione_tl": self._azione_tl_from_row(stato, semaforo),
+                    "origine_logica": "board_state",
+                    "_source_view": "board_state",
+                }
+            )
+
+        return result
+
+    # ------------------------------------------------------------------
+    # Build sequence / turn plan
+    # ------------------------------------------------------------------
+
     def build_global_sequence(self, db: Session) -> dict[str, Any]:
         rows = self.fetch_global_board(db)
+
+        using_fallback = bool(rows) and all(
+            r.get("_source_view") == "board_state" for r in rows
+        )
 
         items: list[dict[str, Any]] = []
         for idx, r in enumerate(rows, start=1):
@@ -106,9 +202,16 @@ class SequencePlannerService:
                 }
             )
 
+        if using_fallback:
+            planner_stage = "BOARD_STATE_FALLBACK"
+            source_view = "board_state"
+        else:
+            planner_stage = "ZAW_MULTI_SQL_BRIDGE"
+            source_view = "+".join(source["view"] for source in self.BOARD_SOURCES)
+
         payload = {
-            "planner_stage": "ZAW_MULTI_SQL_BRIDGE",
-            "source_view": "+".join(source["view"] for source in self.BOARD_SOURCES),
+            "planner_stage": planner_stage,
+            "source_view": source_view,
             "items_count": len(items),
             "items": items,
         }
@@ -147,7 +250,7 @@ class SequencePlannerService:
                         "tl_action": item["tl_action"],
                         "cluster_key": self._cluster_key(item),
                         "planning_status": "ASSEGNATO_MULTI_CLUSTER",
-                        "planning_origin": "GLOBAL_SEQUENCE",
+                        "planning_origin": sequence["planner_stage"],
                         "source_view": item["source_view"],
                         "station_rank": item["station_rank"],
                     }
@@ -159,7 +262,7 @@ class SequencePlannerService:
 
         payload = {
             "planner_stage": "TURN_PLAN_STAGE_4",
-            "source": "+".join(source["view"] for source in self.BOARD_SOURCES),
+            "source": sequence["source_view"],
             "rotation_logic": self.ROTATION_LOGIC,
             "plan_date": today.isoformat(),
             "clusters_count": len(clusters),
@@ -169,6 +272,10 @@ class SequencePlannerService:
 
         self._save(self.turn_plan_file, payload)
         return payload
+
+    # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
 
     def _cluster(self, items: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
         groups: dict[tuple[Any, ...], list[dict[str, Any]]] = defaultdict(list)
@@ -215,3 +322,4 @@ class SequencePlannerService:
 
 
 sequence_planner_service = SequencePlannerService()
+
