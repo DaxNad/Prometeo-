@@ -84,6 +84,15 @@ class SMFUpdater:
         written_columns: list[str] = []
         for key, value in expanded_updates.items():
             if key in df.columns:
+                # Evita FutureWarning di pandas: se la colonna non è object e il valore è stringa,
+                # promuovi la colonna ad object prima dell'assegnazione.
+                try:
+                    from pandas.api.types import is_object_dtype
+                    if isinstance(value, str) and not is_object_dtype(df[key].dtype):
+                        df[key] = df[key].astype("object")
+                except Exception:
+                    # fallback silenzioso: in caso non sia disponibile pandas.api.types
+                    pass
                 df.loc[mask, key] = value
                 written_columns.append(key)
 
