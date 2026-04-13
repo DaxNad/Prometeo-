@@ -24,6 +24,31 @@ def test_smoke_health_and_smf_endpoints():
     status = r_status.json()
     assert "base_path" in status and "exists" in status
 
+    r_structure = client.get("/smf/structure")
+    assert r_structure.status_code == 200
+    structure = r_structure.json()
+    assert structure.get("exists") in {True, False}
+    assert isinstance(structure.get("sheets"), list)
+
+    r_preview = client.get("/smf/preview")
+    assert r_preview.status_code == 200
+    preview = r_preview.json()
+    assert "exists" in preview and "available_sheets" in preview
+
+    r_debug = client.get("/smf/debug-bootstrap")
+    assert r_debug.status_code == 200
+    dbg = r_debug.json()
+    for key in [
+        "base_path",
+        "master_path",
+        "base_exists",
+        "base_is_dir",
+        "master_exists",
+        "writable_check",
+        "bootstrap_attempted",
+    ]:
+        assert key in dbg
+
     payload = {
         "order_id": "SMOKE-0001",
         "cliente": "SmokeTest",

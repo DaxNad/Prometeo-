@@ -212,6 +212,36 @@ def smf_preview(
     return _get_adapter().preview(sheet=sheet, rows=rows)
 
 
+@router.get("/debug-bootstrap")
+def smf_debug_bootstrap():
+    adapter = _get_adapter()
+    base_path = adapter.base_path
+    master = adapter.master_path()
+
+    # attempt a no-op bootstrap to record diagnostics if needed
+    try:
+        adapter._bootstrap_if_missing()  # type: ignore[attr-defined]
+    except Exception:
+        pass
+
+    writable = False
+    try:
+        writable = adapter._writable_check(base_path)  # type: ignore[attr-defined]
+    except Exception:
+        writable = False
+
+    return {
+        "base_path": str(base_path),
+        "master_path": str(master),
+        "base_exists": base_path.exists(),
+        "base_is_dir": base_path.is_dir(),
+        "master_exists": master.exists(),
+        "writable_check": writable,
+        "bootstrap_attempted": bool(getattr(adapter, "_bootstrap_attempted", False)),
+        "bootstrap_error": getattr(adapter, "_bootstrap_error", None),
+    }
+
+
 @router.post("/parse-extracted-order")
 def smf_parse_extracted_order(payload: ParseExtractedOrderRequest):
     smf_adapter = _get_adapter()
