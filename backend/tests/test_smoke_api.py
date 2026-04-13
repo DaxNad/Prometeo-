@@ -67,6 +67,28 @@ def test_smoke_health_and_smf_endpoints():
     assert body.get("flow") == "parse_only"
 
 
+def test_parse_extracted_order_validation_paths():
+    client = TestClient(app)
+
+    payload = {
+        "order_id": "VAL-001",
+        "cliente": "Cliente X",
+        "codice": "CODE-X",
+        "qta": "abc",  # invalida
+        "due_date": "31-02-2026",  # invalida
+        "source_type": "test",
+    }
+
+    r = client.post("/smf/parse-extracted-order", json=payload)
+    assert r.status_code == 200
+    data = r.json()
+    assert data.get("ok") is True
+    assert data.get("flow") == "parse_only"
+    # Deve segnalare discrepanze (qta/due_date normalizzati)
+    assert isinstance(data.get("discrepancies"), list)
+    assert len(data.get("discrepancies")) >= 1
+
+
 def test_smf_endpoints_with_corrupted_workbook():
     with tempfile.TemporaryDirectory() as tmp:
         base = Path(tmp)

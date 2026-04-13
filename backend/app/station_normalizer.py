@@ -30,16 +30,17 @@ def normalize_station(value: Optional[str]) -> str:
     if s in exact_map:
         return exact_map[s]
 
-    if s.startswith("ZAW-1") or s.startswith("ZAW1"):
+    # Riconosci forme testuali/di fase che contengono riferimenti alla stazione
+    if re.search(r"\bZAW[- ]?1\b", s):
         return "ZAW-1"
 
-    if s.startswith("ZAW-2") or s.startswith("ZAW2"):
+    if re.search(r"\bZAW[- ]?2\b", s):
         return "ZAW-2"
 
-    if s.startswith("HENN"):
+    if "HENN" in s:
         return "HENN"
 
-    if s.startswith("PID"):
+    if s.startswith("PID") or "PID-MILL" in s or "PIDMILL" in s:
         return "PIDMILL"
 
     if s == "CP" or s.startswith("CP-"):

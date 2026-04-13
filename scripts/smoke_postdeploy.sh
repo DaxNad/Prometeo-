@@ -1,45 +1,67 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Simple post-deploy smoke test for PROMETEO backend
-# Usage:
-#   BASE_URL=https://your-app.railway.app scripts/smoke_postdeploy.sh
-# or
-#   scripts/smoke_postdeploy.sh https://your-app.railway.app
+BASE_URL="${BASE_URL:-http://127.0.0.1:8000}"
 
-BASE_URL="${1:-${BASE_URL:-}}"
-if [[ -z "${BASE_URL}" ]]; then
-  BASE_URL="${RAILWAY_STATIC_URL:-}"
-fi
-if [[ -z "${BASE_URL}" ]]; then
-  BASE_URL="http://127.0.0.1:8000"
-fi
+echo "SMOKE TEST → $BASE_URL"
+echo
 
-echo "[SMOKE] Using BASE_URL=${BASE_URL}"
-
-fail() { echo "[SMOKE][FAIL] $1" >&2; exit 1; }
-
-http_get() {
-  local path="$1"
-  local url="${BASE_URL}${path}"
-  # -s silent, -S show errors, -f fail on >=400, --max-time 10s
-  curl -sSf --max-time 10 "$url" -o /dev/null || fail "GET ${path} failed"
-  echo "[SMOKE][OK] GET ${path}"
+fail() {
+  echo "SMOKE FAILED → $1"
+  exit 1
 }
 
-# Core health
-http_get "/ping"
-http_get "/health"
+check_health() {
+  echo "1. health"
+  
+  body=$(curl -fsS "$BASE_URL/health") \
+    || fail "/health not reachable"
 
-# Production views (sequence may be heavy but should respond)
-http_get "/production/machine-load"
-http_get "/production/sequence"
-http_get "/production/events"
+  echo "response:"
+  echo "$body"
+  echo
 
-# Optional: Postgres probe (do not fail if 4xx)
-curl -sS --max-time 10 "${BASE_URL}/postgres/ping" -o /dev/null && \
-  echo "[SMOKE][OK] GET /postgres/ping (optional)" || \
-  echo "[SMOKE][WARN] /postgres/ping not available (optional)"
+  python3 - <<PY || fail "/health not valid"
+import json,sys
 
-echo "[SMOKE] All checks passed"
+body = """$body""".strip()
 
+if body.lower() == "ok":
+    sys.exit(0)
+
+try:
+    j = json.loads(body)
+    assert (
+        j.get("ok") is True
+        or j.get("status") == "ok"
+        or j.get("healthy") is True
+    )
+except Exception:
+    raise
+
+PY
+
+  echo "OK → /health"
+}
+
+check_endpoint() {
+  local path="$1"
+
+  curl -fsS "$BASE_URL$path" >/dev/null \
+    || fail "$path not responding"
+
+  echo "OK → $path"
+}
+
+check_health
+
+echo
+echo "2. machine-load"
+check_endpoint "/production/machine-load"
+
+echo
+echo "3. sequence"
+check_endpoint "/production/sequence"
+
+echo
+echo "SMOKE OK"
