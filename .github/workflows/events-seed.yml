@@ -1,0 +1,29 @@
+name: Events Seed
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "Base URL of the deployed app (e.g., https://your-app.railway.app)"
+        required: true
+        type: string
+      station:
+        description: "Station to seed (e.g., ZAW-1, PIDMILL)"
+        required: false
+        default: ZAW-1
+        type: string
+
+jobs:
+  seed:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Seed operational event at ${{ inputs.station }}
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/seed_events.sh "${{ inputs.station }}"
+
