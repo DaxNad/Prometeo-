@@ -1,5 +1,5 @@
-import ProductionDashboard from "./pages/ProductionDashboard";
+import Dashboard from "./pages/Dashboard";
 
 export default function App() {
-  return <ProductionDashboard />;
+  return <Dashboard />;
 }
