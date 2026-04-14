@@ -26,7 +26,7 @@ class ORToolsAdapter(BaseAdapter):
         shared_pressure = bool(snapshot.capacities.values.get("shared_component_pressure", False))
 
         # Costruisco pesi deterministici per ogni ordine (Model v1) con breakdown
-        weights: List[Tuple[float, str, bool, dict]] = []  # (w_i, order_id, feasible, breakdown)
+        weights: List[Tuple[float, str, bool, dict, str]] = []  # (w_i, order_id, feasible, breakdown, group_key)
         station_pressure_level = 0.0
         sp_val = snapshot.capacities.values.get("station_queue_pressure") if snapshot.capacities else 0
         try:
@@ -54,7 +54,33 @@ class ORToolsAdapter(BaseAdapter):
                 "station_pressure_penalty": station_pressure_penalty,
                 "total": w,
             }
-            weights.append((w, o.order_id, feasible, breakdown))
+            group_key = str(o.code or "")  # assembly_group coherence via code convention
+            weights.append((w, o.order_id, feasible, breakdown, group_key))
+
+        # Coerenza assembly_group (soft): penalità crescente per posizione nel baseline del gruppo
+        # Baseline per gruppo: ordinamento per punteggio base desc e order_id
+        groups: dict[str, List[Tuple[float, str, bool, dict, str]]] = {}
+        for entry in weights:
+            _w, _oid, _feas, _bd, g = entry
+            if not g:
+                continue
+            groups.setdefault(g, []).append(entry)
+        if groups:
+            new_weights: List[Tuple[float, str, bool, dict, str]] = []
+            index_map: dict[str, int] = {}
+            for gk, items in groups.items():
+                items_sorted = sorted(items, key=lambda t: (-t[0], t[1]))
+                for pos, (w0, oid0, feas0, bd0, g0) in enumerate(items_sorted):
+                    penalty = pos * 0.01
+                    w_adj = w0 - penalty
+                    bd0["total"] = w_adj
+                    index_map[oid0] = 1  # mark handled
+                    new_weights.append((w_adj, oid0, feas0, bd0, g0))
+            # add items with no group or singletons
+            for (w0, oid0, feas0, bd0, g0) in weights:
+                if not g0 or oid0 not in index_map:
+                    new_weights.append((w0, oid0, feas0, bd0, g0))
+            weights = new_weights
 
         # Provo a usare OR-Tools CP-SAT per selezionare elementi (x_i ∈ {0,1})
         used_cp = False
@@ -65,7 +91,7 @@ class ORToolsAdapter(BaseAdapter):
             model = cp_model.CpModel()
             xs = []
             coeffs = []
-            for idx, (w, oid, _feas, _bd) in enumerate(weights):
+            for idx, (w, oid, _feas, _bd, _g) in enumerate(weights):
                 x = model.NewBoolVar(f"x_{idx}_{oid}")
                 xs.append(x)
                 # CP-SAT usa coefficienti interi, scalare i pesi
@@ -82,12 +108,12 @@ class ORToolsAdapter(BaseAdapter):
             if res not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                 raise RuntimeError("ORTools returned infeasible/unbounded")
 
-            for (w, oid, _feas, _bd), x in zip(weights, xs):
+            for (w, oid, _feas, _bd, _g), x in zip(weights, xs):
                 x_selected.append((int(solver.Value(x)), w, oid))
             used_cp = True
         except Exception:
             # Nessun OR-Tools o errore: fallback interno all'adapter (non orchestrator)
-            for (w, oid, _feas, _bd) in weights:
+            for (w, oid, _feas, _bd, _g) in weights:
                 x_selected.append((1 if w >= 0 else 0, w, oid))
 
         # Ordino: selezionati prima (x=1), poi per peso desc, poi order_id asc
@@ -95,26 +121,32 @@ class ORToolsAdapter(BaseAdapter):
         sequence = [oid for _, _, oid in x_selected]
 
         # Hard rule (minima): se esiste almeno un feasible, il primo non può essere bloccato
-        feasibles = {oid for (_, _, oid), (_w, _oid, feas, _bd) in zip(x_selected, weights) if feas}
+        feasibles = {oid for (_, _, oid), (_w, _oid, feas, _bd, _g) in zip(x_selected, weights) if feas}
         if sequence:
             first_oid = sequence[0]
             # trova feasibility della prima
             first_is_blocked = False
-            for (_w, oid, feas, _bd) in weights:
+            for (_w, oid, feas, _bd, _g) in weights:
                 if oid == first_oid:
                     first_is_blocked = not feas
                     break
             if first_is_blocked and any(oid in feasibles for oid in sequence[1:]):
                 # sposta in testa il miglior feasible per peso (deterministico)
                 # ricostruisco mappa pesi
-                wmap = {oid: w for (w, oid, _feas, _bd) in weights}
+                wmap = {oid: w for (w, oid, _feas, _bd, _g) in weights}
                 feasible_candidates = [oid for oid in sequence if oid in feasibles]
                 feasible_candidates.sort(key=lambda oid: (-wmap.get(oid, -1e9), oid))
                 best = feasible_candidates[0]
                 sequence = [best] + [oid for oid in sequence if oid != best]
 
+        # Post-process: sposta sempre i bloccati in fondo mantenendo l'ordine relativo
+        feas_map = {oid: feas for (_w, oid, feas, _bd, _g) in weights}
+        feas_order = [oid for oid in sequence if feas_map.get(oid, False)]
+        blocked_order = [oid for oid in sequence if not feas_map.get(oid, False)]
+        sequence = feas_order + blocked_order
+
         # score breakdown per item (ordinato per sequenza)
-        bmap = {bd["order_id"]: bd for (_w, _oid, _feas, bd) in weights}
+        bmap = {bd["order_id"]: bd for (_w, _oid, _feas, bd, _g) in weights}
         scores = [bmap.get(oid, {}) for oid in sequence]
 
         meta = {
