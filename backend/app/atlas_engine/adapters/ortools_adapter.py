@@ -87,9 +87,12 @@ class ORToolsAdapter(BaseAdapter):
             index_map: dict[str, int] = {}
             for gk, items in groups.items():
                 items_sorted = sorted(items, key=lambda t: (-t[0], t[1]))
+                # Precedence hint: prefer the lexicographically smallest order_id inside the group
+                min_oid = min((oid for (_w, oid, _feas, _bd, _g) in items_sorted), default=None)
                 for pos, (w0, oid0, feas0, bd0, g0) in enumerate(items_sorted):
                     penalty = pos * cfg.assembly_coherence_penalty
-                    w_adj = w0 - penalty
+                    bonus = (cfg.assembly_coherence_penalty * 0.5) if (min_oid and oid0 == min_oid) else 0.0
+                    w_adj = w0 - penalty + bonus
                     bd0["total"] = w_adj
                     index_map[oid0] = 1  # mark handled
                     new_weights.append((w_adj, oid0, feas0, bd0, g0))

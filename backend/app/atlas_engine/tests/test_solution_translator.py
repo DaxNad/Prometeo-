@@ -119,6 +119,46 @@ def test_assembly_group_coherence_preserves_deterministic_order():
     assert float(scores[0].get("total", 0)) >= float(scores[1].get("total", 0))
 
 
+def test_assembly_group_precedence_hint_prefers_upstream_when_tied():
+    # Stesse caratteristiche, stesso gruppo, differisce solo l'order_id → upstream (A01) preferito
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="A02", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-X"),
+            AtlasOrder(order_id="A01", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-X"),
+        ],
+    )
+    plan = AtlasService.make_plan(req, adapter="ortools")
+    assert plan.sequence[0] == "A01"
+
+
+def test_precedence_hint_does_not_override_strong_blocked_penalty():
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="A01", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-Y", status="bloccato"),
+            AtlasOrder(order_id="A02", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-Y"),
+        ],
+    )
+    plan = AtlasService.make_plan(req, adapter="ortools")
+    # L'upstream bloccato (A01) non può scavalcare il feasible A02 nelle prime posizioni
+    assert plan.sequence[0] == "A02"
+
+
+def test_ranking_is_deterministic_for_identical_inputs():
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="Z02", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-Z"),
+            AtlasOrder(order_id="Z01", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-Z"),
+        ],
+        capacities={"station_queue_pressure": 2},
+    )
+    plan1 = AtlasService.make_plan(req, adapter="ortools")
+    plan2 = AtlasService.make_plan(req, adapter="ortools")
+    assert plan1.sequence == plan2.sequence
+
+
 def test_penalty_config_deterministic_effect_on_ranking():
     # Stessa priorità, solo quantità diversa; default: O01 prima di O10
     req = AtlasScenarioRequest(
