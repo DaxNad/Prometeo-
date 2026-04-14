@@ -93,4 +93,4 @@ def test_update_row_does_not_raise_futurewarning(tmp_path: Path):
     # Verifica: nessun FutureWarning sul dtype incompatibile
     fw = [w for w in caught if issubclass(w.category, FutureWarning)]
     assert not fw, f"Unexpected FutureWarning(s): {[str(w.message) for w in fw]}"
-
+    # Nota: questo test protegge da regressioni su dtype promotion in pandas
