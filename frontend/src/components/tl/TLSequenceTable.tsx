@@ -14,10 +14,11 @@ export default function TLSequenceTable({ items, onSelect, filters }: Props) {
       .filter((i) => (filters.station === "ALL" ? true : i.critical_station === filters.station))
       .filter((i) => (filters.onlyEvent ? Boolean(i.event_impact) : true))
       .filter((i) => (filters.onlyBlocked ? String(i.customer_priority || "").toUpperCase() === "ALTA" : true))
+      .filter((i) => (filters.risk === "ALL" ? true : String(i.risk_level || "").toUpperCase() === filters.risk.toUpperCase()))
       .filter((i) => {
         const q = filters.query.trim().toLowerCase();
         if (!q) return true;
-        return String(i.article || i.order_id || "").toLowerCase().includes(q);
+        return String(i.article_code || i.order_id || "").toLowerCase().includes(q);
       });
   }, [items, filters]);
 
@@ -40,15 +41,15 @@ export default function TLSequenceTable({ items, onSelect, filters }: Props) {
         </thead>
         <tbody>
           {rows.map((r, idx) => (
-            <tr key={(r.order_id || r.article || idx) + "-row"} style={{ borderTop: "1px solid #222", cursor: "pointer" }} onClick={() => onSelect(r)}>
+            <tr key={(r.order_id || r.article_code || idx) + "-row"} style={{ borderTop: "1px solid #222", cursor: "pointer" }} onClick={() => onSelect(r)}>
               <td style={{ padding: 8, textAlign: "right" }}>{r.rank ?? idx + 1}</td>
-              <td style={{ padding: 8 }}><strong>{r.article || r.order_id}</strong></td>
+              <td style={{ padding: 8 }}><strong>{r.article_code || r.order_id}</strong></td>
               <td style={{ padding: 8 }}>{r.critical_station}</td>
               <td style={{ padding: 8 }}><PriorityBadge value={r.customer_priority} /></td>
               <td style={{ padding: 8 }}>{r.event_impact ? "Sì" : "No"}</td>
-              <td style={{ padding: 8 }}><RiskBadge level={(r as any).risk_level} /></td>
-              <td style={{ padding: 8 }}>{(r as any).priority_reason || ""}</td>
-              <td style={{ padding: 8 }}>{(r as any).suggested_action || ""}</td>
+              <td style={{ padding: 8 }}><RiskBadge level={r.risk_level} /></td>
+              <td style={{ padding: 8 }}>{r.priority_reason || ""}</td>
+              <td style={{ padding: 8 }}>{r.suggested_action || ""}</td>
             </tr>
           ))}
           {rows.length === 0 && (

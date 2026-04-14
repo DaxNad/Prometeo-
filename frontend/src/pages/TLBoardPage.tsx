@@ -26,9 +26,17 @@ export default function TLBoardPage() {
 
   const filters = { station, risk, onlyEvent, onlyBlocked, query };
 
+  const emptySeq = !lSeq && (seq || []).length === 0;
+
   return (
     <main style={{ padding: 16, display: "grid", gap: 12, maxWidth: 1200, margin: "0 auto" }}>
       <TLBoardHeader />
+      {emptySeq && (
+        <div style={{ background: "#111", border: "1px solid #222", borderRadius: 8, padding: 12 }}>
+          <strong>sequenza non disponibile</strong>
+          <div style={{ fontSize: 12, opacity: 0.8 }}>nessun elemento prioritizzato al momento</div>
+        </div>
+      )}
       <TLSummaryCards load={load} />
       <TLFiltersBar
         station={station}
@@ -60,4 +68,3 @@ export default function TLBoardPage() {
     </main>
   );
 }
-
