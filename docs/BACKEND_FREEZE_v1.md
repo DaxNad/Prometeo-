@@ -110,3 +110,18 @@ PROMETEO backend v1 congelato come:
 - dashboard locale attiva
 - pannello DevOS attivo
 
+---
+
+## Nota tecnica mirata: ATLAS Merge v1 adapter (backend)
+
+- Endpoint diagnostico non invasivo: `GET /production/sequence/atlas-merge`
+- Integrazione post-hoc lato service/adapter: usa `sequence_planner_service.build_global_sequence(...)` e applica merge deterministico puro Python.
+- Payload stabile esposto per consumer backend:
+  - `final_outcome`
+  - `final_score`
+  - `reasons`
+  - `active_constraints`
+  - `conflicts`
+  - `consensus`
+  - `explain_brief`
+- Nessun accesso DB nel modulo merge (`backend/app/services/atlas_merge.py`), nessuna modifica ai contratti pubblici esistenti `/production/sequence` e `/production/turn-plan`.
