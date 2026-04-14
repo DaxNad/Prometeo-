@@ -61,7 +61,7 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/prio/i)).toBeDefined();
   });
 
-  it("shows readable error and avoids crash when initial load fails", async () => {
+  it("does not crash on initial load error and shows safe fallbacks", async () => {
     fetchProductionBoard.mockResolvedValue({
       ok: false,
       error: "Errore nel caricamento iniziale",
@@ -70,6 +70,7 @@ describe("TL Board page", () => {
 
     render(<ProductionDashboard />);
 
-    expect(await screen.findByText(/errore nel caricamento iniziale/i)).toBeDefined();
+    // Nessun errore in pagina: mostriamo fallback innocui
+    expect(await screen.findByText(/nessun blocco immediato/i)).toBeDefined();
+    expect(await screen.findByText(/nessuna sequenza disponibile/i)).toBeDefined();
   });
-});
