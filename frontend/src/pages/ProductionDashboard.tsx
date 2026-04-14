@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   fetchProductionBoard,
   fetchProductionLoad,
@@ -123,36 +123,51 @@ export default function ProductionDashboard() {
 
   const [stationFilter, setStationFilter] = useState("ALL");
   const [onlyBlocked, setOnlyBlocked] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-  async function loadAll() {
+  const loadAll = useCallback(async () => {
+    try {
+      const [b, l, s] = await Promise.all([
 
-    const [b, l, s] = await Promise.all([
+        fetchProductionBoard(),
 
-      fetchProductionBoard(),
+        fetchProductionLoad(),
 
-      fetchProductionLoad(),
+        fetchProductionSequence()
 
-      fetchProductionSequence()
+      ]);
 
-    ]);
+      setBoard(b);
 
-    setBoard(b);
+      setLoad(l);
 
-    setLoad(l);
-
-    setSequence(s);
-
-  }
+      setSequence(s);
+      setLastUpdated(new Date());
+      setErrorMessage(null);
+    } catch {
+      setErrorMessage("Impossibile aggiornare la dashboard. Riprova tra qualche secondo.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
 
-    loadAll();
+    void loadAll();
 
-  }, []);
+  }, [loadAll]);
 
-  if (!board) return <div style={{ padding: 40 }}>loading...</div>;
+  useEffect(() => {
+    const id = setInterval(() => {
+      void loadAll();
+    }, 30000);
 
-  const grouped = groupOrders(board.items || []);
+    return () => clearInterval(id);
+  }, [loadAll]);
+
+  const grouped = useMemo(() => groupOrders(board?.items ?? []), [board]);
 
   const stations = Array.from(
 
@@ -195,6 +210,31 @@ export default function ProductionDashboard() {
     }
   }
 
+  if (isLoading && !board) {
+    return <div style={{ padding: 40 }}>loading...</div>;
+  }
+
+  if (!board) {
+    return (
+      <main style={{ padding: 24, maxWidth: 1200, margin: "0 auto", display: "grid", gap: 16 }}>
+        <h1>TL Board</h1>
+        <div role="alert" style={{ background: "#2a0f0f", border: "1px solid #7f1d1d", borderRadius: 8, padding: 12 }}>
+          {errorMessage ?? "Errore sconosciuto durante il caricamento iniziale."}
+        </div>
+        <button
+          type="button"
+          onClick={() => {
+            setIsLoading(true);
+            void loadAll();
+          }}
+          style={{ width: "fit-content", background: "#1f2937", color: "#e5e7eb", border: "1px solid #374151", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+        >
+          aggiorna ora
+        </button>
+      </main>
+    );
+  }
+
   return (
 
     <main
@@ -216,6 +256,29 @@ export default function ProductionDashboard() {
     >
 
       <h1>TL Board</h1>
+
+      <div style={{ display: "grid", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <Chip label={`KPI ordini: ${grouped.length}`} />
+          <Chip label={`KPI rossi: ${red.length}`} />
+          <Chip label={`KPI postazioni: ${stations.length}`} />
+          <span style={{ opacity: 0.8, fontSize: 13 }}>
+            ultimo aggiornamento: {lastUpdated ? lastUpdated.toLocaleString() : "-"}
+          </span>
+          <button
+            type="button"
+            onClick={() => { void loadAll(); }}
+            style={{ marginLeft: "auto", background: "#1f2937", color: "#e5e7eb", border: "1px solid #374151", borderRadius: 8, padding: "6px 10px", cursor: "pointer" }}
+          >
+            aggiorna ora
+          </button>
+        </div>
+        {errorMessage && (
+          <div role="alert" style={{ background: "#2a0f0f", border: "1px solid #7f1d1d", borderRadius: 8, padding: 12 }}>
+            {errorMessage}
+          </div>
+        )}
+      </div>
 
 
       <section
