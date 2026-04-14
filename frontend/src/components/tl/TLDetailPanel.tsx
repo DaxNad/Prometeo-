@@ -1,4 +1,5 @@
 import type { TLSequenceItem, TLExplainItem } from "../../types/tl";
+import { TLSignals } from "./TLSignals";
 
 interface Props {
   item?: TLSequenceItem | null;
@@ -28,6 +29,11 @@ export default function TLDetailPanel({ item, explain }: Props) {
       </div>
 
       <div style={{ marginTop: 8 }}>
+        <strong>segnali</strong>
+        <TLSignals reasons={x?.reasons} eventImpact={Boolean(item.event_impact)} />
+      </div>
+
+      <div style={{ marginTop: 8 }}>
         <strong>explain</strong>
         <ul style={{ margin: 0, paddingLeft: 18 }}>
           {(x?.reasons || []).map((r, i) => (
@@ -48,4 +54,3 @@ function Field({ k, v }: { k: string; v: string }) {
     </div>
   );
 }
-
