@@ -14,7 +14,7 @@ export default function TLDetailPanel({ item, explain }: Props) {
     </aside>
   );
 
-  const x = (explain || []).find((e) => e.order_id === item.order_id || e.article === item.article);
+  const x = (explain || []).find((e) => e.order_id === item.order_id || e.article === item.article_code);
   const groups = groupReasons(x?.reasons || []);
 
   return (
@@ -27,7 +27,7 @@ export default function TLDetailPanel({ item, explain }: Props) {
         </div>
       </div>
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-        <Field k="identità" v={String(item.article || item.order_id || "-")} />
+        <Field k="identità" v={String(item.article_code || item.order_id || "-")} />
         <Field k="critical station" v={String(item.critical_station || "-")} />
         <Field k="priority" v={String(item.customer_priority || "-")} />
         <Field k="event impact" v={String(item.event_impact ? "YES" : "NO")} />
