@@ -54,11 +54,22 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
     expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
 
-    expect(await screen.findByText(/codice/i)).toBeDefined();
-    expect(await screen.findByText(/postazione/i)).toBeDefined();
-    expect(await screen.findByText(/qta totale/i)).toBeDefined();
-    expect(await screen.findByText(/righe/i)).toBeDefined();
-    expect(await screen.findByText(/prio/i)).toBeDefined();
+    // Verifica header tabella per ruolo (evita ambiguità con label di filtro)
+    expect(
+      await screen.findByRole("columnheader", { name: /codice/i })
+    ).toBeDefined();
+    expect(
+      await screen.findByRole("columnheader", { name: /postazione/i })
+    ).toBeDefined();
+    expect(
+      await screen.findByRole("columnheader", { name: /qta totale/i })
+    ).toBeDefined();
+    expect(
+      await screen.findByRole("columnheader", { name: /righe/i })
+    ).toBeDefined();
+    expect(
+      await screen.findByRole("columnheader", { name: /prio/i })
+    ).toBeDefined();
   });
 
   it("does not crash on initial load error and shows safe fallbacks", async () => {
