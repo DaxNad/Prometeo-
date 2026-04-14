@@ -28,14 +28,14 @@ export default function TLSequenceTable({ items, onSelect, filters }: Props) {
       <table style={{ width: "100%", borderCollapse: "collapse", background: "#111", border: "1px solid #222" }}>
         <thead>
           <tr style={{ background: "#0b1220" }}>
-            <th style={{ textAlign: "right", padding: 8 }}>rank</th>
-            <th style={{ textAlign: "left", padding: 8 }}>articolo/ordine</th>
-            <th style={{ textAlign: "left", padding: 8 }}>critical_station</th>
-            <th style={{ textAlign: "left", padding: 8 }}>customer_priority</th>
-            <th style={{ textAlign: "left", padding: 8 }}>event_impact</th>
-            <th style={{ textAlign: "left", padding: 8 }}>risk_level</th>
-            <th style={{ textAlign: "left", padding: 8 }}>priority_reason</th>
-            <th style={{ textAlign: "left", padding: 8 }}>suggested_action</th>
+            <th style={{ textAlign: "right", padding: 8 }}>Rank</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Articolo/Ordine</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Postazione critica</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Priorità</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Eventi</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Rischio</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Motivo priorità</th>
+            <th style={{ textAlign: "left", padding: 8 }}>Azione suggerita</th>
           </tr>
         </thead>
         <tbody>
@@ -45,7 +45,7 @@ export default function TLSequenceTable({ items, onSelect, filters }: Props) {
               <td style={{ padding: 8 }}><strong>{r.article || r.order_id}</strong></td>
               <td style={{ padding: 8 }}>{r.critical_station}</td>
               <td style={{ padding: 8 }}><PriorityBadge value={r.customer_priority} /></td>
-              <td style={{ padding: 8 }}>{r.event_impact ? "YES" : "NO"}</td>
+              <td style={{ padding: 8 }}>{r.event_impact ? "Sì" : "No"}</td>
               <td style={{ padding: 8 }}><RiskBadge level={(r as any).risk_level} /></td>
               <td style={{ padding: 8 }}>{(r as any).priority_reason || ""}</td>
               <td style={{ padding: 8 }}>{(r as any).suggested_action || ""}</td>
@@ -65,4 +65,3 @@ export default function TLSequenceTable({ items, onSelect, filters }: Props) {
     </div>
   );
 }
-
