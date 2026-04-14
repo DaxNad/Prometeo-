@@ -23,24 +23,25 @@ vi.mock("../services/production", () => ({
   fetchProductionTurnPlan: async () => ({ ok: true, items: [] }),
 }));
 
-import Dashboard from "./Dashboard";
+import ProductionDashboard from "./ProductionDashboard";
 
-describe("PROMETEO TL dashboard", () => {
+describe("TL Board page", () => {
   it("renders core sections with valid data", async () => {
-    render(<Dashboard />);
+    render(<ProductionDashboard />);
 
     // Title and sections
-    expect(await screen.findByText(/PROMETEO TL/i)).toBeDefined();
-    expect(await screen.findByText(/Sequence radar/i)).toBeDefined();
-    expect(await screen.findByText(/ZAW status/i)).toBeDefined();
-    expect(await screen.findByText(/Board segnali/i)).toBeDefined();
-    expect(await screen.findByText(/Turn plan/i)).toBeDefined();
+    expect(await screen.findByText(/TL Board/i)).toBeDefined();
+    expect(await screen.findByText(/attenzione immediata/i)).toBeDefined();
+    expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
+    expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
+    expect(await screen.findByText(/ordini visibili/i)).toBeDefined();
+    expect(await screen.findByText(/ultimo aggiornamento/i)).toBeDefined();
 
     // Table headers
-    expect(await screen.findByText(/segnale/i)).toBeDefined();
     expect(await screen.findByText(/codice/i)).toBeDefined();
     expect(await screen.findByText(/postazione/i)).toBeDefined();
-    expect(await screen.findByText(/qta/i)).toBeDefined();
+    expect(await screen.findByText(/qta totale/i)).toBeDefined();
     expect(await screen.findByText(/righe/i)).toBeDefined();
+    expect(await screen.findByText(/prio/i)).toBeDefined();
   });
 });

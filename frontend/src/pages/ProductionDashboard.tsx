@@ -120,37 +120,47 @@ export default function ProductionDashboard() {
   const [load, setLoad] = useState<any>(null);
 
   const [sequence, setSequence] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [lastRefreshAt, setLastRefreshAt] = useState<string | null>(null);
 
   const [stationFilter, setStationFilter] = useState("ALL");
   const [onlyBlocked, setOnlyBlocked] = useState(false);
 
   async function loadAll() {
+    try {
+      setLoadError(null);
+      const [b, l, s] = await Promise.all([
+        fetchProductionBoard(),
+        fetchProductionLoad(),
+        fetchProductionSequence()
+      ]);
 
-    const [b, l, s] = await Promise.all([
-
-      fetchProductionBoard(),
-
-      fetchProductionLoad(),
-
-      fetchProductionSequence()
-
-    ]);
-
-    setBoard(b);
-
-    setLoad(l);
-
-    setSequence(s);
+      setBoard(b);
+      setLoad(l);
+      setSequence(s);
+      setLastRefreshAt(new Date().toISOString());
+    } catch {
+      setLoadError("Errore di caricamento dati TL");
+    } finally {
+      setIsLoading(false);
+    }
 
   }
 
   useEffect(() => {
 
-    loadAll();
+    void loadAll();
+
+    const timerId = setInterval(() => {
+      void loadAll();
+    }, 30000);
+
+    return () => clearInterval(timerId);
 
   }, []);
 
-  if (!board) return <div style={{ padding: 40 }}>loading...</div>;
+  if (isLoading && !board) return <div style={{ padding: 40 }}>loading...</div>;
 
   const grouped = groupOrders(board.items || []);
 
@@ -171,6 +181,11 @@ export default function ProductionDashboard() {
     i => i.semaforo === "ROSSO"
 
   );
+
+  const totalQty = filtered.reduce((acc, curr) => acc + Number(curr.qta || 0), 0);
+  const blockedCount = filtered.filter(
+    (i) => String(i.stato || "").toLowerCase() === "bloccato" || String(i.semaforo || "").toUpperCase() === "ROSSO"
+  ).length;
 
   async function seedDemo() {
     try {
@@ -216,6 +231,39 @@ export default function ProductionDashboard() {
     >
 
       <h1>TL Board</h1>
+
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+        <Section title="ordini visibili">
+          <strong>{filtered.length}</strong>
+        </Section>
+        <Section title="qta totale">
+          <strong>{totalQty}</strong>
+        </Section>
+        <Section title="criticità">
+          <strong>{blockedCount}</strong>
+        </Section>
+      </div>
+
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+        <button
+          type="button"
+          onClick={() => { void loadAll(); }}
+          style={{
+            background: "#1d4ed8",
+            color: "#fff",
+            border: "1px solid #1e40af",
+            borderRadius: 8,
+            padding: "6px 12px",
+            cursor: "pointer",
+          }}
+        >
+          aggiorna ora
+        </button>
+        <span style={{ opacity: 0.8, fontSize: 12 }}>
+          ultimo aggiornamento: {lastRefreshAt ? new Date(lastRefreshAt).toLocaleTimeString("it-IT") : "-"}
+        </span>
+        {loadError && <span style={{ color: "#fca5a5", fontSize: 12 }}>{loadError}</span>}
+      </div>
 
 
       <section
