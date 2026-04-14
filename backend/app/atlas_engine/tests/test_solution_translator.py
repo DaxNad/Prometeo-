@@ -2,7 +2,7 @@ from backend.app.atlas_engine.services.atlas_service import AtlasService
 from backend.app.atlas_engine.contracts import AtlasScenarioRequest, AtlasOrder, AtlasEvent
 
 
-def test_make_plan_falls_back_and_is_deterministic():
+def test_make_plan_ortools_deterministic_feasible_first():
     req = AtlasScenarioRequest(
         station="ZAW-1",
         orders=[
@@ -12,10 +12,10 @@ def test_make_plan_falls_back_and_is_deterministic():
         ],
         events=[AtlasEvent(station="ZAW-1", title="operational", status="OPEN")],
     )
-    # OR-Tools adapter raises NotImplemented → orchestrator must fallback
+    # OR-Tools adapter deterministico: fattibile prima, bloccato in coda, priorità applicata
     plan = AtlasService.make_plan(req, adapter="ortools")
-    assert plan.sequence[0] == "O1"  # blocked wins in fallback scoring
-    assert set(plan.sequence) == {"O1", "O2", "O3"}
-    assert plan.meta.get("adapter") in {"noop", "ortools"}  # fallback marks as noop
+    # Feasible-first: O1 (bloccato) va in fondo, prima viene O2 (MEDIA) poi O3 (BASSA)
+    assert plan.sequence[-1] == "O1"
+    assert plan.sequence[0:2] == ["O2", "O3"]
+    assert plan.meta.get("adapter") == "ortools"
     assert "explain" in plan.meta
-
