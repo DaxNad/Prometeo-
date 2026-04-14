@@ -11,8 +11,16 @@ Scope:
 
 from __future__ import annotations
 
+import os
+import sys
 from dataclasses import replace
 from typing import Dict, List, Tuple
+
+# Make runnable from repo root without manual PYTHONPATH
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+_REPO_ROOT = os.path.dirname(_SCRIPT_DIR)
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from backend.app.atlas_engine.adapters.ortools_adapter import ORToolsAdapter, PenaltyConfig
 from backend.app.atlas_engine.builders.constraint_builder import build_constraints
@@ -109,12 +117,43 @@ def make_probes() -> List[Tuple[str, AtlasScenarioRequest]]:
         ],
         events=[AtlasEvent(station="ZAW-1", title="operational", status="OPEN")],
     )
+    # Near-tie: priority vs (global) event — event is uniform, use quantity to create near-tie vs priority
+    near_tie_priority_event = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="NT_PE_HI", station="ZAW-1", priority="ALTA", quantity=10),
+            AtlasOrder(order_id="NT_PE_MD", station="ZAW-1", priority="MEDIA", quantity=1),
+        ],
+        events=[AtlasEvent(station="ZAW-1", title="operational", status="OPEN")],
+        capacities={"station_queue_pressure": 1},
+    )
+    # Near-tie: shared vs station pressure — small quantity gap under shared_component_pressure
+    near_tie_shared_station = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="NT_SS_10", station="ZAW-1", priority="MEDIA", quantity=10),
+            AtlasOrder(order_id="NT_SS_09", station="ZAW-1", priority="MEDIA", quantity=9),
+        ],
+        capacities={"shared_component_pressure": True, "station_queue_pressure": 1},
+    )
+    # Near-tie: blocked boundary in top-K — 1 feasible + 2 blocked very close otherwise
+    near_tie_blocked_boundary = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="NT_B_F", station="ZAW-1", priority="MEDIA", quantity=2),
+            AtlasOrder(order_id="NT_B_B1", station="ZAW-1", priority="MEDIA", status="bloccato", quantity=2),
+            AtlasOrder(order_id="NT_B_B2", station="ZAW-1", priority="MEDIA", status="bloccato", quantity=2),
+        ],
+    )
     return [
         ("baseline_feasible_mix", base),
         ("blocked_pressure", blocked),
         ("shared_component_pressure", shared),
         ("assembly_group", group),
         ("open_event_pressure", open_evt),
+        ("near_tie_priority_vs_event", near_tie_priority_event),
+        ("near_tie_shared_vs_station_pressure", near_tie_shared_station),
+        ("near_tie_blocked_boundary", near_tie_blocked_boundary),
     ]
 
 
@@ -136,8 +175,9 @@ def run_grid(req: AtlasScenarioRequest) -> str:
         sw = swap_count(base_seq, seq)
         viol = blocked_topk_violations(seq, feas_map, cfg)
         incoh = assembly_incoherence(seq, code_map)
+        flag = " [Δ]" if (t1 or h3 or h5 or sw or viol or incoh) else ""
         lines.append(
-            f"  {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh}"
+            f"  {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh}{flag}"
         )
 
     # Variazioni ±10% / ±15% su singoli coefficienti
@@ -178,4 +218,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-
