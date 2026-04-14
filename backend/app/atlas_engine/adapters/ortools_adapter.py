@@ -16,6 +16,10 @@ class PenaltyConfig:
     open_event_penalty: float = 1.0
     station_pressure_penalty: float = 0.1  # multiplier on (pressure_level * quantity)
     assembly_coherence_penalty: float = 0.01  # per position inside group baseline
+    # soft top-k blocked limiter
+    max_blocked_in_top_k: int = 1
+    top_k_window: int = 3
+    blocked_excess_penalty: float = 5.0
 
 
 class ORToolsAdapter(BaseAdapter):
@@ -94,6 +98,32 @@ class ORToolsAdapter(BaseAdapter):
                 if not g0 or oid0 not in index_map:
                     new_weights.append((w0, oid0, feas0, bd0, g0))
             weights = new_weights
+
+        # Soft limiter: penalizza i bloccati in eccesso nelle prime K posizioni (baseline attuale)
+        if cfg.top_k_window > 0 and cfg.max_blocked_in_top_k >= 0 and cfg.blocked_excess_penalty != 0:
+            baseline = sorted(weights, key=lambda t: (-t[0], t[1]))
+            blocked_seen = 0
+            updated: dict[str, float] = {}
+            updated_bd: dict[str, dict] = {}
+            for pos, (w0, oid0, feas0, bd0, g0) in enumerate(baseline[: cfg.top_k_window]):
+                if not feas0:
+                    blocked_seen += 1
+                    if blocked_seen > cfg.max_blocked_in_top_k:
+                        extra = (blocked_seen - cfg.max_blocked_in_top_k) * cfg.blocked_excess_penalty
+                        neww = w0 - extra
+                        newbd = dict(bd0)
+                        newbd["blocked_penalty"] = float(newbd.get("blocked_penalty", 0.0)) + extra
+                        newbd["total"] = neww
+                        updated[oid0] = neww
+                        updated_bd[oid0] = newbd
+            if updated:
+                new_weights: List[Tuple[float, str, bool, dict, str]] = []
+                for (w0, oid0, feas0, bd0, g0) in weights:
+                    if oid0 in updated:
+                        new_weights.append((updated[oid0], oid0, feas0, updated_bd[oid0], g0))
+                    else:
+                        new_weights.append((w0, oid0, feas0, bd0, g0))
+                weights = new_weights
 
         # Provo a usare OR-Tools CP-SAT per selezionare elementi (x_i ∈ {0,1})
         used_cp = False

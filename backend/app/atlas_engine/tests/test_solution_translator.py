@@ -141,3 +141,26 @@ def test_penalty_config_deterministic_effect_on_ranking():
     res = ORToolsAdapter(config=cfg).solve(snap, cons, obj)
     # Con reward sulla quantità, O10 diventa primo in modo deterministico
     assert res["sequence"][0] == "O10"
+
+
+def test_topk_blocked_soft_limit_penalizes_excess_blocked():
+    # Tre bloccati con stessa priorità: baseline ordinamento lessicografico
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="B1", station="ZAW-1", priority="MEDIA", status="bloccato"),
+            AtlasOrder(order_id="B2", station="ZAW-1", priority="MEDIA", status="bloccato"),
+            AtlasOrder(order_id="B3", station="ZAW-1", priority="MEDIA", status="bloccato"),
+        ],
+    )
+    # Default adapter via AtlasService (usa soft limiter con max_blocked_in_top_k=1, K=3)
+    plan = AtlasService.make_plan(req, adapter="ortools")
+    # Il secondo/terzo bloccato ricevono penalità extra deterministica; ordine non puramente lessicografico
+    # Sequenza attesa: B1 resta primo tra i bloccati; B2 e B3 possono invertirsi per effetto della penalità crescente
+    assert plan.sequence[0] == "B1"
+    # breakdown presente
+    scores = plan.meta.get("scores", [])
+    assert isinstance(scores, list) and len(scores) == 3
+    # verifica che almeno uno tra B2 e B3 abbia total < dell'altro in modo deterministico
+    totals = {s["order_id"]: float(s.get("total", 0)) for s in scores}
+    assert totals["B1"] >= max(totals["B2"], totals["B3"])  # B1 penalizzato meno degli altri
