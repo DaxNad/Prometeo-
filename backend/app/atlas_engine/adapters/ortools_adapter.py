@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+from dataclasses import dataclass
 
 from ..domain.snapshot import Snapshot
 from ..types import ConstraintSet, ObjectiveSpec, SolveResult
@@ -8,7 +9,18 @@ from ..constants import PRIORITY_WEIGHTS
 from .base import BaseAdapter
 
 
+@dataclass
+class PenaltyConfig:
+    blocked_penalty: float = 100.0
+    shared_component_penalty: float = 1.0
+    open_event_penalty: float = 1.0
+    station_pressure_penalty: float = 0.1  # multiplier on (pressure_level * quantity)
+    assembly_coherence_penalty: float = 0.01  # per position inside group baseline
+
+
 class ORToolsAdapter(BaseAdapter):
+    def __init__(self, config: Optional[PenaltyConfig] = None) -> None:
+        self._cfg = config or PenaltyConfig()
     def solve(self, snapshot: Snapshot, constraints: ConstraintSet, objective: ObjectiveSpec) -> SolveResult:  # noqa: D401
         """Deterministic solve with minimal OR-Tools model (v0).
 
@@ -27,6 +39,7 @@ class ORToolsAdapter(BaseAdapter):
 
         # Costruisco pesi deterministici per ogni ordine (Model v1) con breakdown
         weights: List[Tuple[float, str, bool, dict, str]] = []  # (w_i, order_id, feasible, breakdown, group_key)
+        cfg = self._cfg
         station_pressure_level = 0.0
         sp_val = snapshot.capacities.values.get("station_queue_pressure") if snapshot.capacities else 0
         try:
@@ -38,11 +51,11 @@ class ORToolsAdapter(BaseAdapter):
             prio = PRIORITY_WEIGHTS.get(str(o.priority or "").upper(), 0)
             # componenti obiettivo
             priority_reward = prio * 10.0
-            blocked_penalty = 0.0 if feasible else 100.0
-            shared_component_penalty = 1.0 if shared_pressure else 0.0
-            open_event_penalty = 1.0 if has_open_event else 0.0
+            blocked_penalty = 0.0 if feasible else cfg.blocked_penalty
+            shared_component_penalty = cfg.shared_component_penalty if shared_pressure else 0.0
+            open_event_penalty = cfg.open_event_penalty if has_open_event else 0.0
             # penalità proporzionale alla quantità per riflettere la pressione di coda
-            station_pressure_penalty = station_pressure_level * float(o.quantity or 0) * 0.1
+            station_pressure_penalty = station_pressure_level * float(o.quantity or 0) * cfg.station_pressure_penalty
 
             w = priority_reward - blocked_penalty - shared_component_penalty - open_event_penalty - station_pressure_penalty
             breakdown = {
@@ -71,7 +84,7 @@ class ORToolsAdapter(BaseAdapter):
             for gk, items in groups.items():
                 items_sorted = sorted(items, key=lambda t: (-t[0], t[1]))
                 for pos, (w0, oid0, feas0, bd0, g0) in enumerate(items_sorted):
-                    penalty = pos * 0.01
+                    penalty = pos * cfg.assembly_coherence_penalty
                     w_adj = w0 - penalty
                     bd0["total"] = w_adj
                     index_map[oid0] = 1  # mark handled

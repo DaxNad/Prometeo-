@@ -1,5 +1,9 @@
 from backend.app.atlas_engine.services.atlas_service import AtlasService
 from backend.app.atlas_engine.contracts import AtlasScenarioRequest, AtlasOrder, AtlasEvent
+from backend.app.atlas_engine.adapters.ortools_adapter import ORToolsAdapter, PenaltyConfig
+from backend.app.atlas_engine.builders.snapshot_builder import build_snapshot
+from backend.app.atlas_engine.builders.constraint_builder import build_constraints
+from backend.app.atlas_engine.builders.objective_builder import build_objective
 
 
 def test_make_plan_ortools_deterministic_feasible_first():
@@ -93,3 +97,47 @@ def test_station_queue_pressure_affects_ranking_and_scores():
             "total",
         ):
             assert k in item
+
+
+def test_assembly_group_coherence_preserves_deterministic_order():
+    # Due ordini stessa priorità e quantità, stesso assembly_group (usiamo code come gruppo)
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="A02", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-1"),
+            AtlasOrder(order_id="A01", station="ZAW-1", priority="MEDIA", quantity=5, code="AG-1"),
+        ],
+        capacities={"station_queue_pressure": 1},
+    )
+    plan = AtlasService.make_plan(req, adapter="ortools")
+    # Determinismo: con stessa priorità e quantità, si preferisce ordine lessicografico (A01 prima di A02)
+    assert plan.sequence[0] == "A01"
+    # Coerenza assembly_group influisce sul totale: il primo ha total >= del secondo
+    scores = plan.meta.get("scores", [])
+    assert isinstance(scores, list) and len(scores) == 2
+    assert scores[0].get("order_id") == "A01"
+    assert float(scores[0].get("total", 0)) >= float(scores[1].get("total", 0))
+
+
+def test_penalty_config_deterministic_effect_on_ranking():
+    # Stessa priorità, solo quantità diversa; default: O01 prima di O10
+    req = AtlasScenarioRequest(
+        station="ZAW-1",
+        orders=[
+            AtlasOrder(order_id="O10", station="ZAW-1", priority="MEDIA", quantity=10),
+            AtlasOrder(order_id="O01", station="ZAW-1", priority="MEDIA", quantity=1),
+        ],
+        capacities={"station_queue_pressure": 1},
+    )
+    # Default adapter via AtlasService
+    base_plan = AtlasService.make_plan(req, adapter="ortools")
+    assert base_plan.sequence[0] == "O01"
+
+    # Adapter con configurazione interna che INVERTE il segnale di pressione stazione (reward per quantità)
+    cfg = PenaltyConfig(station_pressure_penalty=-1.0)
+    snap = build_snapshot(req)
+    cons = build_constraints(snap)
+    obj = build_objective(snap)
+    res = ORToolsAdapter(config=cfg).solve(snap, cons, obj)
+    # Con reward sulla quantità, O10 diventa primo in modo deterministico
+    assert res["sequence"][0] == "O10"
