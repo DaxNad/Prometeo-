@@ -70,10 +70,9 @@ describe("TL Board page", () => {
     expect(
       await screen.findByRole("columnheader", { name: /prio/i })
     ).toBeDefined();
-  });
-
-  it("does not crash on initial load error and shows safe fallbacks", async () => {
-    fetchProductionBoard.mockResolvedValue({
+    // Nessun errore in pagina: mostriamo fallback innocui
+    expect((await screen.findAllByText(/nessun blocco immediato/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/nessuna sequenza disponibile/i)).length).toBeGreaterThan(0);
       ok: false,
       error: "Errore nel caricamento iniziale",
       items: [],
