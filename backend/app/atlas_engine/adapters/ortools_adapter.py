@@ -25,20 +25,36 @@ class ORToolsAdapter(BaseAdapter):
         has_open_event = any(e.status == "OPEN" for e in snapshot.events)
         shared_pressure = bool(snapshot.capacities.values.get("shared_component_pressure", False))
 
-        # Costruisco pesi deterministici per ogni ordine
-        weights: List[Tuple[float, str, bool]] = []  # (w_i, order_id, feasible)
+        # Costruisco pesi deterministici per ogni ordine (Model v1) con breakdown
+        weights: List[Tuple[float, str, bool, dict]] = []  # (w_i, order_id, feasible, breakdown)
+        station_pressure_level = 0.0
+        sp_val = snapshot.capacities.values.get("station_queue_pressure") if snapshot.capacities else 0
+        try:
+            station_pressure_level = float(sp_val or 0)
+        except Exception:
+            station_pressure_level = 1.0 if bool(sp_val) else 0.0
         for o in snapshot.orders:
             feasible = str(o.status or "").lower() != "bloccato"
             prio = PRIORITY_WEIGHTS.get(str(o.priority or "").upper(), 0)
-            w = 0.0
-            w += prio * 10.0  # priorità
-            if has_open_event:
-                w -= 1.0  # penalità evento aperto
-            if shared_pressure:
-                w -= 1.0  # penalità pressione condivisa
-            if not feasible:
-                w -= 100.0  # penalità forte per bloccato
-            weights.append((w, o.order_id, feasible))
+            # componenti obiettivo
+            priority_reward = prio * 10.0
+            blocked_penalty = 0.0 if feasible else 100.0
+            shared_component_penalty = 1.0 if shared_pressure else 0.0
+            open_event_penalty = 1.0 if has_open_event else 0.0
+            # penalità proporzionale alla quantità per riflettere la pressione di coda
+            station_pressure_penalty = station_pressure_level * float(o.quantity or 0) * 0.1
+
+            w = priority_reward - blocked_penalty - shared_component_penalty - open_event_penalty - station_pressure_penalty
+            breakdown = {
+                "order_id": o.order_id,
+                "priority_reward": priority_reward,
+                "blocked_penalty": blocked_penalty,
+                "shared_component_penalty": shared_component_penalty,
+                "open_event_penalty": open_event_penalty,
+                "station_pressure_penalty": station_pressure_penalty,
+                "total": w,
+            }
+            weights.append((w, o.order_id, feasible, breakdown))
 
         # Provo a usare OR-Tools CP-SAT per selezionare elementi (x_i ∈ {0,1})
         used_cp = False
@@ -49,7 +65,7 @@ class ORToolsAdapter(BaseAdapter):
             model = cp_model.CpModel()
             xs = []
             coeffs = []
-            for idx, (w, oid, _feas) in enumerate(weights):
+            for idx, (w, oid, _feas, _bd) in enumerate(weights):
                 x = model.NewBoolVar(f"x_{idx}_{oid}")
                 xs.append(x)
                 # CP-SAT usa coefficienti interi, scalare i pesi
@@ -66,17 +82,40 @@ class ORToolsAdapter(BaseAdapter):
             if res not in (cp_model.OPTIMAL, cp_model.FEASIBLE):
                 raise RuntimeError("ORTools returned infeasible/unbounded")
 
-            for (w, oid, _), x in zip(weights, xs):
+            for (w, oid, _feas, _bd), x in zip(weights, xs):
                 x_selected.append((int(solver.Value(x)), w, oid))
             used_cp = True
         except Exception:
             # Nessun OR-Tools o errore: fallback interno all'adapter (non orchestrator)
-            for (w, oid, _feas) in weights:
+            for (w, oid, _feas, _bd) in weights:
                 x_selected.append((1 if w >= 0 else 0, w, oid))
 
         # Ordino: selezionati prima (x=1), poi per peso desc, poi order_id asc
         x_selected.sort(key=lambda t: (-t[0], -t[1], t[2]))
         sequence = [oid for _, _, oid in x_selected]
+
+        # Hard rule (minima): se esiste almeno un feasible, il primo non può essere bloccato
+        feasibles = {oid for (_, _, oid), (_w, _oid, feas, _bd) in zip(x_selected, weights) if feas}
+        if sequence:
+            first_oid = sequence[0]
+            # trova feasibility della prima
+            first_is_blocked = False
+            for (_w, oid, feas, _bd) in weights:
+                if oid == first_oid:
+                    first_is_blocked = not feas
+                    break
+            if first_is_blocked and any(oid in feasibles for oid in sequence[1:]):
+                # sposta in testa il miglior feasible per peso (deterministico)
+                # ricostruisco mappa pesi
+                wmap = {oid: w for (w, oid, _feas, _bd) in weights}
+                feasible_candidates = [oid for oid in sequence if oid in feasibles]
+                feasible_candidates.sort(key=lambda oid: (-wmap.get(oid, -1e9), oid))
+                best = feasible_candidates[0]
+                sequence = [best] + [oid for oid in sequence if oid != best]
+
+        # score breakdown per item (ordinato per sequenza)
+        bmap = {bd["order_id"]: bd for (_w, _oid, _feas, bd) in weights}
+        scores = [bmap.get(oid, {}) for oid in sequence]
 
         meta = {
             "adapter": "ortools",
@@ -86,6 +125,8 @@ class ORToolsAdapter(BaseAdapter):
                 "priority_weights": PRIORITY_WEIGHTS,
                 "penalty_open_event": has_open_event,
                 "penalty_shared_pressure": shared_pressure,
+                "station_queue_pressure": station_pressure_level,
             },
+            "scores": scores,
         }
         return {"sequence": sequence, "meta": meta}
