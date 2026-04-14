@@ -64,4 +64,5 @@ jobs:
           pytest -q \
             tests/test_smoke_api.py \
             tests/test_smf_ingest.py \
-            tests/test_smf_schema_guard.py
+            tests/test_smf_schema_guard.py \
+            tests/test_smf_updater_warnings.py
