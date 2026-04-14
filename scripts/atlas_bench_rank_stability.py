@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import os
 import sys
+import argparse
 from dataclasses import replace
 from typing import Dict, List, Tuple
 
@@ -23,6 +24,7 @@ if _REPO_ROOT not in sys.path:
     sys.path.insert(0, _REPO_ROOT)
 
 from backend.app.atlas_engine.adapters.ortools_adapter import ORToolsAdapter, PenaltyConfig
+from backend.app.atlas_engine.adapters.pyomo_adapter import PyomoAdapter
 from backend.app.atlas_engine.builders.constraint_builder import build_constraints
 from backend.app.atlas_engine.builders.objective_builder import build_objective
 from backend.app.atlas_engine.builders.snapshot_builder import build_snapshot
@@ -105,11 +107,14 @@ def assembly_incoherence(seq: List[str], code_map: Dict[str, str]) -> int:
     return incoh
 
 
-def solve_req(req: AtlasScenarioRequest, cfg: PenaltyConfig | None = None) -> Tuple[List[str], Dict]:
+def solve_req(req: AtlasScenarioRequest, cfg: PenaltyConfig | None = None, adapter: str = "ortools") -> Tuple[List[str], Dict]:
     snap = build_snapshot(req)
     cons = build_constraints(snap)
     obj = build_objective(snap)
-    res = ORToolsAdapter(config=cfg).solve(snap, cons, obj)
+    if adapter == "pyomo":
+        res = PyomoAdapter(config=cfg).solve(snap, cons, obj)
+    else:
+        res = ORToolsAdapter(config=cfg).solve(snap, cons, obj)
     return list(res.get("sequence", [])), dict(res.get("meta", {}))
 
 
@@ -193,9 +198,9 @@ def make_probes() -> List[Tuple[str, AtlasScenarioRequest]]:
     ]
 
 
-def run_grid(req: AtlasScenarioRequest) -> str:
+def run_grid(req: AtlasScenarioRequest, adapter: str = "ortools") -> str:
     baseline_cfg = PenaltyConfig()
-    base_seq, base_meta = solve_req(req, baseline_cfg)
+    base_seq, base_meta = solve_req(req, baseline_cfg, adapter=adapter)
 
     feas_map = {o.order_id: (str(o.status or "").lower() != "bloccato") for o in req.orders}
     code_map = {o.order_id: (o.code or "") for o in req.orders}
@@ -203,11 +208,11 @@ def run_grid(req: AtlasScenarioRequest) -> str:
     lines: List[str] = []
     m1, m3 = margins_top(base_meta, base_seq)
     lines.append(
-        f"  base: top1={base_seq[0] if base_seq else '-'} seq={base_seq} | margin_top1={m1:.3f} margin_top3_min={m3:.3f}"
+        f"  [{adapter}] base: top1={base_seq[0] if base_seq else '-'} seq={base_seq} | margin_top1={m1:.3f} margin_top3_min={m3:.3f}"
     )
 
     def report(label: str, cfg: PenaltyConfig):
-        seq, meta = solve_req(req, cfg)
+        seq, meta = solve_req(req, cfg, adapter=adapter)
         t1 = int(seq[0] != base_seq[0]) if seq and base_seq else 0
         h3 = hamming_at_k(base_seq, seq, 3)
         h5 = hamming_at_k(base_seq, seq, 5)
@@ -218,7 +223,7 @@ def run_grid(req: AtlasScenarioRequest) -> str:
         risk = near_flip_risk(meta, seq, k=3, eps=0.5)
         flag = " [Δ]" if (t1 or h3 or h5 or sw or viol or incoh) else ""
         lines.append(
-            f"  {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh} "
+            f"  [{adapter}] {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh} "
             f"| margin_top1={mt1:.3f} margin_top3_min={mt3:.3f} risk@3<{0.5}={risk}{flag}"
         )
 
@@ -249,12 +254,19 @@ def run_grid(req: AtlasScenarioRequest) -> str:
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser(description="ATLAS ranking stability micro-benchmark")
+    parser.add_argument("--adapter", choices=["ortools", "pyomo", "both"], default="ortools")
+    args = parser.parse_args()
+
     probes = make_probes()
     print("ATLAS Ranking Stability — local micro-benchmark")
     print("(backend-only, deterministic model, no DB/API changes)\n")
     for name, req in probes:
         print(f"dataset: {name}")
-        print(run_grid(req))
+        if args.adapter in ("ortools", "both"):
+            print(run_grid(req, adapter="ortools"))
+        if args.adapter in ("pyomo", "both"):
+            print(run_grid(req, adapter="pyomo"))
         print()
 
 
