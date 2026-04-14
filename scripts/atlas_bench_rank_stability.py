@@ -45,6 +45,42 @@ def swap_count(a: List[str], b: List[str]) -> int:
     return inv
 
 
+def totals_map(meta: Dict) -> Dict[str, float]:
+    scores = meta.get("scores") or []
+    out: Dict[str, float] = {}
+    for s in scores:
+        try:
+            out[str(s.get("order_id"))] = float(s.get("total", 0))
+        except Exception:
+            pass
+    return out
+
+
+def margins_top(meta: Dict, seq: List[str], k: int = 3) -> Tuple[float, float]:
+    tm = totals_map(meta)
+    # margin_top1: diff between top1 and runner-up
+    m1 = 0.0
+    if len(seq) >= 2:
+        m1 = float(tm.get(seq[0], 0.0) - tm.get(seq[1], 0.0))
+    # margin_top3_min: minimum abs diff among adjacent pairs in top3
+    m3 = 0.0
+    n = min(3, len(seq))
+    if n >= 2:
+        diffs = [abs(float(tm.get(seq[i], 0.0) - tm.get(seq[i + 1], 0.0))) for i in range(n - 1)]
+        m3 = min(diffs) if diffs else 0.0
+    return m1, m3
+
+
+def near_flip_risk(meta: Dict, seq: List[str], k: int = 3, eps: float = 0.5) -> int:
+    tm = totals_map(meta)
+    n = min(k, len(seq))
+    risk = 0
+    for i in range(n - 1):
+        if abs(float(tm.get(seq[i], 0.0) - tm.get(seq[i + 1], 0.0))) < eps:
+            risk += 1
+    return risk
+
+
 def blocked_topk_violations(seq: List[str], feasible_map: Dict[str, bool], cfg: PenaltyConfig) -> int:
     if cfg.top_k_window <= 0:
         return 0
@@ -121,11 +157,11 @@ def make_probes() -> List[Tuple[str, AtlasScenarioRequest]]:
     near_tie_priority_event = AtlasScenarioRequest(
         station="ZAW-1",
         orders=[
-            AtlasOrder(order_id="NT_PE_HI", station="ZAW-1", priority="ALTA", quantity=10),
-            AtlasOrder(order_id="NT_PE_MD", station="ZAW-1", priority="MEDIA", quantity=1),
+            AtlasOrder(order_id="NT_PE_HI", station="ZAW-1", priority="ALTA", quantity=12),
+            AtlasOrder(order_id="NT_PE_MD", station="ZAW-1", priority="MEDIA", quantity=10),
         ],
         events=[AtlasEvent(station="ZAW-1", title="operational", status="OPEN")],
-        capacities={"station_queue_pressure": 1},
+        capacities={"station_queue_pressure": 52},
     )
     # Near-tie: shared vs station pressure — small quantity gap under shared_component_pressure
     near_tie_shared_station = AtlasScenarioRequest(
@@ -134,7 +170,7 @@ def make_probes() -> List[Tuple[str, AtlasScenarioRequest]]:
             AtlasOrder(order_id="NT_SS_10", station="ZAW-1", priority="MEDIA", quantity=10),
             AtlasOrder(order_id="NT_SS_09", station="ZAW-1", priority="MEDIA", quantity=9),
         ],
-        capacities={"shared_component_pressure": True, "station_queue_pressure": 1},
+        capacities={"shared_component_pressure": True, "station_queue_pressure": 10},
     )
     # Near-tie: blocked boundary in top-K — 1 feasible + 2 blocked very close otherwise
     near_tie_blocked_boundary = AtlasScenarioRequest(
@@ -165,7 +201,10 @@ def run_grid(req: AtlasScenarioRequest) -> str:
     code_map = {o.order_id: (o.code or "") for o in req.orders}
 
     lines: List[str] = []
-    lines.append(f"  base: top1={base_seq[0] if base_seq else '-'} seq={base_seq}")
+    m1, m3 = margins_top(base_meta, base_seq)
+    lines.append(
+        f"  base: top1={base_seq[0] if base_seq else '-'} seq={base_seq} | margin_top1={m1:.3f} margin_top3_min={m3:.3f}"
+    )
 
     def report(label: str, cfg: PenaltyConfig):
         seq, meta = solve_req(req, cfg)
@@ -175,13 +214,16 @@ def run_grid(req: AtlasScenarioRequest) -> str:
         sw = swap_count(base_seq, seq)
         viol = blocked_topk_violations(seq, feas_map, cfg)
         incoh = assembly_incoherence(seq, code_map)
+        mt1, mt3 = margins_top(meta, seq)
+        risk = near_flip_risk(meta, seq, k=3, eps=0.5)
         flag = " [Δ]" if (t1 or h3 or h5 or sw or viol or incoh) else ""
         lines.append(
-            f"  {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh}{flag}"
+            f"  {label:28s} | top1_changed={t1} h3={h3} h5={h5} swaps={sw} blocked_topk={viol} incoh={incoh} "
+            f"| margin_top1={mt1:.3f} margin_top3_min={mt3:.3f} risk@3<{0.5}={risk}{flag}"
         )
 
-    # Variazioni ±10% / ±15% su singoli coefficienti
-    factors = [0.9, 1.1, 0.85, 1.15]
+    # Variazioni fini: ±2%, ±5%, ±10%, ±15%
+    factors = [0.98, 1.02, 0.95, 1.05, 0.9, 1.1, 0.85, 1.15]
     for f in factors:
         report(
             f"blocked_penalty×{f}",
