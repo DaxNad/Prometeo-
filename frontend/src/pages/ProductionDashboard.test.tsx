@@ -2,10 +2,18 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
-const fetchProductionBoard = vi.fn();
-const fetchProductionLoad = vi.fn();
-const fetchProductionSequence = vi.fn();
-const fetchProductionTurnPlan = vi.fn();
+// Hoist shared mock fns to avoid TDZ with vi.mock hoisting
+const {
+  fetchProductionBoard,
+  fetchProductionLoad,
+  fetchProductionSequence,
+  fetchProductionTurnPlan,
+} = vi.hoisted(() => ({
+  fetchProductionBoard: vi.fn(),
+  fetchProductionLoad: vi.fn(),
+  fetchProductionSequence: vi.fn(),
+  fetchProductionTurnPlan: vi.fn(),
+}));
 
 vi.mock("../services/production", () => ({
   fetchProductionBoard,
@@ -18,6 +26,7 @@ import ProductionDashboard from "./ProductionDashboard";
 
 describe("TL Board page", () => {
   beforeEach(() => {
+    vi.resetAllMocks();
     fetchProductionBoard.mockResolvedValue({
       ok: true,
       items: [
