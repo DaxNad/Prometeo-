@@ -1,46 +1,66 @@
-import { describe, it, expect } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
-// Mock the services used by the page to provide valid data
+const fetchProductionBoard = vi.fn();
+const fetchProductionLoad = vi.fn();
+const fetchProductionSequence = vi.fn();
+const fetchProductionTurnPlan = vi.fn();
+
 vi.mock("../services/production", () => ({
-  fetchProductionBoard: async () => ({
-    ok: true,
-    items: [
-      {
-        order_id: "ORD-1",
-        codice: "ABC",
-        postazione: "ZAW-1",
-        qta: 5,
-        semaforo: "ROSSO",
-        stato: "bloccato",
-        note: "",
-      },
-    ],
-  }),
-  fetchProductionLoad: async () => ({ ok: true, items: [] }),
-  fetchProductionSequence: async () => ({ ok: true, items: [] }),
-  fetchProductionTurnPlan: async () => ({ ok: true, items: [] }),
+  fetchProductionBoard,
+  fetchProductionLoad,
+  fetchProductionSequence,
+  fetchProductionTurnPlan,
 }));
 
 import ProductionDashboard from "./ProductionDashboard";
 
 describe("TL Board page", () => {
+  beforeEach(() => {
+    fetchProductionBoard.mockResolvedValue({
+      ok: true,
+      items: [
+        {
+          order_id: "ORD-1",
+          codice: "ABC",
+          postazione: "ZAW-1",
+          qta: 5,
+          semaforo: "ROSSO",
+          stato: "bloccato",
+          note: "",
+        },
+      ],
+    });
+    fetchProductionLoad.mockResolvedValue({ ok: true, items: [] });
+    fetchProductionSequence.mockResolvedValue({ ok: true, items: [] });
+    fetchProductionTurnPlan.mockResolvedValue({ ok: true, items: [] });
+  });
+
   it("renders core sections and table headers with valid data", async () => {
     render(<ProductionDashboard />);
 
-    // Title and sections
     expect(await screen.findByText(/TL Board/i)).toBeDefined();
     expect(await screen.findByText(/attenzione immediata/i)).toBeDefined();
     expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
     expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
 
-    // Table headers
     expect(await screen.findByText(/codice/i)).toBeDefined();
     expect(await screen.findByText(/postazione/i)).toBeDefined();
     expect(await screen.findByText(/qta totale/i)).toBeDefined();
     expect(await screen.findByText(/righe/i)).toBeDefined();
     expect(await screen.findByText(/prio/i)).toBeDefined();
   });
-});
 
+  it("shows readable error and avoids crash when initial load fails", async () => {
+    fetchProductionBoard.mockResolvedValue({
+      ok: false,
+      error: "Errore nel caricamento iniziale",
+      items: [],
+    });
+
+    render(<ProductionDashboard />);
+
+    expect(await screen.findByText(/errore nel caricamento iniziale/i)).toBeDefined();
+  });
+});
