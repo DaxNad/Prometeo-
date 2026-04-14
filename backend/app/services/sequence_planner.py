@@ -330,19 +330,23 @@ sequence_planner_service = SequencePlannerService()
 
 
 def _get_open_events_by_station(db: Session) -> dict[str, dict[str, Any]]:
-    rows = db.execute(
-        text(
-            """
-            SELECT
-                station,
-                COUNT(*) AS open_events,
-                STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS titles
-            FROM events
-            WHERE status = 'OPEN'
-            GROUP BY station
-            """
-        )
-    ).mappings().all()
+    try:
+        rows = db.execute(
+            text(
+                """
+                SELECT
+                    station,
+                    COUNT(*) AS open_events,
+                    STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS titles
+                FROM events
+                WHERE status = 'OPEN'
+                GROUP BY station
+                """
+            )
+        ).mappings().all()
+    except Exception:
+        # relazione 'events' non disponibile: fallback safe
+        rows = []
 
     result: dict[str, dict[str, Any]] = {}
 
