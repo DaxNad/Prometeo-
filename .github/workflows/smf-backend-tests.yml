@@ -59,11 +59,13 @@ jobs:
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' ../changed_files.txt >/dev/null 2>&1; then
             echo "No SMF/backend changes detected: passing no-op"
+            exit 0
           else
             pytest -q \
               tests/test_smoke_api.py \
               tests/test_smf_ingest.py \
-              tests/test_smf_schema_guard.py
+              tests/test_smf_schema_guard.py \
+              tests/test_smf_updater_warnings.py
           fi
 
       - name: Publish legacy status context 'smf'
