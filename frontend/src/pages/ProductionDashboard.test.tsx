@@ -74,3 +74,5 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/nessun blocco immediato/i)).toBeDefined();
     expect(await screen.findByText(/nessuna sequenza disponibile/i)).toBeDefined();
   });
+
+});
