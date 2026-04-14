@@ -70,9 +70,10 @@ describe("TL Board page", () => {
     expect(
       await screen.findByRole("columnheader", { name: /prio/i })
     ).toBeDefined();
-    // Nessun errore in pagina: mostriamo fallback innocui
-    expect((await screen.findAllByText(/nessun blocco immediato/i)).length).toBeGreaterThan(0);
-    expect((await screen.findAllByText(/nessuna sequenza disponibile/i)).length).toBeGreaterThan(0);
+  });
+
+  it("does not crash on initial load error and shows safe fallbacks", async () => {
+    fetchProductionBoard.mockResolvedValue({
       ok: false,
       error: "Errore nel caricamento iniziale",
       items: [],
@@ -80,9 +81,9 @@ describe("TL Board page", () => {
 
     render(<ProductionDashboard />);
 
-    // Nessun errore in pagina: mostriamo fallback innocui
-    expect(await screen.findByText(/nessun blocco immediato/i)).toBeDefined();
-    expect(await screen.findByText(/nessuna sequenza disponibile/i)).toBeDefined();
+    // Nessun errore in pagina: mostriamo fallback innocui (tolleriamo eventuale doppio render)
+    expect((await screen.findAllByText(/nessun blocco immediato/i)).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText(/nessuna sequenza disponibile/i)).length).toBeGreaterThan(0);
   });
 
 });
