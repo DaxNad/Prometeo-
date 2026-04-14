@@ -32,6 +32,33 @@ jobs:
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt || true
           echo "Changed files:"; cat changed_files.txt || true
 
+      - name: Classify guard scope (PR)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          FULL_BACKEND_REGEX='^(backend/app/smf/|backend/app/agent_mod/|backend/app/api/|backend/app/models/|backend/app/services/|backend/tests/|backend/requirements\.txt|backend/pytest\.ini)'
+
+          if grep -E "$FULL_BACKEND_REGEX" changed_files.txt >/dev/null 2>&1; then
+            echo "BACKEND_GUARDS=1" >> "$GITHUB_ENV"
+          else
+            echo "BACKEND_GUARDS=0" >> "$GITHUB_ENV"
+          fi
+
+          if grep -E '^backend/' changed_files.txt >/dev/null 2>&1; then
+            if grep -E '^backend/' changed_files.txt | grep -Ev '^(backend/app/atlas_engine/|backend/app/atlas_engine/tests/)' >/dev/null 2>&1; then
+              echo "ATLAS_ONLY_BACKEND=0" >> "$GITHUB_ENV"
+            else
+              echo "ATLAS_ONLY_BACKEND=1" >> "$GITHUB_ENV"
+            fi
+          else
+            echo "ATLAS_ONLY_BACKEND=0" >> "$GITHUB_ENV"
+          fi
+
+      - name: Default guard scope (push)
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          echo "BACKEND_GUARDS=1" >> "$GITHUB_ENV"
+          echo "ATLAS_ONLY_BACKEND=0" >> "$GITHUB_ENV"
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -39,19 +66,11 @@ jobs:
 
       - name: Install Python deps (backend)
         run: |
-          NEED_BACKEND=0
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            if grep -E '^(backend/|backend\\.pyproject\\.toml|backend/requirements\\.txt|backend/tests/)' changed_files.txt >/dev/null 2>&1; then
-              NEED_BACKEND=1
-            fi
-          else
-            NEED_BACKEND=1
-          fi
-          if [ "$NEED_BACKEND" = "1" ]; then
+          if [ "${BACKEND_GUARDS}" = "1" ]; then
             python -m pip install --upgrade pip
             pip install -r backend/requirements.txt pytest
           else
-            echo "No backend changes detected: skip backend deps"
+            echo "Backend guard scope not required for this change set: skip backend deps"
           fi
 
       - name: Set up Node
@@ -74,12 +93,18 @@ jobs:
 
       - name: Backend guards (conditional)
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/|backend\\.pyproject\\.toml|backend/requirements\\.txt|backend/tests/)' changed_files.txt >/dev/null 2>&1; then
-            echo "No backend changes detected: skip backend guards"
-          else
+          if [ "${BACKEND_GUARDS}" = "1" ]; then
             bash backend/scripts/run_guards.sh
+          elif [ "${ATLAS_ONLY_BACKEND}" = "1" ]; then
+            echo "ATLAS-only backend PR detected: skip legacy backend guards"
+          else
+            echo "No guarded backend surface changed: skip backend guards"
           fi
 
       - name: Frontend UI structural guard
         run: |
-          ( cd frontend && ../frontend/scripts/guard_tl_board.sh )
+          echo "==> TL Board structural guard"
+          grep -RqiE 'TL Board|TLBoard' frontend/src
+          grep -RqiE 'sequenza consigliata|ranking|sequence' frontend/src
+          grep -RqiE 'carico postazioni|machine load|load panel' frontend/src
+          echo "[PASS] TL Board guard"

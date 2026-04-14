@@ -1,0 +1,57 @@
+name: atlas-backend-tests
+
+on:
+  pull_request:
+  workflow_dispatch: {}
+
+jobs:
+  atlas-backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Determine changed files (PR)
+        if: ${{ github.event_name == 'pull_request' }}
+        run: |
+          BASE_SHA='${{ github.event.pull_request.base.sha }}'
+          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
+          echo "BASE_SHA=$BASE_SHA"
+          echo "HEAD_SHA=$HEAD_SHA"
+          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt || true
+          echo "Changed files:"; cat changed_files.txt || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          check-latest: true
+
+      - name: Install dependencies (only if ATLAS changed)
+        run: |
+          NEED_RUN=0
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if grep -E '^(backend/app/atlas_engine/|backend/app/atlas_engine/tests/|backend/requirements\.txt)' changed_files.txt >/dev/null 2>&1; then
+              NEED_RUN=1
+            fi
+          else
+            NEED_RUN=1
+          fi
+          if [ "$NEED_RUN" = "1" ]; then
+            python -m pip install --upgrade pip
+            pip install -r backend/requirements.txt pytest
+          else
+            echo "No ATLAS changes detected: skip install"
+          fi
+
+      - name: Run ATLAS backend tests (only if ATLAS changed)
+        working-directory: backend
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/atlas_engine/|backend/app/atlas_engine/tests/|backend/requirements\.txt)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No ATLAS changes detected: passing no-op"
+            exit 0
+          else
+            pytest -q app/atlas_engine/tests
+          fi
