@@ -3,8 +3,8 @@
     "critical_station",
     "open_events_total",
     "event_impact",
-    "priority",
-    "workload",
-    "source"
+    "customer_priority",
+    "source_view",
+    "rank"
   ]
 }
