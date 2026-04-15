@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import React from "react";
 
 // Hoist shared mock fns to avoid TDZ with vi.mock hoisting
 const {
@@ -54,12 +53,12 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
     expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
 
-    // Verifica header tabella per ruolo (evita ambiguità con label di filtro)
+    // Verifica header tabella per ruolo (evita ambiguita con label di filtro)
     expect(
       await screen.findByRole("columnheader", { name: /codice/i })
     ).toBeDefined();
     expect(
-      await screen.findByRole("columnheader", { name: /postazione/i })
+      await screen.findByRole("columnheader", { name: /^postazione$/i })
     ).toBeDefined();
     expect(
       await screen.findByRole("columnheader", { name: /qta totale/i })
@@ -81,9 +80,7 @@ describe("TL Board page", () => {
 
     render(<ProductionDashboard />);
 
-    // Nessun errore in pagina: mostriamo fallback innocui (tolleriamo eventuale doppio render)
     expect((await screen.findAllByText(/nessun blocco immediato/i)).length).toBeGreaterThan(0);
     expect((await screen.findAllByText(/nessuna sequenza disponibile/i)).length).toBeGreaterThan(0);
   });
-
 });
