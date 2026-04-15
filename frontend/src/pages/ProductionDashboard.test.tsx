@@ -6,11 +6,13 @@ const {
   fetchProductionBoard,
   fetchProductionLoad,
   fetchProductionSequence,
+  fetchProductionSequenceAtlasMerge,
   fetchProductionTurnPlan,
 } = vi.hoisted(() => ({
   fetchProductionBoard: vi.fn(),
   fetchProductionLoad: vi.fn(),
   fetchProductionSequence: vi.fn(),
+  fetchProductionSequenceAtlasMerge: vi.fn(),
   fetchProductionTurnPlan: vi.fn(),
 }));
 
@@ -18,6 +20,7 @@ vi.mock("../services/production", () => ({
   fetchProductionBoard,
   fetchProductionLoad,
   fetchProductionSequence,
+  fetchProductionSequenceAtlasMerge,
   fetchProductionTurnPlan,
 }));
 
@@ -41,7 +44,25 @@ describe("TL Board page", () => {
       ],
     });
     fetchProductionLoad.mockResolvedValue({ ok: true, items: [] });
-    fetchProductionSequence.mockResolvedValue({ ok: true, items: [] });
+    fetchProductionSequence.mockResolvedValue({
+      ok: true,
+      items: [{ rank: 1, article: "ABC", critical_station: "ZAW-1", quantity: 5 }],
+    });
+    fetchProductionSequenceAtlasMerge.mockResolvedValue({
+      ok: true,
+      items: [{
+        article: "ABC",
+        atlas_merge: {
+          final_outcome: "PROCEED",
+          final_score: 0.98,
+          reasons: [],
+          active_constraints: [],
+          conflicts: [],
+          consensus: {},
+          explain_brief: "ok",
+        },
+      }],
+    });
     fetchProductionTurnPlan.mockResolvedValue({ ok: true, items: [] });
   });
 
@@ -53,22 +74,13 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
     expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
 
-    // Verifica header tabella per ruolo (evita ambiguita con label di filtro)
-    expect(
-      await screen.findByRole("columnheader", { name: /codice/i })
-    ).toBeDefined();
-    expect(
-      await screen.findByRole("columnheader", { name: /^postazione$/i })
-    ).toBeDefined();
-    expect(
-      await screen.findByRole("columnheader", { name: /qta totale/i })
-    ).toBeDefined();
-    expect(
-      await screen.findByRole("columnheader", { name: /righe/i })
-    ).toBeDefined();
-    expect(
-      await screen.findByRole("columnheader", { name: /prio/i })
-    ).toBeDefined();
+    expect(await screen.findByRole("columnheader", { name: /codice/i })).toBeDefined();
+    expect(await screen.findByRole("columnheader", { name: /^postazione$/i })).toBeDefined();
+    expect(await screen.findByRole("columnheader", { name: /qta totale/i })).toBeDefined();
+    expect(await screen.findByRole("columnheader", { name: /righe/i })).toBeDefined();
+    expect(await screen.findByRole("columnheader", { name: /prio/i })).toBeDefined();
+
+    expect(await screen.findByText(/PROCEED/i)).toBeDefined();
   });
 
   it("does not crash on initial load error and shows safe fallbacks", async () => {
@@ -77,6 +89,8 @@ describe("TL Board page", () => {
       error: "Errore nel caricamento iniziale",
       items: [],
     });
+    fetchProductionSequence.mockResolvedValue({ ok: true, items: [] });
+    fetchProductionSequenceAtlasMerge.mockResolvedValue({ ok: true, items: [] });
 
     render(<ProductionDashboard />);
 
