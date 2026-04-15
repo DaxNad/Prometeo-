@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 
@@ -19,7 +19,36 @@ vi.mock("../services/production", () => ({
     ],
   }),
   fetchProductionLoad: async () => ({ ok: true, items: [] }),
-  fetchProductionSequence: async () => ({ ok: true, items: [] }),
+  fetchProductionSequence: async () => ({
+    ok: true,
+    items: [
+      {
+        rank: 1,
+        article: "ABC",
+        critical_station: "ZAW-1",
+        quantity: 5,
+      },
+    ],
+  }),
+  fetchProductionAtlasMerge: async () => ({
+    ok: true,
+    items: [
+      {
+        article: "ABC",
+        critical_station: "ZAW-1",
+        rank: 1,
+        atlas_merge: {
+          final_outcome: "PROCEED",
+          final_score: 0.78,
+          reasons: ["capacity free"],
+          active_constraints: [],
+          conflicts: [],
+          consensus: { modules_considered: 3, agreement_ratio: 0.66, outcome_votes: { PROCEED: 2 } },
+          explain_brief: "ATLAS merge v1 => PROCEED",
+        },
+      },
+    ],
+  }),
   fetchProductionTurnPlan: async () => ({ ok: true, items: [] }),
 }));
 
@@ -34,13 +63,15 @@ describe("TL Board page", () => {
     expect(await screen.findByText(/attenzione immediata/i)).toBeDefined();
     expect(await screen.findByText(/carico postazioni/i)).toBeDefined();
     expect(await screen.findByText(/sequenza consigliata/i)).toBeDefined();
+    expect(await screen.findByText(/ATLAS PROCEED/i)).toBeDefined();
+    expect(await screen.findByText(/score 0.78/i)).toBeDefined();
+    expect(await screen.findByText(/ATLAS merge v1 => PROCEED/i)).toBeDefined();
 
     // Table headers
     expect(await screen.findByText(/codice/i)).toBeDefined();
-    expect(await screen.findByText(/postazione/i)).toBeDefined();
+    expect((await screen.findAllByText(/postazione/i)).length).toBeGreaterThan(0);
     expect(await screen.findByText(/qta totale/i)).toBeDefined();
     expect(await screen.findByText(/righe/i)).toBeDefined();
     expect(await screen.findByText(/prio/i)).toBeDefined();
   });
 });
-
