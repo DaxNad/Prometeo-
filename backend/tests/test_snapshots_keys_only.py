@@ -9,7 +9,7 @@ from app.services.sequence_planner import sequence_planner_service
 
 
 def _load_keys(fname: str) -> list[str]:
-    p = Path("backend/tests/snapshots") / fname
+    p = Path(__file__).parent / "snapshots" / fname
     with p.open("r", encoding="utf-8") as f:
         return json.load(f)["expected_item_keys"]
 
@@ -70,4 +70,3 @@ def test_snapshot_keys_only_for_machine_load_and_sequence(monkeypatch):
                 assert k in seq_items[0]
     finally:
         db.close()
-

@@ -9,7 +9,7 @@ from pathlib import Path
 
 
 def _load_keys(fname: str) -> list[str]:
-    p = Path("backend/tests/snapshots") / fname
+    p = Path(__file__).parent / "snapshots" / fname
     with p.open("r", encoding="utf-8") as f:
         return json.load(f)["expected_item_keys"]
 
