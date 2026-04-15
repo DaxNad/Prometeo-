@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from .agent_runtime.runtime_hook import trigger_runtime_analysis
 from .db.session import get_db
+from .services.atlas_merge import build_sequence_signals, merge_atlas_v1
 from .services.sequence_planner import sequence_planner_service
 from .smf.smf_adapter import SMFAdapter
 from .station_normalizer import normalize_station
@@ -695,6 +696,33 @@ def get_sequence(db: Session = Depends(get_db)):
         "items_count": payload.get("items_count", 0),
         "items": payload.get("items", []),
         "warnings": [],
+    }
+
+
+@router.get("/sequence/atlas-merge")
+def get_sequence_atlas_merge(db: Session = Depends(get_db)):
+    sequence_payload = sequence_planner_service.build_global_sequence(db)
+    sequence_items = sequence_payload.get("items", [])
+
+    items = []
+    for item in sequence_items:
+        signals = build_sequence_signals(item)
+        merged = merge_atlas_v1(signals)
+        items.append(
+            {
+                "article": item.get("article"),
+                "critical_station": item.get("critical_station"),
+                "rank": item.get("rank"),
+                "atlas_merge": merged,
+            }
+        )
+
+    return {
+        "ok": True,
+        "planner_stage": sequence_payload.get("planner_stage"),
+        "source": sequence_payload.get("source_view"),
+        "items_count": len(items),
+        "items": items,
     }
 
 

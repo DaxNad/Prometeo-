@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  fetchProductionAtlasMerge,
   fetchProductionBoard,
   fetchProductionLoad,
   fetchProductionSequence
@@ -120,19 +121,22 @@ export default function ProductionDashboard() {
   const [load, setLoad] = useState<any>(null);
 
   const [sequence, setSequence] = useState<any>(null);
+  const [atlasByArticle, setAtlasByArticle] = useState<Record<string, any>>({});
 
   const [stationFilter, setStationFilter] = useState("ALL");
   const [onlyBlocked, setOnlyBlocked] = useState(false);
 
   async function loadAll() {
 
-    const [b, l, s] = await Promise.all([
+    const [b, l, s, atlas] = await Promise.all([
 
       fetchProductionBoard(),
 
       fetchProductionLoad(),
 
-      fetchProductionSequence()
+      fetchProductionSequence(),
+
+      fetchProductionAtlasMerge().catch(() => ({ items: [] }))
 
     ]);
 
@@ -141,6 +145,14 @@ export default function ProductionDashboard() {
     setLoad(l);
 
     setSequence(s);
+
+    const atlasMap: Record<string, any> = {};
+    for (const item of atlas?.items ?? []) {
+      const article = String(item?.article ?? "").trim();
+      if (!article) continue;
+      atlasMap[article] = item;
+    }
+    setAtlasByArticle(atlasMap);
 
   }
 
@@ -291,15 +303,33 @@ export default function ProductionDashboard() {
 
 
       <Section title="sequenza consigliata">
-        {(sequence?.items ?? []).slice(0, 20).map((s: any) => (
-          <div key={`${s.rank}-${s.article}`} style={{ display: "flex", gap: 10, padding: "6px 0", alignItems: "center" }}>
-            <span style={{ width: 28, textAlign: "right", opacity: 0.6 }}>{s.rank}</span>
-            <strong style={{ fontSize: 14 }}>{s.article}</strong>
-            <span style={{ opacity: 0.8 }}>→</span>
-            <Chip label={normalizeStation(s.critical_station) || "-"} />
-            <span style={{ marginLeft: "auto", opacity: 0.8 }}>qta {s.quantity ?? 0}</span>
-          </div>
-        ))}
+        {(sequence?.items ?? []).slice(0, 20).map((s: any) => {
+          const article = String(s.article ?? "");
+          const atlasMerge = atlasByArticle[article]?.atlas_merge ?? null;
+          const atlasOutcome = atlasMerge?.final_outcome;
+          const atlasScore = atlasMerge?.final_score;
+          const atlasExplain = atlasMerge?.explain_brief;
+
+          return (
+            <div key={`${s.rank}-${s.article}`} style={{ display: "grid", gap: 4, padding: "6px 0" }}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                <span style={{ width: 28, textAlign: "right", opacity: 0.6 }}>{s.rank}</span>
+                <strong style={{ fontSize: 14 }}>{s.article}</strong>
+                <span style={{ opacity: 0.8 }}>→</span>
+                <Chip label={normalizeStation(s.critical_station) || "-"} />
+                <span style={{ marginLeft: "auto", opacity: 0.8 }}>qta {s.quantity ?? 0}</span>
+              </div>
+
+              {atlasMerge && (
+                <div style={{ marginLeft: 38, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", opacity: 0.9 }}>
+                  <Chip label={`ATLAS ${atlasOutcome ?? "N/A"}`} />
+                  <span style={{ fontSize: 12 }}>score {typeof atlasScore === "number" ? atlasScore.toFixed(2) : "-"}</span>
+                  {atlasExplain && <span style={{ fontSize: 12, opacity: 0.85 }}>{atlasExplain}</span>}
+                </div>
+              )}
+            </div>
+          );
+        })}
         {(sequence?.items ?? []).length === 0 && <div style={{ opacity: 0.7 }}>nessuna sequenza disponibile</div>}
       </Section>
 
