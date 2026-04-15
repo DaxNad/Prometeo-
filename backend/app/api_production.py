@@ -3,10 +3,12 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .agent_runtime.runtime_hook import trigger_runtime_analysis
 from .db.session import get_db
+from .services.atlas_merge import build_sequence_signals, merge_atlas_v1
 from .services.sequence_planner import sequence_planner_service
 from .services.sequence_explain import explain_global_sequence
 from .services.explainability import build_tl_explanation
@@ -168,69 +170,138 @@ def _build_smf_order_updates(
 
 
 def _ensure_tables(db: Session) -> None:
-    statements = [
-        """
-        CREATE TABLE IF NOT EXISTS production_orders (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL UNIQUE,
-            cliente TEXT NOT NULL,
-            codice TEXT NOT NULL,
-            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
-            postazione TEXT NOT NULL,
-            stato TEXT NOT NULL DEFAULT 'da fare',
-            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
-            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
-            due_date TEXT NOT NULL DEFAULT '',
-            note TEXT NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS board_state (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL UNIQUE,
-            cliente TEXT NOT NULL,
-            codice TEXT NOT NULL,
-            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
-            postazione TEXT NOT NULL,
-            stato TEXT NOT NULL DEFAULT 'da fare',
-            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
-            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
-            due_date TEXT NOT NULL DEFAULT '',
-            note TEXT NOT NULL DEFAULT '',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS production_events (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL,
-            event_type TEXT NOT NULL,
-            payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
-        ON production_orders(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_board_state_order_id
-        ON board_state(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_events_order_id
-        ON production_events(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_events_created_at
-        ON production_events(created_at DESC)
-        """,
-    ]
+    dialect_name = getattr(getattr(db, "bind", None), "dialect", None)
+    dialect_name = getattr(dialect_name, "name", "")
+
+    if dialect_name == "sqlite":
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS production_orders (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS board_state (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS production_events (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
+            ON production_orders(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_board_state_order_id
+            ON board_state(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_order_id
+            ON production_events(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_created_at
+            ON production_events(created_at DESC)
+            """,
+        ]
+    else:
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS production_orders (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS board_state (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS production_events (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
+            ON production_orders(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_board_state_order_id
+            ON board_state(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_order_id
+            ON production_events(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_created_at
+            ON production_events(created_at DESC)
+            """,
+        ]
 
     for stmt in statements:
-        db.execute(text(stmt))
+        try:
+            db.execute(text(stmt))
+        except SQLAlchemyError:
+            if dialect_name != "sqlite":
+                raise
 
     db.commit()
 
@@ -359,6 +430,10 @@ def create_or_update_order(
     db: Session = Depends(get_db),
 ):
     _ensure_tables(db)
+    dialect_name = getattr(getattr(db, "bind", None), "dialect", None)
+    dialect_name = getattr(dialect_name, "name", "")
+    current_ts_expr = "CURRENT_TIMESTAMP" if dialect_name == "sqlite" else "NOW()"
+    payload_expr = ":payload" if dialect_name == "sqlite" else "CAST(:payload AS JSONB)"
 
     order_id = str(payload.get("order_id", "")).strip()
     cliente = str(payload.get("cliente", "")).strip()
@@ -406,7 +481,7 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO production_orders (
                 order_id, cliente, codice, qta, postazione, stato,
                 progress, semaforo, due_date, note
@@ -425,7 +500,7 @@ def create_or_update_order(
                 semaforo = EXCLUDED.semaforo,
                 due_date = EXCLUDED.due_date,
                 note = EXCLUDED.note,
-                updated_at = NOW()
+                updated_at = {current_ts_expr}
             """
         ),
         {
@@ -444,7 +519,7 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO board_state (
                 order_id, cliente, codice, qta, postazione, stato,
                 progress, semaforo, due_date, note
@@ -463,7 +538,7 @@ def create_or_update_order(
                 semaforo = EXCLUDED.semaforo,
                 due_date = EXCLUDED.due_date,
                 note = EXCLUDED.note,
-                updated_at = NOW()
+                updated_at = {current_ts_expr}
             """
         ),
         {
@@ -506,14 +581,14 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO production_events (
                 order_id, event_type, payload
             )
             VALUES (
                 :order_id,
                 :event_type,
-                CAST(:payload AS JSONB)
+                {payload_expr}
             )
             """
         ),
@@ -724,6 +799,33 @@ def get_sequence_explain(db: Session = Depends(get_db)):
     except Exception as exc:
         # Risposta sobria, senza leak del traceback completo
         return {"ok": False, "error": f"sequence_explain_failed: {exc.__class__.__name__}"}
+
+
+@router.get("/sequence/atlas-merge")
+def get_sequence_atlas_merge(db: Session = Depends(get_db)):
+    sequence_payload = sequence_planner_service.build_global_sequence(db)
+    sequence_items = sequence_payload.get("items", [])
+
+    items = []
+    for item in sequence_items:
+        signals = build_sequence_signals(item)
+        merged = merge_atlas_v1(signals)
+        items.append(
+            {
+                "article": item.get("article"),
+                "critical_station": item.get("critical_station"),
+                "rank": item.get("rank"),
+                "atlas_merge": merged,
+            }
+        )
+
+    return {
+        "ok": True,
+        "planner_stage": sequence_payload.get("planner_stage"),
+        "source": sequence_payload.get("source_view"),
+        "items_count": len(items),
+        "items": items,
+    }
 
 
 @router.get("/turn-plan")

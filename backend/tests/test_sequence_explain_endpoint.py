@@ -10,11 +10,32 @@ os.environ.setdefault("DATABASE_URL", "")
 
 from app.main import app  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
+from app.services.sequence_planner import sequence_planner_service  # noqa: E402
 
 
-def test_sequence_explain_endpoint_with_open_event():
+def test_sequence_explain_endpoint_with_open_event(monkeypatch):
     db: Session = SessionLocal()
     try:
+        def fake_fetch_station_board(db_sess, view_name: str):
+            return [
+                {
+                    "priorita_operativa": 1,
+                    "articolo": "CODE-ZAW-A",
+                    "componenti_condivisi": "",
+                    "quantita": 5,
+                    "data_spedizione": None,
+                    "priorita_cliente": "MEDIA",
+                    "complessivo_articolo": "GRP-A",
+                    "postazione_critica": "ZAW-1",
+                    "azione_tl": "VERIFICA",
+                    "origine_logica": view_name,
+                }
+            ]
+
+        monkeypatch.setattr(
+            sequence_planner_service, "fetch_station_board", fake_fetch_station_board
+        )
+
         # Assicura tabella events ed inserisce 1 evento OPEN su ZAW-1
         db.execute(
             text(
@@ -55,4 +76,3 @@ def test_sequence_explain_endpoint_with_open_event():
         expl = match[0].get("explain", {})
         ev = (expl.get("signals") or {}).get("events") or {}
         assert ev.get("open", 0) >= 1
-
