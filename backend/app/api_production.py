@@ -430,6 +430,10 @@ def create_or_update_order(
     db: Session = Depends(get_db),
 ):
     _ensure_tables(db)
+    dialect_name = getattr(getattr(db, "bind", None), "dialect", None)
+    dialect_name = getattr(dialect_name, "name", "")
+    current_ts_expr = "CURRENT_TIMESTAMP" if dialect_name == "sqlite" else "NOW()"
+    payload_expr = ":payload" if dialect_name == "sqlite" else "CAST(:payload AS JSONB)"
 
     order_id = str(payload.get("order_id", "")).strip()
     cliente = str(payload.get("cliente", "")).strip()
@@ -477,7 +481,7 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO production_orders (
                 order_id, cliente, codice, qta, postazione, stato,
                 progress, semaforo, due_date, note
@@ -496,7 +500,7 @@ def create_or_update_order(
                 semaforo = EXCLUDED.semaforo,
                 due_date = EXCLUDED.due_date,
                 note = EXCLUDED.note,
-                updated_at = NOW()
+                updated_at = {current_ts_expr}
             """
         ),
         {
@@ -515,7 +519,7 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO board_state (
                 order_id, cliente, codice, qta, postazione, stato,
                 progress, semaforo, due_date, note
@@ -534,7 +538,7 @@ def create_or_update_order(
                 semaforo = EXCLUDED.semaforo,
                 due_date = EXCLUDED.due_date,
                 note = EXCLUDED.note,
-                updated_at = NOW()
+                updated_at = {current_ts_expr}
             """
         ),
         {
@@ -577,14 +581,14 @@ def create_or_update_order(
 
     db.execute(
         text(
-            """
+            f"""
             INSERT INTO production_events (
                 order_id, event_type, payload
             )
             VALUES (
                 :order_id,
                 :event_type,
-                CAST(:payload AS JSONB)
+                {payload_expr}
             )
             """
         ),
