@@ -89,6 +89,8 @@ describe("TL Board page", () => {
       error: "Errore nel caricamento iniziale",
       items: [],
     });
+    fetchProductionSequence.mockResolvedValue({ ok: true, items: [] });
+    fetchProductionSequenceAtlasMerge.mockResolvedValue({ ok: true, items: [] });
 
     render(<ProductionDashboard />);
 
