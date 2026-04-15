@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import {
   fetchProductionBoard,
   fetchProductionLoad,
-  fetchProductionSequence
+  fetchProductionSequence,
+  fetchProductionSequenceAtlasMerge
 } from "../services/production";
 
 function normalizeStation(s?: string) {
@@ -113,6 +114,39 @@ function Chip({ label }: { label: string }) {
   );
 }
 
+type AtlasItem = {
+  atlas_outcome?: string;
+  atlas_score?: number | string;
+  explain_brief?: string;
+};
+
+function AtlasBadge({ outcome }: { outcome?: string }) {
+  const value = String(outcome ?? "").toUpperCase();
+  const palette: Record<string, string> = {
+    BLOCK: "#7f1d1d",
+    REVIEW: "#c2410c",
+    MONITOR: "#4b5563",
+    PROCEED: "#166534",
+  };
+  const bg = palette[value] ?? "#374151";
+  return (
+    <span
+      style={{
+        display: "inline-block",
+        padding: "2px 8px",
+        borderRadius: 999,
+        background: bg,
+        color: "#fff",
+        fontSize: 12,
+        fontWeight: 700,
+        letterSpacing: 0.3,
+      }}
+    >
+      {value || "N/A"}
+    </span>
+  );
+}
+
 export default function ProductionDashboard() {
 
   const [board, setBoard] = useState<any>(null);
@@ -120,6 +154,7 @@ export default function ProductionDashboard() {
   const [load, setLoad] = useState<any>(null);
 
   const [sequence, setSequence] = useState<any>(null);
+  const [atlasByArticle, setAtlasByArticle] = useState<Record<string, AtlasItem>>({});
 
   const [stationFilter, setStationFilter] = useState("ALL");
   const [onlyBlocked, setOnlyBlocked] = useState(false);
@@ -142,6 +177,24 @@ export default function ProductionDashboard() {
 
     setSequence(s);
 
+    void fetchProductionSequenceAtlasMerge()
+      .then((atlasRaw: any) => {
+        const atlasItems = (atlasRaw?.items ?? atlasRaw?.data ?? atlasRaw ?? []) as any[];
+        const next = atlasItems.reduce((acc: Record<string, AtlasItem>, item: any) => {
+          const key = String(item?.article ?? item?.codice ?? "").trim();
+          if (!key) return acc;
+          acc[key] = {
+            atlas_outcome: item?.atlas_outcome,
+            atlas_score: item?.atlas_score,
+            explain_brief: item?.explain_brief,
+          };
+          return acc;
+        }, {});
+        setAtlasByArticle(next);
+      })
+      .catch(() => {
+        setAtlasByArticle({});
+      });
   }
 
   useEffect(() => {
@@ -297,6 +350,24 @@ export default function ProductionDashboard() {
             <strong style={{ fontSize: 14 }}>{s.article}</strong>
             <span style={{ opacity: 0.8 }}>→</span>
             <Chip label={normalizeStation(s.critical_station) || "-"} />
+            {(() => {
+              const atlas = atlasByArticle[String(s.article ?? "").trim()];
+              return (
+                <>
+                  <span style={{ marginLeft: 6 }}>
+                    <AtlasBadge outcome={atlas?.atlas_outcome} />
+                  </span>
+                  {typeof atlas?.atlas_score !== "undefined" && (
+                    <span style={{ opacity: 0.85, fontSize: 12 }}>score {atlas.atlas_score}</span>
+                  )}
+                  {atlas?.explain_brief && (
+                    <span style={{ opacity: 0.75, fontSize: 12, maxWidth: 260, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {atlas.explain_brief}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
             <span style={{ marginLeft: "auto", opacity: 0.8 }}>qta {s.quantity ?? 0}</span>
           </div>
         ))}

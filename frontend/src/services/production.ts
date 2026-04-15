@@ -27,6 +27,10 @@ export async function fetchProductionSequence() {
   return fetchJson("/production/sequence");
 }
 
+export async function fetchProductionSequenceAtlasMerge() {
+  return fetchJson("/production/sequence/atlas-merge");
+}
+
 export async function fetchProductionTurnPlan() {
   return fetchJson("/production/turn-plan");
 }
