@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from fastapi import APIRouter, Body, Depends
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from .agent_runtime.runtime_hook import trigger_runtime_analysis
@@ -169,69 +170,138 @@ def _build_smf_order_updates(
 
 
 def _ensure_tables(db: Session) -> None:
-    statements = [
-        """
-        CREATE TABLE IF NOT EXISTS production_orders (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL UNIQUE,
-            cliente TEXT NOT NULL,
-            codice TEXT NOT NULL,
-            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
-            postazione TEXT NOT NULL,
-            stato TEXT NOT NULL DEFAULT 'da fare',
-            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
-            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
-            due_date TEXT NOT NULL DEFAULT '',
-            note TEXT NOT NULL DEFAULT '',
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS board_state (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL UNIQUE,
-            cliente TEXT NOT NULL,
-            codice TEXT NOT NULL,
-            qta NUMERIC(12,2) NOT NULL DEFAULT 0,
-            postazione TEXT NOT NULL,
-            stato TEXT NOT NULL DEFAULT 'da fare',
-            progress NUMERIC(5,2) NOT NULL DEFAULT 0,
-            semaforo TEXT NOT NULL DEFAULT 'GIALLO',
-            due_date TEXT NOT NULL DEFAULT '',
-            note TEXT NOT NULL DEFAULT '',
-            updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE TABLE IF NOT EXISTS production_events (
-            id BIGSERIAL PRIMARY KEY,
-            order_id TEXT NOT NULL,
-            event_type TEXT NOT NULL,
-            payload JSONB NOT NULL DEFAULT '{}'::jsonb,
-            created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
-        ON production_orders(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_board_state_order_id
-        ON board_state(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_events_order_id
-        ON production_events(order_id)
-        """,
-        """
-        CREATE INDEX IF NOT EXISTS idx_production_events_created_at
-        ON production_events(created_at DESC)
-        """,
-    ]
+    dialect_name = getattr(getattr(db, "bind", None), "dialect", None)
+    dialect_name = getattr(dialect_name, "name", "")
+
+    if dialect_name == "sqlite":
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS production_orders (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS board_state (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS production_events (
+                id INTEGER PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
+            ON production_orders(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_board_state_order_id
+            ON board_state(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_order_id
+            ON production_events(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_created_at
+            ON production_events(created_at DESC)
+            """,
+        ]
+    else:
+        statements = [
+            """
+            CREATE TABLE IF NOT EXISTS production_orders (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS board_state (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL UNIQUE,
+                cliente TEXT NOT NULL,
+                codice TEXT NOT NULL,
+                qta NUMERIC(12,2) NOT NULL DEFAULT 0,
+                postazione TEXT NOT NULL,
+                stato TEXT NOT NULL DEFAULT 'da fare',
+                progress NUMERIC(5,2) NOT NULL DEFAULT 0,
+                semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                due_date TEXT NOT NULL DEFAULT '',
+                note TEXT NOT NULL DEFAULT '',
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE TABLE IF NOT EXISTS production_events (
+                id BIGSERIAL PRIMARY KEY,
+                order_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_orders_order_id
+            ON production_orders(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_board_state_order_id
+            ON board_state(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_order_id
+            ON production_events(order_id)
+            """,
+            """
+            CREATE INDEX IF NOT EXISTS idx_production_events_created_at
+            ON production_events(created_at DESC)
+            """,
+        ]
 
     for stmt in statements:
-        db.execute(text(stmt))
+        try:
+            db.execute(text(stmt))
+        except SQLAlchemyError:
+            if dialect_name != "sqlite":
+                raise
 
     db.commit()
 
