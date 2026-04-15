@@ -120,6 +120,15 @@ type AtlasItem = {
   explain_brief?: string;
 };
 
+function mapAtlasItem(item: any): AtlasItem {
+  const merge = item?.atlas_merge ?? item ?? {};
+  return {
+    atlas_outcome: merge?.final_outcome ?? item?.atlas_outcome,
+    atlas_score: merge?.final_score ?? item?.atlas_score,
+    explain_brief: merge?.explain_brief ?? item?.explain_brief,
+  };
+}
+
 function AtlasBadge({ outcome }: { outcome?: string }) {
   const value = String(outcome ?? "").toUpperCase();
   const palette: Record<string, string> = {
@@ -183,11 +192,7 @@ export default function ProductionDashboard() {
         const next = atlasItems.reduce((acc: Record<string, AtlasItem>, item: any) => {
           const key = String(item?.article ?? item?.codice ?? "").trim();
           if (!key) return acc;
-          acc[key] = {
-            atlas_outcome: item?.atlas_outcome,
-            atlas_score: item?.atlas_score,
-            explain_brief: item?.explain_brief,
-          };
+          acc[key] = mapAtlasItem(item);
           return acc;
         }, {});
         setAtlasByArticle(next);

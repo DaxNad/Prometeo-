@@ -50,7 +50,18 @@ describe("TL Board page", () => {
     });
     fetchProductionSequenceAtlasMerge.mockResolvedValue({
       ok: true,
-      items: [{ article: "ABC", atlas_outcome: "PROCEED", atlas_score: 0.98, explain_brief: "ok" }],
+      items: [{
+        article: "ABC",
+        atlas_merge: {
+          final_outcome: "PROCEED",
+          final_score: 0.98,
+          reasons: [],
+          active_constraints: [],
+          conflicts: [],
+          consensus: {},
+          explain_brief: "ok",
+        },
+      }],
     });
     fetchProductionTurnPlan.mockResolvedValue({ ok: true, items: [] });
   });
