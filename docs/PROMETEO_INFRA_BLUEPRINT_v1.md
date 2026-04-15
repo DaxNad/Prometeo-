@@ -56,7 +56,7 @@
 |---|---|---|---|
 | **PROMETEO CORE** | `backend/app/` | API FastAPI, routing, config, session DB, health | PostgreSQL, SQLite fallback |
 | **PROMETEO EDGE** | `smf_core/` | Lettura/scrittura Excel SMF, autonomia totale | stdlib, openpyxl — nient'altro |
-| **ATLAS ENGINE** | `backend/app/atlas_engine/` | Ottimizzazione sequenza, vincoli, obiettivo | OR-Tools / Pyomo (adattatori isolati) |
+| **ATLAS ENGINE** | `backend/app/atlas_engine/` | Enrichment esplicabile, scoring soft, tie-break controllato, supporto anomaly detection — non sequencing authority | OR-Tools / Pyomo (adattatori isolati) |
 | **SMF BRIDGE** | `backend/app/smf/` | Adattatore tra EDGE e CORE, ingest OCR, parsing | smf_core (opzionale), stdlib |
 | **PLANNER** | `backend/app/services/sequence_planner.py` | Sequenza deterministica per turno, priorità, stazioni | PostgreSQL views, CORE |
 | **DECISION MERGE** | `backend/app/services/atlas_merge.py` | Fusione segnali PLANNER + ATLAS + CLASSIFIER → azione finale | PLANNER, ATLAS, CLASSIFIER |
@@ -82,7 +82,7 @@
 │                                                            │
 │  • FastAPI — API produzione, dashboard, SMF ingest         │
 │  • PostgreSQL — source of truth eventi, ordini, sequenza   │
-│  • Atlas Engine — ottimizzazione vincoli                   │
+│  • Atlas Engine — enrichment, scoring soft, tie-break      │
 │  • Agent Runtime — analisi + decisione                     │
 │  • Claude API — enrichment spiegazioni (opzionale)         │
 └────────────────────────────────────────────────────────────┘
@@ -105,6 +105,29 @@
 ---
 
 ## 4. Separazione deterministico vs probabilistico
+
+### 4.0 Gerarchia decisionale — ordine di precedenza
+
+```
+  1.  VINCOLI HARD
+          CP finale bloccante, HENN→ZAW, compatibilità stazione,
+          conflitti componenti condivisi (O-ring), famiglie merge restrittivo
+          → non overridabili da nessun segnale AI o priorità operativa
+
+  2.  PRIORITÀ OPERATIVE
+          CRITICA (0) > ALTA (1) > MEDIA (2) > BASSA (3)
+          → deterministiche, applicate dal PLANNER dopo i vincoli hard
+
+  3.  PLANNER DETERMINISTICO
+          sequenza turno costruita su vincoli hard + priorità operative
+          → unica authority sulla sequenza confermata
+
+  4.  ATLAS — support / tie-break / explain
+          scoring soft entro sequenza già validata dal PLANNER
+          tie-break tra ordini a parità di priorità
+          enrichment esplicativo per team leader
+          → mai modifica vincoli hard, mai authority primaria
+```
 
 ### 4.1 Vincoli hard — deterministici (non delegabili ad AI)
 
@@ -141,9 +164,14 @@ REGOLE BLOCCANTI — SEMPRE APPLICATE DAL PLANNER
 ```
 SEGNALI SOFT — ATLAS / CLASSIFIER / CLAUDE
 
-  ATLAS score       →  suggerisce riordino sequenza entro vincoli hard
+  ATLAS score       →  enrichment esplicabile + tie-break controllato
+                       entro sequenza già validata dal PLANNER
+                       non può modificare vincoli hard né la gerarchia priorità
+
   Severity event    →  classifica urgenza evento (non blocca, informa)
+
   Spiegazione NL    →  Claude genera testo per team leader (mai decisione)
+
   Anomaly signal    →  inspectors.py segnala pattern anomalo (non agisce)
 ```
 
@@ -156,20 +184,27 @@ Input eventi
 SIGNAL CLASSIFIER  ──→  segnale soft (confidence + severity)
     │
     ▼
-PLANNER            ──→  sequenza deterministica (vincoli hard)
+PLANNER            ──→  sequenza deterministica
+                         applica vincoli hard (HENN→ZAW, CP, O-ring, stazioni)
+                         applica priorità operative (CRITICA→BASSA)
+                         output: sequenza confermata e vincolata
     │
     ▼
-ATLAS ENGINE       ──→  ottimizzazione entro vincoli (score)
+ATLAS ENGINE       ──→  enrichment / tie-break / scoring soft
+                         opera SOLO sulla sequenza già validata dal PLANNER
+                         non può riscrivere la sequenza, solo annotarla
     │
     ▼
 DECISION MERGE     ──→  merge restrittivo → azione finale
+                         in conflitto vince sempre la decisione più conservativa
     │
     ▼
-Output: sequenza confermata + spiegazione opzionale Claude
+Output: sequenza confermata + scoring ATLAS + spiegazione opzionale Claude
 ```
 
 **Regola invariante:** nessun segnale AI può violare un vincolo hard.
-Se ATLAS suggerisce una sequenza che viola HENN→ZAW, il PLANNER la rigetta prima del merge.
+ATLAS riceve la sequenza già filtrata dal PLANNER — non ha visibilità sugli ordini
+che il PLANNER ha escluso per violazione di vincoli.
 
 ---
 
@@ -178,34 +213,50 @@ Se ATLAS suggerisce una sequenza che viola HENN→ZAW, il PLANNER la rigetta pri
 ### Schema autorità dati
 
 ```
-                    FONTE AUTORITARIA REPARTO
-                    ┌──────────────────────┐
-                    │   SMF Excel (xlsx)    │
-                    │  ordini produzione    │
-                    │  leggibile da operai  │
-                    └──────────┬───────────┘
-                               │ ingest via SMF BRIDGE
-                               ▼
-                    FONTE AUTORITARIA SISTEMA
-                    ┌──────────────────────┐
-                    │     PostgreSQL        │
-                    │  events, agent_runs   │
-                    │  state, BOM, comps    │
-                    │  sequence history     │
-                    └──────────────────────┘
-                               │
-                    ┌──────────▼───────────┐
-                    │  SQLite (opzionale)   │
-                    │  fallback edge locale │
-                    │  cache sequenza       │
-                    └──────────────────────┘
+        LAYER INTAKE / BRIDGE OPERATIVO REPARTO
+        ┌──────────────────────────────────────┐
+        │          SMF Excel (xlsx)             │
+        │  input operatori TL, OCR planning     │
+        │  finishing sheets, input manuale      │
+        │                                       │
+        │  → canale di ingresso dati reparto    │
+        │  → NON fonte autoritaria di dominio   │
+        │  → normalizzato e validato da BRIDGE  │
+        └──────────────────┬───────────────────┘
+                           │ ingest → normalizzazione → validazione
+                           │ via SMF BRIDGE (smf/adapter.py)
+                           ▼
+        FONTE AUTORITARIA SISTEMA (unica)
+        ┌──────────────────────────────────────┐
+        │            PostgreSQL                 │
+        │  ProductionEvent — source of truth    │
+        │  events, agent_runs, state            │
+        │  BOM, component_usage                 │
+        │  sequence history                     │
+        └──────────────────────────────────────┘
+                           │
+        ┌──────────────────▼───────────────────┐
+        │          SQLite (edge only)           │
+        │  staging temporaneo offline           │
+        │  cache locale sequenza fallback       │
+        │                                       │
+        │  NON autorità per:                    │
+        │  • ProductionEvent                    │
+        │  • ordini attivi                      │
+        │  • stato globale produzione           │
+        │  • sincronizzazione cross-line        │
+        └──────────────────────────────────────┘
 ```
+
+**Regola SMF:** SMF Excel è il layer di interoperabilità con il reparto.
+Dopo l'ingest e la normalizzazione via SMF BRIDGE, PostgreSQL è l'unica autorità
+sul dominio. Non esistono due fonti autoritarie in parallelo.
 
 ### Tabella storage per tipo dato
 
 | Dato | Storage | Motivo |
 |---|---|---|
-| Ordini produzione attivi | SMF Excel + PostgreSQL | Excel = reparto, PG = sistema |
+| Ordini produzione attivi | PostgreSQL | SMF = canale intake; PG = unica autorità di dominio |
 | Eventi produzione | PostgreSQL (`event_records`) | persistenza centrale |
 | Decisioni agent | PostgreSQL (`agent_runs`) | audit trail |
 | Stato sistema | PostgreSQL (`state_records`) | key-value operativo |
@@ -213,7 +264,7 @@ Se ATLAS suggerisce una sequenza che viola HENN→ZAW, il PLANNER la rigetta pri
 | Sequenza ottimizzata | PostgreSQL (viste `vw_*_board`) | source of truth turno |
 | Cataloghi stazioni / codici | JSON file locali | semplici, read-only |
 | Schema SMF validazione | JSON (`smf_schema.py` + constants) | non ha senso in DB |
-| Cache offline edge | SQLite (`prometeo_edge.db`) | solo fallback, non primario |
+| Cache offline edge | SQLite (`prometeo_edge.db`) | staging temporaneo, mai autorità per eventi o ordini |
 | Spiegazioni Claude | PostgreSQL (`agent_runs.explanation`) | parte del run record |
 
 ### Tabelle PostgreSQL in uso (effettive)
@@ -321,7 +372,8 @@ PROMETEO CORE (FastAPI)
       │         HENN→ZAW, CP bloccante, priorità
       │
       ├──▶ ATLAS ENGINE
-      │         ottimizzazione score entro vincoli confermati
+      │         enrichment / scoring soft / tie-break
+      │         opera su sequenza già validata dal PLANNER
       │
       └──▶ DECISION MERGE
                 merge restrittivo → azione finale
@@ -351,25 +403,39 @@ SMF BRIDGE (scrittura)
 
 ```
 1.  PostgreSQL è l'unica fonte di verità per lo stato del sistema.
-    SQLite è solo cache edge temporanea.
+    Nessun altro storage ha autorità su ProductionEvent, ordini attivi,
+    stato globale o sincronizzazione cross-line.
 
-2.  smf_core non chiama mai il backend.
+2.  SMF Excel è canale di intake, non autorità di dominio.
+    Dopo ingest e normalizzazione via SMF BRIDGE, PostgreSQL è l'unica
+    fonte autoritaria. Non esistono due fonti in parallelo sugli stessi dati.
+
+3.  SQLite è staging temporaneo edge-only.
+    Non può essere autorità per ProductionEvent, ordini, stato globale
+    o sincronizzazione tra linee. Solo cache locale offline.
+
+4.  smf_core non chiama mai il backend.
     La comunicazione è unidirezionale: BRIDGE legge da EDGE, non viceversa.
 
-3.  Vincoli hard non sono configurabili a runtime.
-    CP finale e HENN→ZAW sono nel codice, non in tabelle configurazione.
+5.  Vincoli hard non sono configurabili a runtime.
+    CP finale, HENN→ZAW, compatibilità stazioni: nel codice, non in tabelle.
 
-4.  Merge restrittivo è la policy di default.
-    In caso di conflitto di segnali, vince sempre la decisione più conservativa.
+6.  ATLAS è enrichment e supporto — mai sequencing authority.
+    Riceve la sequenza già validata dal PLANNER. Non può riscrivere vincoli
+    hard né diventare la fonte primaria della sequenza turno.
 
-5.  AI enrichment è opzionale, mai bloccante.
-    Se Claude API non risponde, il sistema produce sequenza e decisione senza spiegazione.
+7.  Merge restrittivo è la policy di default.
+    In conflitto tra segnali vince sempre la decisione più conservativa.
 
-6.  Nessuna dipendenza superflua.
-    Prima di aggiungere un package, verificare che stdlib o dipendenze esistenti
-    non coprano già il caso d'uso.
+8.  AI enrichment è opzionale, mai bloccante.
+    Se Claude API non risponde, il sistema produce sequenza e decisione
+    senza spiegazione NL.
 
-7.  Zero biforcazioni smf_core ↔ backend.
+9.  Nessuna dipendenza superflua.
+    Prima di aggiungere un package, verificare che stdlib o dipendenze
+    esistenti non coprano già il caso d'uso.
+
+10. Zero biforcazioni smf_core ↔ backend.
     Il modulo edge deve poter girare su un laptop senza Railway attivo.
 ```
 
