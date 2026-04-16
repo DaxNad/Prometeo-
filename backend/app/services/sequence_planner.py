@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from ..station_normalizer import normalize_station
 from app.agent_runtime.service import AgentRuntimeService
+from app.domain.article_process_matrix import get_article_profile
 
 
 class SequencePlannerService:
@@ -93,6 +94,14 @@ class SequencePlannerService:
 
         items: list[dict[str, Any]] = []
         for r in rows:
+            article_code = str(r["articolo"])
+            profile = get_article_profile(article_code)
+            signals: dict[str, Any] = {}
+            if profile:
+                profile_signals = profile.get("signals", {})
+                if isinstance(profile_signals, dict):
+                    signals.update(profile_signals)
+
             critical_station = normalize_station(r["postazione_critica"])
             event_data = open_events.get(critical_station, {})
             open_events_total = int(event_data.get("open_events", 0) or 0)
@@ -107,7 +116,7 @@ class SequencePlannerService:
 
             items.append(
                 {
-                    "article": str(r["articolo"]),
+                    "article": article_code,
                     "shared_components": self._split(r["componenti_condivisi"]),
                     "quantity": int(r["quantita"] or 0),
                     "due_date": (
@@ -125,6 +134,7 @@ class SequencePlannerService:
                     "open_events_total": open_events_total,
                     "event_titles": event_titles,
                     "event_impact": open_events_total > 0,
+                    "signals": signals,
                 }
             )
 
