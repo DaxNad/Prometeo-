@@ -1,5 +1,8 @@
-const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
+const API_BASE = (
+  import.meta.env.VITE_API_BASE_URL ??
+  import.meta.env.VITE_PROMETEO_API_BASE ??
+  "https://prometeo-railway-bootstrap-production.up.railway.app"
+).replace(/\/+$/, "");
 
 async function fetchJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -16,7 +19,7 @@ async function fetchJson(path: string) {
 }
 
 export async function fetchProductionBoard() {
-  return fetchJson("/production/board-state");
+  return fetchJson("/production/board");
 }
 
 export async function fetchProductionLoad() {
