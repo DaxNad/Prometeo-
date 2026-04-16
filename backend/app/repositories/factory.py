@@ -7,6 +7,11 @@ from ..config import settings
 
 
 def get_events_repository() -> EventsRepository:
+    """Return repository backend.
+
+    PostgreSQL is the central domain authority when configured;
+    SQLite is edge cache/staging/offline fallback only.
+    """
     if settings.db_backend == "postgres":
         return PostgresEventsRepository()
     return SQLiteEventsRepository()

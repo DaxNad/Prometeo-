@@ -9,6 +9,7 @@ from ..db import get_postgres_connection
 
 
 class PostgresEventsRepository(EventsRepository):
+    """Primary domain repository backed by PostgreSQL authority."""
     def ping(self) -> dict[str, Any]:
         with get_postgres_connection() as conn:
             with conn.cursor() as cur:

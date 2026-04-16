@@ -9,6 +9,7 @@ from ..db import get_sqlite_connection
 
 
 class SQLiteEventsRepository(EventsRepository):
+    """Edge cache/staging repository for local/offline fallback flows."""
     def list_events(self) -> list[dict[str, Any]]:
         with get_sqlite_connection() as conn:
             rows = conn.execute(

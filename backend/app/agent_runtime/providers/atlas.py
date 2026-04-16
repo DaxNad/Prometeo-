@@ -6,6 +6,10 @@ from .base import BaseProvider
 
 
 class AtlasProvider(BaseProvider):
+    """Soft advisory provider for explainability/tie-break support only.
+
+    This provider is explicitly non-authoritative for sequencing decisions.
+    """
     name = "atlas"
 
     def __init__(self) -> None:

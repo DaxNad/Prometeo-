@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+"""Deterministic sequencing service for PROMETEO.
+
+Architectural notes:
+- The planner is the only sequencing authority.
+- It consumes operational signals/events and emits ranked sequence + turn plan.
+- Atlas/LLM layers may explain or enrich but must not override slot ordering.
+"""
+
 import asyncio
 import json
 from collections import defaultdict

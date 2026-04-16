@@ -30,6 +30,10 @@ def _default_smf_dir() -> Path:
 
 
 class SMFAdapter:
+    """SMF bridge/intake adapter.
+
+    SMF is an operational bridge and intake surface, not authoritative domain state.
+    """
     def __init__(self, base_path: Path | None = None) -> None:
         self.base_path = base_path or _default_smf_dir()
         self._agent_runtime = None
