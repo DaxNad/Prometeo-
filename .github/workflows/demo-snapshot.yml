@@ -1,0 +1,23 @@
+name: Demo Snapshot
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: "PROMETEO base URL (Railway o locale)"
+        required: true
+      station:
+        description: "Station (es. ZAW-1)"
+        required: false
+        default: ZAW-1
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Demo Snapshot
+        env:
+          BASE_URL: ${{ inputs.base_url }}
+        run: |
+          bash scripts/demo_snapshot.sh "${{ inputs.station }}"
+

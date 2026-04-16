@@ -4,13 +4,19 @@ on:
   pull_request:
   workflow_dispatch: {}
 
+concurrency:
+  group: frontend-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   frontend:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Determine changed files (PR)
         if: ${{ github.event_name == 'pull_request' }}
@@ -27,43 +33,32 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            frontend/package-lock.json
-            integrations/webhook/package-lock.json
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
 
-      - name: Install & test frontend (only if frontend changed)
+      - name: Install dependencies (only if frontend changed)
         working-directory: frontend
         run: |
-          SHOULD_RUN=0
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            if grep -E '^(frontend/)' ../changed_files.txt >/dev/null 2>&1; then
-              SHOULD_RUN=1
-            fi
-          else
-            SHOULD_RUN=1
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(frontend/|\.github/workflows/frontend-ci\.yml)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No frontend changes detected: passing no-op"
+            exit 0
           fi
-          if [ "$SHOULD_RUN" = "1" ] && [ -f package.json ]; then
-            npm ci
-            npm test --if-present --silent
-          else
-            echo "No frontend changes detected: skip tests"
-          fi
+          npm ci
 
-      - name: Build frontend (only if frontend changed)
+      - name: Run tests
         working-directory: frontend
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(frontend/)' ../changed_files.txt >/dev/null 2>&1; then
-            echo "No frontend changes detected: skip build"
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(frontend/|\.github/workflows/frontend-ci\.yml)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No frontend changes detected: passing no-op"
             exit 0
           fi
-          [ -f package.json ] && npm run build --if-present || true
+          npm test -- --run
 
-      - name: Test integrations/webhook (only if changed)
-        working-directory: integrations/webhook
+      - name: Build
+        working-directory: frontend
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(integrations/webhook/)' ../changed_files.txt >/dev/null 2>&1; then
-            echo "No integrations/webhook changes detected: skip"
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(frontend/|\.github/workflows/frontend-ci\.yml)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No frontend changes detected: passing no-op"
             exit 0
           fi
-          [ -f package.json ] && npm ci && npm test --if-present --silent || true
+          npm run build

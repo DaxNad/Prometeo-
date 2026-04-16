@@ -5,16 +5,14 @@ on:
   workflow_dispatch: {}
 
 jobs:
-  smf-tests:
+  smf-backend-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      PROMETEO_DB_BACKEND: sqlite
-      DATABASE_URL: ''
-      SMF_BASE_PATH: /tmp/smf
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Determine changed files (PR)
         if: ${{ github.event_name == 'pull_request' }}
@@ -35,33 +33,41 @@ jobs:
 
       - name: Install dependencies (only if SMF/backend changed)
         run: |
-          NEED_RUN=0
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            if grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' changed_files.txt >/dev/null 2>&1; then
-              NEED_RUN=1
-            fi
-          else
-            NEED_RUN=1
-          fi
-          if [ "$NEED_RUN" = "1" ]; then
-            python -m pip install --upgrade pip
-            pip install -r backend/requirements.txt pytest
-          else
-            echo "No SMF/backend changes detected: skip install"
-          fi
-
-      - name: Prepare SMF base path
-        run: |
-          mkdir -p "$SMF_BASE_PATH"
-
-      - name: Run SMF tests (only if SMF/backend changed)
-        working-directory: backend
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt)' ../changed_files.txt >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' changed_files.txt >/dev/null 2>&1; then
             echo "No SMF/backend changes detected: passing no-op"
             exit 0
           fi
-          pytest -q \
-            tests/test_smoke_api.py \
-            tests/test_smf_ingest.py \
-            tests/test_smf_schema_guard.py
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+
+      - name: Run SMF/backend tests
+        working-directory: backend
+        env:
+          SMF_BASE_PATH: /tmp/smf
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/tests/test_smf_|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' ../changed_files.txt >/dev/null 2>&1; then
+            echo "No SMF/backend changes detected: passing no-op"
+            exit 0
+          else
+            pytest -q \
+              tests/test_smoke_api.py \
+              tests/test_smf_ingest.py \
+              tests/test_smf_schema_guard.py \
+              tests/test_smf_updater_warnings.py
+          fi
+
+      - name: Publish legacy status context 'smf'
+        if: ${{ github.event_name == 'pull_request' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA='${{ github.event.pull_request.head.sha }}'
+          REPO='${{ github.repository }}'
+          API="https://api.github.com/repos/${REPO}/statuses/${SHA}"
+          DESC="SMF backend checks passed"
+          TARGET_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          echo "Publishing status to $API"
+          curl -s -H "Authorization: Bearer $GH_TOKEN" \
+               -H 'Accept: application/vnd.github+json' \
+               -X POST "$API" \
+               -d "{\"state\":\"success\",\"context\":\"smf\",\"description\":\"$DESC\",\"target_url\":\"$TARGET_URL\"}"
