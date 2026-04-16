@@ -32,22 +32,17 @@ def _normalize_code(value: str) -> str:
 def _load_cache() -> dict[str, Any]:
     global _CACHE_LOADED, _CACHE_DATA
 
-    if _CACHE_LOADED:
-        return _CACHE_DATA
-
-    _CACHE_LOADED = True
     path = _matrix_path()
 
     if not path.exists():
-        _CACHE_DATA = {}
-        return _CACHE_DATA
+        return {}
 
     try:
         raw = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        _CACHE_DATA = {}
-        return _CACHE_DATA
+        return {}
 
+    _CACHE_LOADED = True
     _CACHE_DATA = raw if isinstance(raw, dict) else {}
     return _CACHE_DATA
 
@@ -71,16 +66,25 @@ def _find_profile_from_list(data: dict[str, Any], article_code: str) -> dict[str
     candidates = data.get("profiles")
     if not isinstance(candidates, list):
         candidates = data.get("articles")
+
     if not isinstance(candidates, list):
         return None
 
     wanted = _normalize_code(article_code)
+
     for item in candidates:
         if not isinstance(item, dict):
             continue
-        raw_code = item.get("article_code") or item.get("codice") or item.get("code")
+
+        raw_code = (
+            item.get("article_code")
+            or item.get("codice")
+            or item.get("code")
+        )
+
         if isinstance(raw_code, str) and _normalize_code(raw_code) == wanted:
             return item
+
     return None
 
 
@@ -102,6 +106,7 @@ def get_article_profile(article_code: str) -> dict[str, Any] | None:
             return copy.deepcopy(profile)
 
     list_profile = _find_profile_from_list(data, article_code)
+
     if isinstance(list_profile, dict):
         return copy.deepcopy(list_profile)
 
@@ -111,15 +116,24 @@ def get_article_profile(article_code: str) -> dict[str, Any] | None:
 def _normalize_route(route_value: Any) -> list[str]:
     if isinstance(route_value, list):
         output: list[str] = []
+
         for item in route_value:
             if isinstance(item, str):
                 cleaned = item.strip()
                 if cleaned:
                     output.append(cleaned)
+
             elif isinstance(item, dict):
-                raw = item.get("station") or item.get("postazione") or item.get("code") or item.get("name")
+                raw = (
+                    item.get("station")
+                    or item.get("postazione")
+                    or item.get("code")
+                    or item.get("name")
+                )
+
                 if isinstance(raw, str) and raw.strip():
                     output.append(raw.strip())
+
         return output
 
     if isinstance(route_value, str):
@@ -131,22 +145,36 @@ def _normalize_route(route_value: Any) -> list[str]:
 
 def get_article_route(article_code: str) -> list[str]:
     profile = get_article_profile(article_code)
+
     if not profile:
         return []
 
-    for key in ("route", "percorso", "article_route", "stations", "postazioni"):
-        if key in profile:
-            return _normalize_route(profile.get(key))
+    for key in (
+        "route",
+        "percorso",
+        "article_route",
+        "stations",
+        "postazioni",
+    ):
+        value = profile.get(key)
+
+        if value:
+            normalized = _normalize_route(value)
+
+            if normalized:
+                return normalized
 
     return []
 
 
 def get_article_signals(article_code: str) -> dict[str, Any]:
     profile = get_article_profile(article_code)
+
     if not profile:
         return {}
 
     signals = profile.get("signals")
+
     if not isinstance(signals, dict):
         signals = profile.get("segnali")
 
@@ -154,4 +182,3 @@ def get_article_signals(article_code: str) -> dict[str, Any]:
         return copy.deepcopy(signals)
 
     return {}
-
