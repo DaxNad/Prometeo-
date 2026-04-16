@@ -4,6 +4,10 @@ on:
   pull_request:
   workflow_dispatch: {}
 
+concurrency:
+  group: smf-tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   smf-tests:
     runs-on: ubuntu-latest
@@ -15,23 +19,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Determine changed files (PR)
         if: ${{ github.event_name == 'pull_request' }}
         run: |
-          BASE_SHA='${{ github.event.pull_request.base.sha }}'
-          HEAD_SHA='${{ github.event.pull_request.head.sha }}'
-          echo "BASE_SHA=$BASE_SHA"
-          echo "HEAD_SHA=$HEAD_SHA"
-          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
-          git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt || true
+          git diff --name-only "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" > changed_files.txt || touch changed_files.txt
           echo "Changed files:"; cat changed_files.txt || true
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          check-latest: true
 
       - name: Install dependencies (only if SMF/backend changed)
         run: |
