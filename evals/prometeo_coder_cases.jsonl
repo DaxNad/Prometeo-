@@ -1,0 +1,4 @@
+{"task":"add customer_priority field to Order","check":"no ProductionEvent change"}
+{"task":"add planner endpoint","check":"no route duplication"}
+{"task":"refactor smf service","check":"mapping unchanged"}
+{"task":"add BLOCKED_COMPONENT event type","check":"planner compatible"}
