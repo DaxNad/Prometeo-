@@ -144,3 +144,62 @@ def get_smf_summary():
             "no SMF parsing",
         ],
     }
+@router.get("/dev/order-model-info")
+def get_order_model_info():
+    return {
+        "aggregate": "Order",
+        "role": "bounded aggregate root",
+        "depends_on": [
+            "ProductionEvent",
+            "Station",
+            "Rule",
+        ],
+        "core_fields_expected": [
+            "order_id",
+            "code",
+            "quantity",
+            "station",
+            "status",
+            "priority",
+            "due_date",
+        ],
+        "states_supported": [
+            "IN_ATTESA",
+            "PARZIALE",
+            "COMPLETATO",
+            "BLOCCATO",
+            "SOSPESO",
+            "NOK",
+        ],
+        "notes": [
+            "static domain diagnostic",
+            "no database access",
+            "no schema validation",
+        ],
+    }
+
+
+@router.get("/dev/event-model-info")
+def get_event_model_info():
+    return {
+        "entity": "ProductionEvent",
+        "role": "operational execution event",
+        "belongs_to": "Order",
+        "core_fields_expected": [
+            "order_id",
+            "station",
+            "event_type",
+            "status",
+            "timestamp",
+        ],
+        "links_to": [
+            "Order",
+            "Station",
+            "Rule",
+        ],
+        "notes": [
+            "static domain diagnostic",
+            "no database access",
+            "no runtime validation",
+        ],
+    }
