@@ -33,7 +33,7 @@ jobs:
 
       - name: Install dependencies (only if SMF/backend changed)
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/app/api_production\.py|backend/tests/test_smf_|backend/tests/test_production_order_smf_sync\.py|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' changed_files.txt >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/app/api_production\.py|backend/app/api/devos\.py|backend/tests/test_smf_|backend/tests/test_production_order_smf_sync\.py|backend/tests/test_domain_contract\.py|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' changed_files.txt >/dev/null 2>&1; then
             echo "No SMF/backend changes detected: passing no-op"
             exit 0
           fi
@@ -45,7 +45,7 @@ jobs:
         env:
           SMF_BASE_PATH: /tmp/smf
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/app/api_production\.py|backend/tests/test_smf_|backend/tests/test_production_order_smf_sync\.py|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' ../changed_files.txt >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/app/smf/|backend/app/api_production\.py|backend/app/api/devos\.py|backend/tests/test_smf_|backend/tests/test_production_order_smf_sync\.py|backend/tests/test_domain_contract\.py|backend/tests/test_smoke_api\.py|backend/requirements\.txt|\.github/workflows/smf-backend-tests\.yml)' ../changed_files.txt >/dev/null 2>&1; then
             echo "No SMF/backend changes detected: passing no-op"
             exit 0
           else
@@ -54,7 +54,8 @@ jobs:
               tests/test_smf_ingest.py \
               tests/test_smf_schema_guard.py \
               tests/test_smf_updater_warnings.py \
-              tests/test_production_order_smf_sync.py
+              tests/test_production_order_smf_sync.py \
+              tests/test_domain_contract.py
           fi
 
       - name: Publish legacy status context 'smf'
