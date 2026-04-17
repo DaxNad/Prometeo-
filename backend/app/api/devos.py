@@ -158,3 +158,29 @@ def get_order_model_info():
             "no schema validation",
         ],
     }
+
+
+@router.get("/dev/event-model-info")
+def get_event_model_info():
+    return {
+        "entity": "ProductionEvent",
+        "role": "operational execution event",
+        "belongs_to": "Order",
+        "core_fields_expected": [
+            "order_id",
+            "station",
+            "event_type",
+            "status",
+            "timestamp",
+        ],
+        "links_to": [
+            "Order",
+            "Station",
+            "Rule",
+        ],
+        "notes": [
+            "static domain diagnostic",
+            "no database access",
+            "no runtime validation",
+        ],
+    }
