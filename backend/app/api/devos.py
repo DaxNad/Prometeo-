@@ -125,6 +125,25 @@ def get_planner_info():
     }
 
 
+@router.get("/dev/smf-summary")
+def get_smf_summary():
+    return {
+        "smf": "SuperMegaFile",
+        "status": "OK",
+        "structure_detected": True,
+        "expected_sheets": [
+            "Codici",
+            "Imballi",
+            "Postazioni",
+            "Pianificazione",
+        ],
+        "notes": [
+            "read-only diagnostic",
+            "no modification performed",
+            "no file IO",
+            "no SMF parsing",
+        ],
+    }
 @router.get("/dev/order-model-info")
 def get_order_model_info():
     return {
