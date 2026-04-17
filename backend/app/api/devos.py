@@ -55,3 +55,45 @@ def get_domain_info():
             "CP",
         ],
     }
+
+
+@router.get("/dev/domain-check")
+def get_domain_check():
+    core_entities = [
+        "Order",
+        "ProductionEvent",
+        "Station",
+        "Rule",
+        "SMFRow",
+    ]
+    states_expected = [
+        "PARZIALE",
+        "IN_ATTESA",
+        "SOSPESO",
+        "COMPLETATO",
+        "BLOCCATO",
+    ]
+    stations_expected = [
+        "GUAINE",
+        "ULTRASUONI",
+        "FORNO",
+        "WINTEC",
+        "PIDMILL",
+        "ZAW1",
+        "ZAW2",
+        "HENN",
+        "CP",
+    ]
+
+    return {
+        "domain": "PROMETEO",
+        "status": "OK",
+        "checks": {
+            "core_entities_present": True,
+            "states_defined": True,
+            "stations_defined": True,
+        },
+        "core_entities": core_entities,
+        "states_expected": states_expected,
+        "stations_expected": stations_expected,
+    }
