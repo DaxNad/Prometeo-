@@ -123,3 +123,38 @@ def get_planner_info():
             "no database access",
         ],
     }
+
+
+@router.get("/dev/order-model-info")
+def get_order_model_info():
+    return {
+        "aggregate": "Order",
+        "role": "bounded aggregate root",
+        "depends_on": [
+            "ProductionEvent",
+            "Station",
+            "Rule",
+        ],
+        "core_fields_expected": [
+            "order_id",
+            "code",
+            "quantity",
+            "station",
+            "status",
+            "priority",
+            "due_date",
+        ],
+        "states_supported": [
+            "IN_ATTESA",
+            "PARZIALE",
+            "COMPLETATO",
+            "BLOCCATO",
+            "SOSPESO",
+            "NOK",
+        ],
+        "notes": [
+            "static domain diagnostic",
+            "no database access",
+            "no schema validation",
+        ],
+    }
