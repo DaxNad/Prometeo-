@@ -64,7 +64,7 @@ class SMFUpdater:
         mask = pd.Series(False, index=df.index)
         matched_column = None
         for column in match_columns:
-            values = df[column].fillna("").astype(str).str.strip()
+            values = self._normalized_text(df[column])
             column_mask = values == target
             if matched_column is None and bool(column_mask.any()):
                 matched_column = column
@@ -95,7 +95,7 @@ class SMFUpdater:
                 pass
 
             try:
-                current_vals = df.loc[mask, key].fillna("").astype(str).str.strip()
+                current_vals = self._normalized_text(df.loc[mask, key])
                 new_val = "" if value is None else str(value).strip()
                 if not bool((current_vals == new_val).all()):
                     df.loc[mask, key] = value
@@ -149,3 +149,6 @@ class SMFUpdater:
                     expanded[canonical] = value
 
         return expanded
+
+    def _normalized_text(self, series: pd.Series) -> pd.Series:
+        return series.astype("string").fillna("").str.strip()
