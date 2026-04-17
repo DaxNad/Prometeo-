@@ -102,12 +102,14 @@ def test_family_summary_by_drawing_enriches_tl_ready_fields(monkeypatch):
     monkeypatch.setattr(api_smf, "_read_smf_sheet", lambda sheet_name: sheets[sheet_name].copy())
 
     client = TestClient(app)
-    response = client.get("/smf/bom/family-summary/by-drawing", params={"disegno": "DWG-100"})
+    response = client.get("/smf/bom/family-summary/by-drawing", params={"disegno": " DWG -100 "})
 
     assert response.status_code == 200
     body = response.json()
 
     assert body["ok"] is True
+    assert body["drawing"] == " DWG -100 "
+    assert body["normalized_drawing"] == "DWG-100"
     assert body["count_articoli"] == 3
     assert body["tipo_famiglia"] == "famiglia_complessivo"
     assert body["tassativo"] is True
