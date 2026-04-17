@@ -1,5 +1,7 @@
 import asyncio
 
+import pandas as pd
+
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict, Field, AliasChoices
 
@@ -10,6 +12,7 @@ from .ingest.ocr_ingest import (
     write_extracted_orders_to_smf,
 )
 from .ingest.ocr_parser import parse_ocr_order_rows
+from .smf.bom_family_service import build_family_summary_by_drawing
 from .smf.smf_adapter import SMFAdapter
 
 router = APIRouter(prefix="/smf", tags=["smf"])
@@ -210,6 +213,138 @@ def smf_preview(
         },
     )
     return _get_adapter().preview(sheet=sheet, rows=rows)
+
+
+
+def _read_smf_sheet(sheet_name: str) -> pd.DataFrame:
+    master_path = _get_adapter().master_path()
+    return pd.read_excel(master_path, sheet_name=sheet_name)
+
+
+def _normalize_text(value: object) -> str:
+    return str(value or "").strip()
+
+
+@router.get("/bom/specs")
+def smf_bom_specs(
+    articolo: str | None = Query(default=None),
+    disegno: str | None = Query(default=None),
+):
+    df = _read_smf_sheet("BOM_Specs").fillna("")
+    if articolo:
+        df = df[df["articolo"].astype(str).str.strip() == articolo.strip()]
+    if disegno:
+        df = df[df["disegno"].astype(str).str.replace(" ", "", regex=False) == disegno.strip().replace(" ", "")]
+    return {
+        "ok": True,
+        "sheet": "BOM_Specs",
+        "count": len(df),
+        "items": df.to_dict(orient="records"),
+    }
+
+
+
+
+@router.get("/bom/family-summary/by-drawing")
+def smf_family_summary_by_drawing(
+    disegno: str = Query(...),
+):
+    return build_family_summary_by_drawing(
+        drawing=disegno,
+        specs=_read_smf_sheet("BOM_Specs").fillna(""),
+        components=_read_smf_sheet("BOM_Components").fillna(""),
+        operations=_read_smf_sheet("BOM_Operations").fillna(""),
+        markings=_read_smf_sheet("BOM_Markings").fillna(""),
+        variants=_read_smf_sheet("BOM_Variants").fillna(""),
+    )
+
+
+@router.get("/bom/specs/by-drawing")
+def smf_bom_specs_by_drawing(
+    disegno: str = Query(...),
+):
+    df = _read_smf_sheet("BOM_Specs").fillna("")
+
+    target = str(disegno or "").strip().replace(" ", "")
+
+    if "disegno" not in df.columns:
+        return {
+            "ok": False,
+            "sheet": "BOM_Specs",
+            "disegno": disegno,
+            "count": 0,
+            "items": [],
+            "error": "column disegno not found"
+        }
+
+    normalized = df["disegno"].astype(str).str.strip().str.replace(" ", "", regex=False)
+
+    df = df[normalized == target].copy()
+
+    if "articolo" in df.columns:
+        try:
+            df = df.sort_values(by=["articolo"])
+        except Exception:
+            pass
+
+    return {
+        "ok": True,
+        "sheet": "BOM_Specs",
+        "disegno": disegno,
+        "normalized_disegno": target,
+        "count": len(df),
+        "items": df.to_dict(orient="records"),
+    }
+
+
+@router.get("/bom/components/by-article")
+def smf_bom_components_by_article(
+    articolo: str = Query(...),
+):
+    df = _read_smf_sheet("BOM_Components").fillna("")
+    df = df[df["articolo"].astype(str).str.strip() == articolo.strip()]
+    return {
+        "ok": True,
+        "sheet": "BOM_Components",
+        "articolo": articolo,
+        "count": len(df),
+        "items": df.to_dict(orient="records"),
+    }
+
+
+@router.get("/bom/components/by-component")
+def smf_bom_components_by_component(
+    codice_componente: str = Query(...),
+):
+    df = _read_smf_sheet("BOM_Components").fillna("")
+    df = df[df["codice_componente"].astype(str).str.strip() == codice_componente.strip()]
+    return {
+        "ok": True,
+        "sheet": "BOM_Components",
+        "codice_componente": codice_componente,
+        "count": len(df),
+        "items": df.to_dict(orient="records"),
+    }
+
+
+@router.get("/bom/operations/by-article")
+def smf_bom_operations_by_article(
+    articolo: str = Query(...),
+):
+    df = _read_smf_sheet("BOM_Operations").fillna("")
+    df = df[df["articolo"].astype(str).str.strip() == articolo.strip()]
+    if "seq_no" in df.columns:
+        try:
+            df = df.sort_values(by=["seq_no"])
+        except Exception:
+            pass
+    return {
+        "ok": True,
+        "sheet": "BOM_Operations",
+        "articolo": articolo,
+        "count": len(df),
+        "items": df.to_dict(orient="records"),
+    }
 
 
 @router.get("/debug-bootstrap")

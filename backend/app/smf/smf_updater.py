@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pandas as pd
 import os
+import pandas as pd
 
 from .smf_schema import REQUIRED_SCHEMA
 
@@ -47,7 +47,6 @@ class SMFUpdater:
         except Exception:
             return {"ok": False, "error": "sheet read error"}
 
-        # schema guard: ensure required columns exist on the target sheet
         required = REQUIRED_SCHEMA.get(sheet, [])
         missing = [c for c in required if c not in df.columns]
         if missing:
@@ -82,28 +81,28 @@ class SMFUpdater:
         expanded_updates = self._expand_updates(updates)
         requested_columns = list(updates.keys())
         written_columns: list[str] = []
+
         for key, value in expanded_updates.items():
-            if key in df.columns:
-                # Evita FutureWarning di pandas: se la colonna non è object e il valore è stringa,
-                # promuovi la colonna ad object prima dell'assegnazione.
-                try:
-                    from pandas.api.types import is_object_dtype
-                    if isinstance(value, str) and not is_object_dtype(df[key].dtype):
-                        df[key] = df[key].astype("object")
-                except Exception:
-                    # fallback silenzioso: in caso non sia disponibile pandas.api.types
-                    pass
-                # Idempotenza: scrivi solo se cambia davvero almeno un valore nella riga target
-                try:
-                    current_vals = df.loc[mask, key].fillna("").astype(str).str.strip()
-                    new_val = "" if value is None else str(value).strip()
-                    if not bool((current_vals == new_val).all()):
-                        df.loc[mask, key] = value
-                        written_columns.append(key)
-                except Exception:
-                    # In caso di problemi nel confronto, assegna comunque
+            if key not in df.columns:
+                continue
+
+            try:
+                from pandas.api.types import is_object_dtype
+
+                if isinstance(value, str) and not is_object_dtype(df[key].dtype):
+                    df = df.astype({key: "object"})
+            except Exception:
+                pass
+
+            try:
+                current_vals = df.loc[mask, key].fillna("").astype(str).str.strip()
+                new_val = "" if value is None else str(value).strip()
+                if not bool((current_vals == new_val).all()):
                     df.loc[mask, key] = value
                     written_columns.append(key)
+            except Exception:
+                df.loc[mask, key] = value
+                written_columns.append(key)
 
         try:
             with pd.ExcelWriter(
