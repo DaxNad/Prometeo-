@@ -2,13 +2,13 @@
   "planner_stage": "TURN_PLAN_STAGE_4_EVENT_AWARE",
   "source": "vw_tl_zaw1_board+vw_tl_zaw2_board",
   "rotation_logic": "SHIFT_TL_MULTI_CLUSTER",
-  "plan_date": "2026-04-14",
+  "plan_date": "2026-04-17",
   "clusters_count": 1,
   "assignments_count": 4,
   "assignments": [
     {
       "slot": 1,
-      "plan_date": "2026-04-14",
+      "plan_date": "2026-04-17",
       "shift": "MATTINA",
       "team_leader": "Stefano",
       "station": "ZAW-1",
@@ -32,7 +32,7 @@
     },
     {
       "slot": 2,
-      "plan_date": "2026-04-14",
+      "plan_date": "2026-04-17",
       "shift": "MATTINA",
       "team_leader": "Stefano",
       "station": "ZAW-1",
@@ -56,7 +56,7 @@
     },
     {
       "slot": 3,
-      "plan_date": "2026-04-14",
+      "plan_date": "2026-04-17",
       "shift": "MATTINA",
       "team_leader": "Stefano",
       "station": "ZAW-1",
@@ -80,7 +80,7 @@
     },
     {
       "slot": 4,
-      "plan_date": "2026-04-14",
+      "plan_date": "2026-04-17",
       "shift": "MATTINA",
       "team_leader": "Stefano",
       "station": "ZAW-1",
