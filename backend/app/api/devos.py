@@ -97,3 +97,29 @@ def get_domain_check():
         "states_expected": states_expected,
         "stations_expected": stations_expected,
     }
+
+
+@router.get("/dev/planner-info")
+def get_planner_info():
+    return {
+        "planner": "PROMETEO",
+        "status": "OK",
+        "planning_focus": [
+            "station_constraints",
+            "shared_components",
+            "blocking_phases",
+            "customer_priority",
+            "delivery_dates",
+        ],
+        "core_dependencies": [
+            "Order",
+            "ProductionEvent",
+            "Station",
+            "Rule",
+        ],
+        "notes": [
+            "planner is diagnostic-only here",
+            "no runtime planner state inspection",
+            "no database access",
+        ],
+    }
