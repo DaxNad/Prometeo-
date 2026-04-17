@@ -136,7 +136,7 @@ def get_order_model_info():
             "Rule",
         ],
         "core_fields_expected": [
-            "id",
+            "order_id",
             "code",
             "quantity",
             "station",
