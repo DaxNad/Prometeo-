@@ -26,6 +26,7 @@ def build_family_summary_by_drawing(
     target = normalize_drawing(drawing)
     family_specs = _collect_family_specs_by_drawing(specs, target)
     articoli = family_specs["articolo"].astype(str).tolist()
+    articoli_unici = [str(value).strip() for value in articoli if str(value).strip()]
 
     comp_family = components[components["articolo"].astype(str).isin(articoli)]
     op_family = operations[operations["articolo"].astype(str).isin(articoli)]
@@ -41,6 +42,31 @@ def build_family_summary_by_drawing(
     fasi_uniche = _collect_fasi(op_family)
     postazioni_stimate = _estimate_postazioni(fasi_uniche)
     count_markings = len(mark_family.index)
+    classificazione_per_articolo = _build_classificazione_per_articolo(
+        articoli=articoli_unici,
+        family_specs=family_specs,
+        var_family=var_family,
+    )
+    family_has_complessivo = any(
+        value in {"complessivo", "parziale_di_complessivo"}
+        for value in classificazione_per_articolo.values()
+    )
+    quota_complessivo = len(set(articoli_unici)) if family_has_complessivo and len(set(articoli_unici)) > 1 else None
+    dipendenza_parziale = _build_dipendenza_parziale(
+        classificazione_per_articolo=classificazione_per_articolo,
+        quota_per_complessivo=quota_complessivo,
+    )
+    quota_per_complessivo = {
+        articolo: quota_complessivo if dipendenza_parziale.get(articolo, False) else None
+        for articolo in articoli_unici
+    }
+
+    confidence = _build_confidence_summary(
+        postazioni_stimate=postazioni_stimate,
+    )
+    discrepancy_flags = _build_discrepancy_flags(
+        postazioni_stimate=postazioni_stimate,
+    )
 
     return {
         "ok": True,
@@ -70,6 +96,11 @@ def build_family_summary_by_drawing(
             count_articoli=len(articoli),
         ),
         "tipo_famiglia": _infer_tipo_famiglia(articoli, family_specs),
+        "classificazione_per_articolo": classificazione_per_articolo,
+        "dipendenza_parziale": dipendenza_parziale,
+        "quota_per_complessivo": quota_per_complessivo,
+        "confidence": confidence,
+        "discrepancy_flags": discrepancy_flags,
         "raw": {
             "specs": family_specs.to_dict(orient="records"),
             "components": comp_family.to_dict(orient="records"),
@@ -185,14 +216,23 @@ def _estimate_postazioni(fasi_uniche: list[str]) -> list[str]:
 
     for fase in fasi_uniche:
         fase_upper = fase.upper()
+
         if "GUAINA" in fase_upper:
             postazioni_stimate.append("GUAINE")
+
         if "PIDMILL" in fase_upper:
             postazioni_stimate.append("PIDMILL")
-        if "ZAW" in fase_upper:
-            postazioni_stimate.append("ZAW")
+
+        if "ZAW-2" in fase_upper or "ZAW2" in fase_upper or "ZAW 2" in fase_upper:
+            postazioni_stimate.append("ZAW-2")
+        elif "ZAW-1" in fase_upper or "ZAW1" in fase_upper or "ZAW 1" in fase_upper:
+            postazioni_stimate.append("ZAW-1")
+        elif "ZAW" in fase_upper:
+            postazioni_stimate.append("ZAW_DA_VERIFICARE")
+
         if "HENN" in fase_upper:
             postazioni_stimate.append("HENN")
+
         if "CP" in fase_upper or "COLLAUDO" in fase_upper:
             postazioni_stimate.append("CP")
 
@@ -212,10 +252,61 @@ def _infer_criticita_tl(
         criticita.append("multi_component")
     if "PIDMILL" in postazioni_stimate:
         criticita.append("tempo_pidmill")
-    if "ZAW" in postazioni_stimate:
+    if any(value in postazioni_stimate for value in ("ZAW-1", "ZAW-2", "ZAW_DA_VERIFICARE")):
         criticita.append("tempo_zaw")
 
     return criticita
+
+
+def _classify_article(payload: str) -> str:
+    text = payload.upper()
+    has_parziale = any(token in text for token in ("PARZIALE", "PARTIAL"))
+    has_complessivo = any(token in text for token in ("COMPLESSIVO", "COMPLESSIVI", "ASSIEME", "GRUPPO"))
+    if has_parziale and has_complessivo:
+        return "parziale_di_complessivo"
+    if has_complessivo:
+        return "complessivo"
+    if has_parziale:
+        return "parziale"
+    return "singolo"
+
+
+def _build_classificazione_per_articolo(
+    *,
+    articoli: list[str],
+    family_specs: pd.DataFrame,
+    var_family: pd.DataFrame,
+) -> dict[str, str]:
+    classificazione: dict[str, str] = {}
+    for articolo in articoli:
+        specs_rows = family_specs[family_specs["articolo"].astype(str) == articolo]
+        var_rows = var_family[var_family["articolo"].astype(str) == articolo]
+        payload_parts = specs_rows.get("raw_json", pd.Series(dtype=str)).astype(str).tolist()
+        payload_parts.extend(_rows_to_texts(specs_rows))
+        payload_parts.extend(_rows_to_texts(var_rows))
+        classificazione[articolo] = _classify_article(" ".join(payload_parts))
+    return classificazione
+
+
+def _rows_to_texts(df: pd.DataFrame) -> list[str]:
+    if df.empty:
+        return []
+    return [" ".join(map(str, row)) for row in df.astype(str).itertuples(index=False, name=None)]
+
+
+def _build_dipendenza_parziale(
+    *,
+    classificazione_per_articolo: dict[str, str],
+    quota_per_complessivo: int | None,
+) -> dict[str, bool]:
+    dipendenza: dict[str, bool] = {}
+    for articolo, classificazione in classificazione_per_articolo.items():
+        dipendenza[articolo] = (
+            quota_per_complessivo is not None
+            and quota_per_complessivo > 1
+            and classificazione in {"parziale", "parziale_di_complessivo"}
+        )
+    return dipendenza
 
 
 def _infer_tipo_famiglia(articoli: list[str], family_specs: pd.DataFrame) -> str:
@@ -293,4 +384,29 @@ def _build_peso_turno(
         "livello": livello,
         "driver": driver,
         "per_postazione": per_postazione,
+    }
+
+
+def _build_confidence_summary(
+    *,
+    postazioni_stimate: list[str],
+) -> dict[str, str]:
+    postazioni_confidence = "DA_VERIFICARE" if "ZAW_DA_VERIFICARE" in postazioni_stimate else "INFERITO"
+
+    return {
+        "postazioni_stimate": postazioni_confidence,
+        "criticita_tl": "INFERITO",
+        "rotazione": "INFERITO",
+        "tassativo": "INFERITO",
+        "tipo_famiglia": "INFERITO",
+    }
+
+
+def _build_discrepancy_flags(
+    *,
+    postazioni_stimate: list[str],
+) -> dict[str, bool]:
+    return {
+        "zaw_role_ambiguous": "ZAW_DA_VERIFICARE" in postazioni_stimate,
+        "registry_not_applied": True,
     }
