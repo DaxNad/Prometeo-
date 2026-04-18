@@ -2,6 +2,7 @@ CREATE OR REPLACE VIEW vw_tl_zaw2_board AS
 SELECT
     rank_suggerito AS priorita_operativa,
     articolo,
+    disegno,
     componenti_driver AS componenti_condivisi,
     quantita,
     data_spedizione,
