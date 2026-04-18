@@ -4,6 +4,7 @@ from .decision_engine import decide
 from .inspectors import inspect_event
 from .run_repository import AgentRunRepository
 from .schemas import AgentAnalyzeResponse
+from .architecture_guard import evaluate_architecture, summarize_guard_result
 from app.services.anthropic_provider import claude_chat
 from app.services.prompt_builder import build_agent_runtime_prompt
 
@@ -11,6 +12,31 @@ from app.services.prompt_builder import build_agent_runtime_prompt
 class AgentRuntimeService:
     def __init__(self) -> None:
         self.repo = AgentRunRepository()
+
+    def _build_architecture_context(
+        self,
+        *,
+        source: str,
+        line_id: str,
+        event_type: str,
+        severity: str,
+        payload: dict,
+    ) -> dict:
+        payload = payload or {}
+
+        return {
+            "breaks_order_event_model": bool(payload.get("breaks_order_event_model", False)),
+            "introduces_hardcode": bool(payload.get("introduces_hardcode", False)),
+            "duplicates_domain_logic": bool(payload.get("duplicates_domain_logic", False)),
+            "crud_drift": bool(payload.get("crud_drift", False)),
+            "reduces_explainability": bool(payload.get("reduces_explainability", False)),
+            "changes_semantic_registry": bool(payload.get("changes_semantic_registry", False)),
+            "changes_planner_logic": bool(
+                payload.get("changes_planner_logic", False)
+                or event_type in {"turn_plan_requested", "sequence_requested", "machine_load_requested"}
+                or source in {"planner", "atlas_engine"}
+            ),
+        }
 
     def _build_explanation_with_claude(
         self,
@@ -65,6 +91,16 @@ class AgentRuntimeService:
     ) -> AgentAnalyzeResponse:
         payload = payload or {}
 
+        architecture_context = self._build_architecture_context(
+            source=source,
+            line_id=line_id,
+            event_type=event_type,
+            severity=severity,
+            payload=payload,
+        )
+        architecture_result = evaluate_architecture(architecture_context)
+        architecture_summary = summarize_guard_result(architecture_result)
+
         inspection = inspect_event(
             source=source,
             line_id=line_id,
@@ -73,7 +109,21 @@ class AgentRuntimeService:
             payload=payload,
         )
 
+        inspection["architecture_guard"] = architecture_summary
+
         decision = decide(inspection)
+
+        if architecture_summary.get("status") == "REVIEW":
+            decision.decision_mode = "architecture_guard"
+            decision.action = "INVESTIGATE"
+
+            existing_explanation = decision.explanation or ""
+            guard_notes = architecture_summary.get("notes") or []
+            joined_notes = "; ".join(guard_notes) if guard_notes else "architectural review required"
+
+            decision.explanation = (
+                f"{existing_explanation}\nARCHITECTURE_GUARD: {joined_notes}".strip()
+            )
 
         decision.explanation = self._build_explanation_with_claude(
             source=source,
