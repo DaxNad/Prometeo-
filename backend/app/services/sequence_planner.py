@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from ..station_normalizer import normalize_station
 from app.agent_runtime.service import AgentRuntimeService
 from app.domain.article_process_matrix import get_article_profile
+from app.domain.drawing_registry_service import override_postazioni_from_registry
 
 
 class SequencePlannerService:
@@ -47,6 +48,7 @@ class SequencePlannerService:
             SELECT
                 priorita_operativa,
                 articolo,
+                disegno,
                 componenti_condivisi,
                 quantita,
                 data_spedizione,
@@ -95,6 +97,7 @@ class SequencePlannerService:
         items: list[dict[str, Any]] = []
         for r in rows:
             article_code = str(r["articolo"])
+            drawing = str(r.get("disegno") or "").strip()
             profile = get_article_profile(article_code)
             signals: dict[str, Any] = {}
             if profile:
@@ -103,6 +106,15 @@ class SequencePlannerService:
                     signals.update(profile_signals)
 
             critical_station = normalize_station(r["postazione_critica"])
+
+            if drawing:
+                overridden = override_postazioni_from_registry(
+                    drawing=drawing,
+                    inferred_postazioni=[critical_station],
+                )
+                if overridden:
+                    critical_station = normalize_station(overridden[0])
+
             event_data = open_events.get(critical_station, {})
             open_events_total = int(event_data.get("open_events", 0) or 0)
             event_titles = str(event_data.get("titles", "") or "")
@@ -117,6 +129,7 @@ class SequencePlannerService:
             items.append(
                 {
                     "article": article_code,
+                    "drawing": drawing,
                     "shared_components": self._split(r["componenti_condivisi"]),
                     "quantity": int(r["quantita"] or 0),
                     "due_date": (
@@ -203,6 +216,7 @@ class SequencePlannerService:
                         "team_leader": tl,
                         "station": normalize_station(item["critical_station"]),
                         "article": item["article"],
+                        "drawing": item.get("drawing", ""),
                         "quantity": item["quantity"],
                         "shared_components": item["shared_components"],
                         "due_date": item["due_date"],

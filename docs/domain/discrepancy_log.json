@@ -1,0 +1,15 @@
+{
+  "discrepancies": [
+    {
+      "drawing": "A2145019000",
+      "code": "12062",
+      "field": "material_dependency",
+      "extracted_value": "tubo_metallico",
+      "confirmed_value": "nessuno",
+      "source_of_truth": "specifica_finitura + conferma_TL",
+      "severity": "alta",
+      "status": "corretto",
+      "note": "HENN è aggancio rapido metallico, non tubo metallico"
+    }
+  ]
+}

@@ -17,6 +17,7 @@ from .api.state import router as state_router
 from .api_dashboard import router as dashboard_router
 from .api_production import router as production_router
 from .api_search import router as search_router
+from .api_signals import router as signals_router
 from .api_smf import router as smf_router
 from .config import settings
 from .db import current_backend, init_db, probe_postgres
@@ -148,6 +149,7 @@ app.include_router(devos_status_router)
 app.include_router(dev_db_init_router)
 app.include_router(agent_runtime_router)
 app.include_router(mobile_ui_router)
+app.include_router(signals_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")

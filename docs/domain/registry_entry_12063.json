@@ -1,0 +1,47 @@
+{
+  "A2145019100": {
+
+    "internal_codes": ["12063"],
+
+    "behavior": "alta_rotazione_con_criticita_moderata_guaine",
+
+    "stations": [
+      "GUAINE",
+      "ZAW_DA_VERIFICARE",
+      "CP"
+    ],
+
+    "critical_stations": [
+      "GUAINE"
+    ],
+
+    "criticita_tipo": [
+      "marcature_multiple",
+      "tempo_ciclo_guaine_medio"
+    ],
+
+    "zaw_tools": [
+      "CRT007",
+      "CRT004"
+    ],
+
+    "material_dependency": null,
+
+    "complexity": "media",
+
+    "rotation": "alta",
+
+    "planner_strategy": "buono_per_turno_ma_non_come_codice_piu_rapido",
+
+    "note": "singolo alta rotazione con attenzione marcature guaine",
+
+    "confidence": {
+
+      "stations": "DA_VERIFICARE",
+      "critical_stations": "CERTO",
+      "planner_strategy": "CERTO"
+
+    }
+
+  }
+}

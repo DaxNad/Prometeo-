@@ -3,6 +3,7 @@ WITH base AS (
     SELECT
         cur.codice_componente,
         cur.articolo,
+        cur.disegno,
         cd.quantita,
         cd.data_spedizione,
         cd.priorita_cliente,
@@ -37,6 +38,7 @@ merged_clusters AS (
 article_level AS (
     SELECT
         articolo,
+        MAX(COALESCE(disegno, '')) AS disegno,
         MAX(quantita) AS quantita,
         MIN(data_spedizione) AS data_spedizione,
         MIN(priorita_rank) AS priorita_rank,
@@ -55,6 +57,7 @@ expanded AS (
         mc.componenti_driver,
         mc.numero_articoli_cluster,
         a.articolo,
+        a.disegno,
         a.quantita,
         a.data_spedizione,
         a.priorita_cliente,
@@ -75,6 +78,7 @@ SELECT
     ) AS rank_suggerito,
     componenti_driver,
     articolo,
+    disegno,
     quantita,
     data_spedizione,
     priorita_cliente,

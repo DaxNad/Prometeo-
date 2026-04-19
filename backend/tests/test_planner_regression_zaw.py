@@ -64,6 +64,20 @@ def _seed_orders(client: TestClient) -> None:
 def test_planner_regression_zaw(monkeypatch):
     client = TestClient(app)
 
+    db: Session = SessionLocal()
+    try:
+        db.execute(text("DELETE FROM board_state"))
+        db.commit()
+    finally:
+        db.close()
+
+    db: Session = SessionLocal()
+    try:
+        db.execute(text("DELETE FROM board_state"))
+        db.commit()
+    finally:
+        db.close()
+
     # seed ordini
     _seed_orders(client)
 
@@ -80,8 +94,8 @@ def test_planner_regression_zaw(monkeypatch):
             )
         """))
         db.execute(text("""
-            INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-            VALUES ('E-REG-ZAW1-1', 'Coda elevata', 'ZAW-1', 'OPEN', '2026-04-13T10:00:00')
+            INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
+            VALUES ('E-REG-ZAW1-1', 'ZAW', 'signal_open', 'HIGH', 'Coda elevata', 'ZAW-1', 'OPEN', '2026-04-13T10:00:00')
         """))
         db.commit()
     finally:

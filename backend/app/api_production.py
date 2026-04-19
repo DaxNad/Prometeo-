@@ -342,14 +342,33 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
             )
         ).mappings().all()
     except Exception:
-        # relazione 'events' non disponibile: fallback safe
-        event_rows = []
+        try:
+            event_rows = db.execute(
+                text(
+                    """
+                    SELECT
+                        station AS postazione,
+                        COUNT(*) AS open_events_total,
+                        GROUP_CONCAT(title, ' | ') AS event_titles
+                    FROM events
+                    WHERE status = 'OPEN'
+                    GROUP BY station
+                    """
+                )
+            ).mappings().all()
+        except Exception:
+            # relazione 'events' non disponibile o aggregazione non supportata
+            event_rows = []
 
     board_by_station: dict[str, dict[str, Any]] = {}
+    station_aliases: dict[str, str] = {}
+
     for row in board_rows:
-        station = normalize_station(row["postazione"])
-        board_by_station[station] = {
-            "station": station,
+        raw_station = str(row["postazione"] or "").strip() or "NON_ASSEGNATA"
+        normalized_station = normalize_station(raw_station)
+
+        board_by_station[raw_station] = {
+            "station": raw_station,
             "orders_total": int(row["orders_total"] or 0),
             "blocked_total": int(row["blocked_total"] or 0),
             "red_total": int(row["red_total"] or 0),
@@ -360,8 +379,14 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
             "event_titles": "",
         }
 
+        station_aliases[raw_station] = raw_station
+        station_aliases[normalized_station] = raw_station
+
     for row in event_rows:
-        station = normalize_station(row["postazione"])
+        raw_station = str(row["postazione"] or "").strip() or "NON_ASSEGNATA"
+        normalized_station = normalize_station(raw_station)
+        station = station_aliases.get(raw_station) or station_aliases.get(normalized_station) or raw_station
+
         open_events_total = int(row["open_events_total"] or 0)
         event_titles = str(row["event_titles"] or "")
 

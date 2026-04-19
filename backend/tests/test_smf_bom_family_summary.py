@@ -116,6 +116,21 @@ def test_family_summary_by_drawing_enriches_tl_ready_fields(monkeypatch):
     assert body["rotazione"] == "da_verificare"
     assert body["peso_turno"]["livello"] == "alto"
     assert body["peso_turno"]["per_postazione"] == {"HENN": 2, "PIDMILL": 2}
+    assert body["classificazione_per_articolo"] == {
+        "ART-001": "parziale_di_complessivo",
+        "ART-002": "parziale_di_complessivo",
+        "ART-003": "parziale_di_complessivo",
+    }
+    assert body["dipendenza_parziale"] == {
+        "ART-001": True,
+        "ART-002": True,
+        "ART-003": True,
+    }
+    assert body["quota_per_complessivo"] == {
+        "ART-001": 3,
+        "ART-002": 3,
+        "ART-003": 3,
+    }
     assert set(body["componenti_coinvolti"]) == {
         "468922",
         "468728",

@@ -24,6 +24,9 @@ SQL_FILES = [
     "007_view_zaw1_component_load.sql",
     "007_view_zaw1_sequence_ranked.sql",
     "008_view_tl_zaw1_board.sql",
+    "007_view_zaw2_component_load.sql",
+    "007_view_zaw2_sequence_ranked.sql",
+    "008_view_tl_zaw2_board.sql",
     # --- MACHINE LOAD ---
     "010_machine_load_summary.sql",
 ]
@@ -32,8 +35,10 @@ BASE_SQL_PATH = Path(__file__).resolve().parents[3] / "sql"
 
 RESET_VIEWS_SQL = """
 DROP VIEW IF EXISTS vw_tl_zaw1_board CASCADE;
+DROP VIEW IF EXISTS vw_tl_zaw2_board CASCADE;
 DROP VIEW IF EXISTS vw_zaw1_tl_board CASCADE;
 DROP VIEW IF EXISTS vw_zaw1_sequence_ranked CASCADE;
+DROP VIEW IF EXISTS vw_zaw2_sequence_ranked CASCADE;
 DROP VIEW IF EXISTS vw_zaw1_sequence_ranked_constrained CASCADE;
 DROP VIEW IF EXISTS vw_zaw1_sequence_with_constraints CASCADE;
 DROP VIEW IF EXISTS vw_zaw1_sequence_suggestions CASCADE;

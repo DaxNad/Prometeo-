@@ -14,3 +14,7 @@ echo "==> Frontend UI structural guard"
 )
 
 echo "ALL GUARDS (backend+frontend) PASS"
+
+echo ""
+echo "---- AI STACK STATUS ----"
+/Users/davidepiangiolino/Documents/PROMETEO/scripts/ai_stack_status.sh || true

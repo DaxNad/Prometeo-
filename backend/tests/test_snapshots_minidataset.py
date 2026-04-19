@@ -43,6 +43,37 @@ def test_snapshot_shapes_and_event_impact_for_zaw1(monkeypatch):
             sequence_planner_service, "fetch_station_board", fake_fetch_station_board
         )
 
+        # Ensure board_state minimale e dataset pulito
+        db.execute(
+            text(
+                """
+                CREATE TABLE IF NOT EXISTS board_state (
+                    id INTEGER PRIMARY KEY,
+                    order_id TEXT NOT NULL UNIQUE,
+                    cliente TEXT NOT NULL,
+                    codice TEXT NOT NULL,
+                    qta NUMERIC NOT NULL DEFAULT 0,
+                    postazione TEXT NOT NULL,
+                    stato TEXT NOT NULL DEFAULT 'da fare',
+                    progress NUMERIC NOT NULL DEFAULT 0,
+                    semaforo TEXT NOT NULL DEFAULT 'GIALLO',
+                    due_date TEXT NOT NULL DEFAULT '',
+                    note TEXT NOT NULL DEFAULT '',
+                    updated_at TEXT NOT NULL DEFAULT ''
+                )
+                """
+            )
+        )
+        db.execute(text("DELETE FROM board_state"))
+        db.execute(
+            text(
+                """
+                INSERT INTO board_state(order_id, cliente, codice, qta, postazione, stato, progress, semaforo, due_date, note, updated_at)
+                VALUES ('SNAP-ZAW1-001', 'ClienteSnap', 'CODE-ZAW-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', '', '', '')
+                """
+            )
+        )
+
         # Ensure tabella events e inserisci un evento OPEN su ZAW-1
         db.execute(
             text(
@@ -64,11 +95,12 @@ def test_snapshot_shapes_and_event_impact_for_zaw1(monkeypatch):
                 """
             )
         )
+        db.execute(text("DELETE FROM events"))
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-                VALUES ('E-SNAPSHOT-1', 'Seed pressure', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                VALUES ('E-SNAPSHOT-1', 'ZAW', 'signal_open', 'HIGH', 'Seed pressure', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
                 """
             )
         )

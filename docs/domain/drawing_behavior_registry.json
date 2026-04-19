@@ -1,0 +1,54 @@
+{
+  "drawing_behavior": {
+
+    "A2145019700": {
+
+      "internal_codes": ["12073"],
+
+      "behavior": "impegnativo_programmabile",
+
+      "stations": [
+        "GUAINE",
+        "ZAW_DA_VERIFICARE",
+        "PIDMILL",
+        "CP"
+      ],
+
+      "critical_stations": [
+        "GUAINE",
+        "PIDMILL"
+      ],
+
+      "criticita_tipo": [
+        "marcature_multiple",
+        "tempo_ciclo_lungo"
+      ],
+
+      "vincolo_temporale": {
+
+        "periodo": "mensile",
+
+        "quantita_target": 600,
+
+        "dimensione_lotto_tipica": 200
+
+      },
+
+      "complexity": "media_alta",
+
+      "rotation": "media",
+
+      "planner_strategy": "slot_dedicati",
+
+      "confidence": {
+
+        "stations": "DA_VERIFICARE",
+        "critical_stations": "CERTO",
+        "planner_strategy": "CERTO"
+
+      }
+
+    }
+
+  }
+}
