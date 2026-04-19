@@ -4,7 +4,13 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-BASE_PATH = Path("/Users/davidepiangiolino/Documents/PROMETEO/docs/domain")
+BASE_PATH = (
+    Path(__file__)
+    .resolve()
+    .parents[3]   # repo root
+    / "docs"
+    / "domain"
+)
 
 REGISTRY_FILE = BASE_PATH / "drawing_behavior_registry.json"
 

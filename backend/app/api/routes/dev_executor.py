@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from datetime import datetime
 
-from app.agent_runtime.executor.executor_runtime import execute_task
+from app.executor.service import execute_task
 
 router = APIRouter()
 

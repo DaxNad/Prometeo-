@@ -337,6 +337,11 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
                     STRING_AGG(title, ' | ' ORDER BY opened_at DESC) AS event_titles
                 FROM events
                 WHERE status = 'OPEN'
+                AND COALESCE(source,'manual') NOT IN (
+                    'executor',
+                    'atlas_system',
+                    'runtime_system'
+                )
                 GROUP BY station
                 """
             )
@@ -351,7 +356,12 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
                         COUNT(*) AS open_events_total,
                         GROUP_CONCAT(title, ' | ') AS event_titles
                     FROM events
-                    WHERE status = 'OPEN'
+                WHERE status = 'OPEN'
+                AND COALESCE(source,'manual') NOT IN (
+                    'executor',
+                    'atlas_system',
+                    'runtime_system'
+                )
                     GROUP BY station
                     """
                 )
