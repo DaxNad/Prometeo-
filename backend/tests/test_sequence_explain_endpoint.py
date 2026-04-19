@@ -43,18 +43,26 @@ def test_sequence_explain_endpoint_with_open_event(monkeypatch):
                 CREATE TABLE IF NOT EXISTS events (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
+                    line TEXT,
                     station TEXT NOT NULL,
+                    event_type TEXT,
+                    severity TEXT,
                     status TEXT NOT NULL,
-                    opened_at TEXT
+                    note TEXT,
+                    source TEXT,
+                    opened_at TEXT,
+                    closed_at TEXT,
+                    closed_by TEXT
                 )
                 """
             )
         )
+        db.execute(text("DELETE FROM events"))
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-                VALUES ('E-EXPL-ENDPOINT-1', 'Explain endpoint test', 'ZAW-1', 'OPEN', '2026-04-13T10:05:00')
+                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                VALUES ('E-EXPL-ENDPOINT-1', 'ZAW', 'signal_open', 'HIGH', 'Explain endpoint test', 'ZAW-1', 'OPEN', '2026-04-13T10:05:00')
                 """
             )
         )

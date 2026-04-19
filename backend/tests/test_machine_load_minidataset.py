@@ -29,11 +29,13 @@ def test_machine_load_with_minidataset_and_open_event():
                 """
             )
         )
+        db.execute(text("DELETE FROM board_state"))
+
         # Insert minimal rows
         db.execute(
             text(
                 """
-                INSERT OR IGNORE INTO board_state(order_id, cliente, codice, qta, postazione, stato, progress, semaforo, due_date, note, updated_at)
+                INSERT INTO board_state(order_id, cliente, codice, qta, postazione, stato, progress, semaforo, due_date, note, updated_at)
                 VALUES
                 ('ORD-A', 'ClienteA', 'CODE-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', '', '', ''),
                 ('ORD-B', 'ClienteB', 'CODE-B', 3, 'ZAW-2', 'da fare', 0, 'VERDE', '', '', '')
@@ -62,11 +64,12 @@ def test_machine_load_with_minidataset_and_open_event():
                 """
             )
         )
+        db.execute(text("DELETE FROM events"))
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-                VALUES ('E-1', 'Allarme linea', 'ZAW-1', 'OPEN', '2026-04-13T10:00:00')
+                INSERT INTO events(id, title, line, station, event_type, severity, status, opened_at)
+                VALUES ('E-1', 'Allarme linea', 'ZAW', 'ZAW-1', 'signal_open', 'HIGH', 'OPEN', '2026-04-13T10:00:00')
                 """
             )
         )

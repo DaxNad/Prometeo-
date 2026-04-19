@@ -15,6 +15,18 @@ REGISTRY_BASE = Path(
 )
 
 
+def _collect_fasi(op_family: pd.DataFrame) -> list[str]:
+    return (
+        op_family["fase"]
+        .astype(str)
+        .replace("", None)
+        .dropna()
+        .unique()
+        .tolist()
+    )
+
+
+
 def normalize_drawing(value: object) -> str:
     return str(value or "").strip().replace(" ", "")
 
@@ -371,13 +383,38 @@ def _infer_tassativo(
     var_family: pd.DataFrame,
 ) -> bool:
 
-    payload = " ".join(
+    payload_parts: list[str] = []
 
-        articoli
+    payload_parts.extend(str(x).strip() for x in articoli if str(x).strip())
 
-    ).upper()
+    if not family_specs.empty:
+        for col in ("famiglia_processo", "raw_json", "articolo", "disegno"):
+            if col in family_specs.columns:
+                payload_parts.extend(
+                    str(x).strip()
+                    for x in family_specs[col].fillna("").tolist()
+                    if str(x).strip()
+                )
 
-    return "COMPLESSIVO" in payload
+    if not var_family.empty:
+        for col in ("nome_variante", "raw_json", "articolo"):
+            if col in var_family.columns:
+                payload_parts.extend(
+                    str(x).strip()
+                    for x in var_family[col].fillna("").tolist()
+                    if str(x).strip()
+                )
+
+    payload = " ".join(payload_parts).upper()
+
+    tassativo_markers = (
+        "COMPLESSIVO",
+        "PARZIALE COMPLESSIVO",
+        "PARZIALE_DI_COMPLESSIVO",
+        "PARZIALE DI COMPLESSIVO",
+    )
+
+    return any(marker in payload for marker in tassativo_markers)
 
 
 def _build_peso_turno(
@@ -389,31 +426,31 @@ def _build_peso_turno(
 ) -> dict[str, Any]:
 
     totale = 1
+    per_postazione: dict[str, int] = {}
 
     if "PIDMILL" in postazioni_stimate:
         totale += 2
+        per_postazione["PIDMILL"] = 2
 
     if "HENN" in postazioni_stimate:
         totale += 2
+        per_postazione["HENN"] = 2
 
     if count_markings >= 2:
         totale += 2
 
     livello = (
-
         "alto"
         if totale >= 5
         else "medio"
         if totale >= 3
         else "basso"
-
     )
 
     return {
-
         "totale": totale,
         "livello": livello,
-
+        "per_postazione": per_postazione,
     }
 
 
@@ -469,6 +506,24 @@ def _build_discrepancy_flags(
     }
 
 
+
+
+def _safe_json_load(raw: Any) -> Any:
+    if raw is None:
+        return {}
+    if isinstance(raw, (dict, list)):
+        return raw
+
+    s = str(raw).strip()
+    if not s:
+        return {}
+
+    try:
+        return json.loads(s)
+    except Exception:
+        return {}
+
+
 def _collect_nested_component_codes(
     *,
     articoli: list[str],
@@ -480,36 +535,111 @@ def _collect_nested_component_codes(
     componenti_unici: list[str] = []
 
     articoli_set = {
-
         str(value).strip().upper()
-
         for value in articoli
-
         if str(value).strip()
-
     }
 
-    direct_componenti = (
+    def add_component(value: Any) -> None:
+        code = str(value).strip().upper()
+        if not code or code == "NONE":
+            return
+        if code in articoli_set:
+            return
+        if code not in componenti_unici:
+            componenti_unici.append(code)
 
-        comp_family["codice_componente"]
+    # 1) componenti diretti da BOM_Components.codice_componente
+    if "codice_componente" in comp_family.columns:
+        direct_componenti = (
+            comp_family["codice_componente"]
+            .astype(str)
+            .replace("", None)
+            .dropna()
+            .str.upper()
+            .unique()
+            .tolist()
+        )
+        for c in direct_componenti:
+            add_component(c)
 
-        .astype(str)
+    # 2) componenti da BOM_Specs.raw_json.componenti[].codice
+    if "raw_json" in family_specs.columns:
+        for raw in family_specs["raw_json"].fillna("").tolist():
+            payload = _safe_json_load(raw)
+            if not isinstance(payload, dict):
+                continue
 
-        .replace("", None)
+            for item in payload.get("componenti", []) or []:
+                if isinstance(item, dict):
+                    add_component(item.get("codice"))
 
-        .dropna()
+    # 3) componenti annidati da BOM_Components.extra.componenti_annidati
+    if "extra" in comp_family.columns:
+        for raw in comp_family["extra"].fillna("").tolist():
+            payload = _safe_json_load(raw)
+            if not isinstance(payload, dict):
+                continue
 
-        .str.upper()
+            for code in payload.get("componenti_annidati", []) or []:
+                add_component(code)
 
-        .unique()
+    # 4) materiali riferiti da BOM_Operations.extra.materiale_riferimento
+    if "extra" in op_family.columns:
+        for raw in op_family["extra"].fillna("").tolist():
+            payload = _safe_json_load(raw)
+            if not isinstance(payload, dict):
+                continue
 
-        .tolist()
-
-    )
-
-    for c in direct_componenti:
-
-        if c not in articoli_set:
-            componenti_unici.append(c)
+            for code in payload.get("materiale_riferimento", []) or []:
+                add_component(code)
 
     return componenti_unici
+
+def _build_classificazione_per_articolo(
+    *,
+    articoli: list[str],
+    family_specs: pd.DataFrame,
+    var_family: pd.DataFrame,
+) -> dict[str, str]:
+    classificazione: dict[str, str] = {}
+    for articolo in articoli:
+        specs_rows = family_specs[family_specs["articolo"].astype(str) == articolo]
+        var_rows = var_family[var_family["articolo"].astype(str) == articolo]
+        payload_parts = specs_rows.get("raw_json", pd.Series(dtype=str)).astype(str).tolist()
+        payload_parts.extend(_rows_to_texts(specs_rows))
+        payload_parts.extend(_rows_to_texts(var_rows))
+        classificazione[articolo] = _classify_article(" ".join(payload_parts))
+    return classificazione
+
+def _rows_to_texts(df: pd.DataFrame) -> list[str]:
+    if df.empty:
+        return []
+    return [" ".join(map(str, row)) for row in df.astype(str).itertuples(index=False, name=None)]
+
+def _classify_article(payload: str) -> str:
+    text = payload.upper()
+    has_parziale = any(token in text for token in ("PARZIALE", "PARTIAL"))
+    has_complessivo = any(token in text for token in ("COMPLESSIVO", "COMPLESSIVI", "ASSIEME", "GRUPPO"))
+    if has_parziale and has_complessivo:
+        return "parziale_di_complessivo"
+    if has_complessivo:
+        return "complessivo"
+    if has_parziale:
+        return "parziale"
+    return "singolo"
+
+def _build_dipendenza_parziale(
+    *,
+    classificazione_per_articolo: dict[str, str],
+    quota_per_complessivo: int | None,
+) -> dict[str, bool]:
+    dipendenza: dict[str, bool] = {}
+    for articolo, classificazione in classificazione_per_articolo.items():
+        dipendenza[articolo] = (
+            quota_per_complessivo is not None
+            and quota_per_complessivo > 1
+            and classificazione in {"parziale", "parziale_di_complessivo"}
+        )
+    return dipendenza
+

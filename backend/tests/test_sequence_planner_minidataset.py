@@ -49,11 +49,12 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
                 """
             )
         )
+        db.execute(text("DELETE FROM events"))
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-                VALUES ('E-PLANNER-1', 'Allarme planner', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                VALUES ('E-PLANNER-1', 'ZAW', 'signal_open', 'HIGH', 'Allarme planner', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
                 """
             )
         )

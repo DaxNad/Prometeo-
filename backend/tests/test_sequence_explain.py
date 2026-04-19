@@ -36,18 +36,26 @@ def test_explain_builder_adds_reasons(monkeypatch):
                 CREATE TABLE IF NOT EXISTS events (
                     id TEXT PRIMARY KEY,
                     title TEXT NOT NULL,
+                    line TEXT,
                     station TEXT NOT NULL,
+                    event_type TEXT,
+                    severity TEXT,
                     status TEXT NOT NULL,
-                    opened_at TEXT
+                    note TEXT,
+                    source TEXT,
+                    opened_at TEXT,
+                    closed_at TEXT,
+                    closed_by TEXT
                 )
                 """
             )
         )
+        db.execute(text("DELETE FROM events"))
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, title, station, status, opened_at)
-                VALUES ('E-EXPL-1', 'Test Impact', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                VALUES ('E-EXPL-1', 'ZAW', 'signal_open', 'HIGH', 'Test Impact', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
                 """
             )
         )
