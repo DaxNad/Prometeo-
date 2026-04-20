@@ -37,8 +37,8 @@ def test_machine_load_with_minidataset_and_open_event():
                 """
                 INSERT INTO board_state(order_id, cliente, codice, qta, postazione, stato, progress, semaforo, due_date, note, updated_at)
                 VALUES
-                ('ORD-A', 'ClienteA', 'CODE-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', NULL, '', NOW()),
-                ('ORD-B', 'ClienteB', 'CODE-B', 3, 'ZAW-2', 'da fare', 0, 'VERDE', NULL, '', NOW())
+                ('ORD-A', 'ClienteA', 'CODE-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', '', '', CURRENT_TIMESTAMP),
+                ('ORD-B', 'ClienteB', 'CODE-B', 3, 'ZAW-2', 'da fare', 0, 'VERDE', '', '', CURRENT_TIMESTAMP)
                 """
             )
         )
@@ -84,4 +84,3 @@ def test_machine_load_with_minidataset_and_open_event():
         assert isinstance(payload.get("warnings", []), list)
     finally:
         db.close()
-
