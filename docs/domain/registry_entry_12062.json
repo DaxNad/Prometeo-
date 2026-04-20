@@ -1,40 +1,27 @@
 {
   "A2145019000": {
-
-    "internal_codes": ["12062"],
-
+    "internal_codes": [
+      "12062"
+    ],
     "behavior": "lineare_veloce_con_henn_standard",
-
     "stations": [
       "GUAINE",
       "HENN",
-      "ZAW_DA_VERIFICARE",
+      "ZAW",
       "CP"
     ],
-
     "critical_stations": [],
-
     "criticita_tipo": [],
-
     "zaw_tools": [],
-
     "material_dependency": null,
-
     "complexity": "bassa",
-
     "rotation": "bassa",
-
     "planner_strategy": "riempimento_slot_henn",
-
     "note": "solo aggancio HENN, nessun tubo metallico",
-
     "confidence": {
-
-      "stations": "DA_VERIFICARE",
+      "stations": "CERTO",
       "critical_stations": "CERTO",
       "planner_strategy": "CERTO"
-
     }
-
   }
 }

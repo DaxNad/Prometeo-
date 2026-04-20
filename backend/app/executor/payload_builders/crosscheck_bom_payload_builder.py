@@ -29,8 +29,12 @@ def _normalize_list(values: Any) -> list[str]:
 
 def _extract_expected_from_family(summary: dict[str, Any]) -> dict[str, list[str]]:
     return {
-        "components": _normalize_list(summary.get("componenti", [])),
-        "operations": _normalize_list(summary.get("fasi", [])),
+        "components": _normalize_list(
+            summary.get("componenti_coinvolti", summary.get("componenti", []))
+        ),
+        "operations": _normalize_list(
+            summary.get("fasi_coinvolte", summary.get("fasi", []))
+        ),
     }
 
 
