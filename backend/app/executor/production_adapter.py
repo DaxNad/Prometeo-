@@ -13,12 +13,20 @@ from app.services.production_queries import (
 )
 
 
-def read_sequence_compat(service, payload):
+def _normalize_payload(payload):
+    if payload is None:
+        return {}
+    if not isinstance(payload, dict):
+        raise ValueError("invalid_payload")
+    return payload
 
-    return get_sequence_compatibility(service, **payload)
+
+def read_sequence_compat(service, payload):
+    payload_map = _normalize_payload(payload)
+    return get_sequence_compatibility(service, **payload_map)
 
 
 
 def read_machine_load(service, payload):
-
-    return get_machine_load(service, **payload)
+    payload_map = _normalize_payload(payload)
+    return get_machine_load(service, **payload_map)

@@ -2,17 +2,15 @@ from __future__ import annotations
 
 import json
 import re
-from pathlib import Path
 from typing import Any
 
 import pandas as pd
+from app.domain.drawing_registry_service import (
+    get_drawing_behavior as get_registry_behavior,
+)
 
 
 _COMPONENT_CODE_RE = re.compile(r"\b(?:\d{6}|[A-Z]{2,5}\d{3,4})\b")
-
-REGISTRY_BASE = Path(
-    "/Users/davidepiangiolino/Documents/PROMETEO/docs/domain"
-)
 
 
 def _collect_fasi(op_family: pd.DataFrame) -> list[str]:
@@ -32,33 +30,7 @@ def normalize_drawing(value: object) -> str:
 
 
 def _load_registry_for_drawing(drawing: str) -> dict | None:
-
-    registry_files = [
-        REGISTRY_BASE / "drawing_behavior_registry.json",
-        *REGISTRY_BASE.glob("registry_entry_*.json"),
-    ]
-
-    for f in registry_files:
-
-        if not f.exists():
-            continue
-
-        try:
-            data = json.loads(f.read_text())
-        except Exception:
-            continue
-
-        if "drawing_behavior" in data:
-
-            node = data["drawing_behavior"].get(drawing)
-
-            if node:
-                return node
-
-        if drawing in data:
-            return data[drawing]
-
-    return None
+    return get_registry_behavior(drawing)
 
 
 def build_family_summary_by_drawing(
