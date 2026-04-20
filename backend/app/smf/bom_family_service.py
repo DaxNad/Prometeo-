@@ -652,4 +652,3 @@ def _build_dipendenza_parziale(
             and classificazione in {"parziale", "parziale_di_complessivo"}
         )
     return dipendenza
-

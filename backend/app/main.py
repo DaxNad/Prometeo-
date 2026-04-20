@@ -161,4 +161,3 @@ if FRONTEND_DIST_DIR.exists():
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
 
-
