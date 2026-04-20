@@ -1,7 +1,7 @@
 from app.executor.schemas import ExecutionTask
 
 
-ALLOWED_ACTIONS = {"run_test"}
+ALLOWED_ACTIONS = {"run_test", "crosscheck_bom"}
 ALLOWED_SOURCES = {"system"}
 
 
