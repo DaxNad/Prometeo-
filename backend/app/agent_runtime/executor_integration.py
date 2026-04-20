@@ -10,6 +10,19 @@ from typing import Optional, Dict, Any
 from app.executor.service import execute_task
 
 
+def _has_explicit_decision_context(decision_payload: Dict[str, Any]) -> bool:
+    decision_keys = {"status", "outcome", "decision", "action", "decision_mode"}
+
+    if any(key in decision_payload for key in decision_keys):
+        return True
+
+    decision = decision_payload.get("decision")
+    if isinstance(decision, dict) and any(key in decision for key in decision_keys):
+        return True
+
+    return False
+
+
 def _is_explicit_executor_allow(decision_payload: Dict[str, Any]) -> bool:
     if decision_payload.get("executor_allowed") is True:
         return True
@@ -61,6 +74,9 @@ def maybe_execute_task_from_atlas(decision_payload: Dict[str, Any]) -> Optional[
 
     if not task_data:
 
+        return None
+
+    if not _has_explicit_decision_context(decision_payload):
         return None
 
     if _is_blocked_or_deferred(decision_payload) and not _is_explicit_executor_allow(decision_payload):

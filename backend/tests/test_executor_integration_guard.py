@@ -1,6 +1,24 @@
 import app.agent_runtime.executor_integration as integration
 
 
+def test_executor_integration_denies_missing_decision_context(monkeypatch):
+    called = {"value": False}
+
+    def _fake_execute_task(_):
+        called["value"] = True
+        return {"ok": True}
+
+    monkeypatch.setattr(integration, "execute_task", _fake_execute_task)
+
+    result = integration.maybe_execute_task_from_atlas(
+        {
+            "executor_task": {"action": "run_test"},
+        }
+    )
+    assert result is None
+    assert called["value"] is False
+
+
 def test_executor_integration_skips_blocked_without_explicit_allow(monkeypatch):
     called = {"value": False}
 
