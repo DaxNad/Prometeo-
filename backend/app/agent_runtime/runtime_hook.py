@@ -57,3 +57,13 @@ def trigger_runtime_analysis(
                 payload=payload,
             )
         )
+
+from app.agent_runtime.executor_integration import maybe_execute_task_from_atlas
+
+
+def trigger_executor_after_atlas(context):
+
+    try:
+        maybe_execute_task_from_atlas(context)
+    except Exception as e:
+        print("[EXECUTOR_HOOK_ERROR]", e)

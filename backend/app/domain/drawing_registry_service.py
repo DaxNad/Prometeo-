@@ -4,31 +4,59 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-BASE_PATH = Path("/Users/davidepiangiolino/Documents/PROMETEO/docs/domain")
+BASE_PATH = (
+    Path(__file__)
+    .resolve()
+    .parents[3]   # repo root
+    / "docs"
+    / "domain"
+)
 
 REGISTRY_FILE = BASE_PATH / "drawing_behavior_registry.json"
 
 
-def load_drawing_registry() -> Dict[str, Any]:
+def normalize_drawing(value: object) -> str:
+    return str(value or "").strip().replace(" ", "")
 
-    if not REGISTRY_FILE.exists():
+
+def _safe_read_json(path: Path) -> Dict[str, Any]:
+    if not path.exists():
         return {}
-
     try:
-        data = json.loads(REGISTRY_FILE.read_text())
+        return json.loads(path.read_text())
     except Exception:
         return {}
 
+
+def load_drawing_registry() -> Dict[str, Any]:
+    data = _safe_read_json(REGISTRY_FILE)
     return data.get("drawing_behavior", {})
 
 
 def get_drawing_behavior(drawing: str) -> Optional[Dict[str, Any]]:
-
+    drawing_norm = normalize_drawing(drawing)
     registry = load_drawing_registry()
+    node = registry.get(drawing_norm)
+    if isinstance(node, dict):
+        return node
 
-    drawing_norm = str(drawing or "").strip().replace(" ", "")
+    for path in sorted(BASE_PATH.glob("registry_entry_*.json")):
+        data = _safe_read_json(path)
+        if not isinstance(data, dict):
+            continue
 
-    return registry.get(drawing_norm)
+        if "drawing_behavior" in data:
+            behavior_map = data.get("drawing_behavior", {})
+            if isinstance(behavior_map, dict):
+                entry = behavior_map.get(drawing_norm)
+                if isinstance(entry, dict):
+                    return entry
+
+        entry = data.get(drawing_norm)
+        if isinstance(entry, dict):
+            return entry
+
+    return None
 
 
 def override_postazioni_from_registry(

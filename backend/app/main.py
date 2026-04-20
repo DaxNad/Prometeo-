@@ -1,3 +1,4 @@
+from app.api.routes.dev_executor import router as dev_executor_router
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -150,6 +151,7 @@ app.include_router(dev_db_init_router)
 app.include_router(agent_runtime_router)
 app.include_router(mobile_ui_router)
 app.include_router(signals_router)
+app.include_router(dev_executor_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
@@ -158,3 +160,4 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
+
