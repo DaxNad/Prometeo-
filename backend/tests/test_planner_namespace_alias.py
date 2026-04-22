@@ -48,16 +48,31 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_sequence = client.get("/planner/sequence")
     assert prod_sequence.status_code == 200
     assert planner_sequence.status_code == 200
-    assert planner_sequence.json() == prod_sequence.json()
+    planner_sequence_body = planner_sequence.json()
+    production_sequence_body = prod_sequence.json()
+    assert "decision" in planner_sequence_body
+    assert "decision" not in production_sequence_body
+    planner_sequence_without_decision = {k: v for k, v in planner_sequence_body.items() if k != "decision"}
+    assert planner_sequence_without_decision == production_sequence_body
 
     prod_turn_plan = client.get("/production/turn-plan")
     planner_turn_plan = client.get("/planner/turn-plan")
     assert prod_turn_plan.status_code == 200
     assert planner_turn_plan.status_code == 200
-    assert planner_turn_plan.json() == prod_turn_plan.json()
+    planner_turn_plan_body = planner_turn_plan.json()
+    production_turn_plan_body = prod_turn_plan.json()
+    assert "decision" in planner_turn_plan_body
+    assert "decision" not in production_turn_plan_body
+    planner_turn_plan_without_decision = {k: v for k, v in planner_turn_plan_body.items() if k != "decision"}
+    assert planner_turn_plan_without_decision == production_turn_plan_body
 
     prod_explain = client.get("/production/explain")
     planner_explain = client.get("/planner/explain")
     assert prod_explain.status_code == 200
     assert planner_explain.status_code == 200
-    assert planner_explain.json() == prod_explain.json()
+    planner_explain_body = planner_explain.json()
+    production_explain_body = prod_explain.json()
+    assert "decision" in planner_explain_body
+    assert "decision" not in production_explain_body
+    planner_explain_without_decision = {k: v for k, v in planner_explain_body.items() if k != "decision"}
+    assert planner_explain_without_decision == production_explain_body
