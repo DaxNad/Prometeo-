@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from typing import Any
-
+import os
 import requests
 
 
@@ -12,10 +12,16 @@ class SMFBOMAdapter:
     def family_by_drawing(self, drawing: str) -> dict[str, Any]:
         url = f"{self.base_url}/smf/bom/family-summary/by-drawing"
 
+        headers = {}
+        api_key = os.getenv("PROMETEO_API_KEY", "").strip()
+        if api_key:
+            headers["X-API-Key"] = api_key
+
         try:
             response = requests.get(
                 url,
                 params={"disegno": drawing},
+                headers=headers,
                 timeout=5,
             )
         except Exception as exc:
