@@ -10,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.agent_runtime import router as agent_runtime_router
 from .api.mobile_ui import router as mobile_ui_router
+from .api.api_planner import router as planner_router
 from .api.devos import router as dev_router
 from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
@@ -146,6 +147,7 @@ app.include_router(state_router)
 app.include_router(postgres_probe_router)
 app.include_router(smf_router)
 app.include_router(production_router)
+app.include_router(planner_router)
 app.include_router(dashboard_router)
 app.include_router(production_events_router)
 app.include_router(devos_status_router)
@@ -165,5 +167,4 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
-
 
