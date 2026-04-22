@@ -7,7 +7,7 @@ from pathlib import Path
 class Settings:
     def __init__(self) -> None:
         self.service_name: str = "prometeo-core"
-        self.version: str = "0.3.1"
+        self.version: str = "0.4.0"
 
         base_dir = Path(__file__).resolve().parent.parent
         default_sqlite_dir = Path(
