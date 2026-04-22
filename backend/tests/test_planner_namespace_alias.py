@@ -43,9 +43,10 @@ def test_planner_namespace_matches_production(monkeypatch):
     )
 
     client = TestClient(app)
+    headers = {"X-API-Key": "PROMETEO_STRONG_KEY_2026"}
 
-    prod_sequence = client.get("/production/sequence")
-    planner_sequence = client.get("/planner/sequence")
+    prod_sequence = client.get("/production/sequence", headers=headers)
+    planner_sequence = client.get("/planner/sequence", headers=headers)
     assert prod_sequence.status_code == 200
     assert planner_sequence.status_code == 200
     planner_sequence_body = planner_sequence.json()
@@ -55,8 +56,8 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_sequence_without_decision = {k: v for k, v in planner_sequence_body.items() if k != "decision"}
     assert planner_sequence_without_decision == production_sequence_body
 
-    prod_turn_plan = client.get("/production/turn-plan")
-    planner_turn_plan = client.get("/planner/turn-plan")
+    prod_turn_plan = client.get("/production/turn-plan", headers=headers)
+    planner_turn_plan = client.get("/planner/turn-plan", headers=headers)
     assert prod_turn_plan.status_code == 200
     assert planner_turn_plan.status_code == 200
     planner_turn_plan_body = planner_turn_plan.json()
@@ -66,8 +67,8 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_turn_plan_without_decision = {k: v for k, v in planner_turn_plan_body.items() if k != "decision"}
     assert planner_turn_plan_without_decision == production_turn_plan_body
 
-    prod_explain = client.get("/production/explain")
-    planner_explain = client.get("/planner/explain")
+    prod_explain = client.get("/production/explain", headers=headers)
+    planner_explain = client.get("/planner/explain", headers=headers)
     assert prod_explain.status_code == 200
     assert planner_explain.status_code == 200
     planner_explain_body = planner_explain.json()
