@@ -29,6 +29,31 @@ def route_task(task: Dict) -> str:
     return "unknown"
 
 
+
+def build_codex_prompt(task: Dict[str, Any]) -> str:
+    files = task.get("files", [])
+    files_text = ", ".join(files) if files else "not specified"
+
+    return f"""TASK: {task.get("action", "No action provided")}
+
+CONTEXT:
+- project: PROMETEO
+- target files: {files_text}
+- task id: {task.get("id")}
+- task type: {task.get("type")}
+
+REQUIREMENTS:
+- modify only the specified files when possible
+- preserve existing architecture
+- do not create duplicate documentation layers
+- do not bypass guard rails
+- keep changes minimal and testable
+
+OUTPUT:
+- direct file changes
+- concise final report only
+"""
+
 def orchestrate():
     plan = load_latest_plan()
 
@@ -41,6 +66,11 @@ def orchestrate():
     for task in plan.get("tasks", []):
         target = route_task(task)
         print(f"Task {task.get('id')} → {target}")
+
+        if target == "codex":
+            print("--- CODEX PROMPT START ---")
+            print(build_codex_prompt(task))
+            print("--- CODEX PROMPT END ---")
 
 
 if __name__ == "__main__":
