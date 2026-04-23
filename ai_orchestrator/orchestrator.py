@@ -54,6 +54,15 @@ OUTPUT:
 - concise final report only
 """
 
+
+
+def write_codex_task(task_id: str, prompt: str):
+    out_dir = Path("ai_orchestrator/generated_tasks")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file = out_dir / f"{task_id}.txt"
+    file.write_text(prompt)
+    print(f"Saved Codex task: {file}")
+
 def orchestrate():
     plan = load_latest_plan()
 
@@ -68,9 +77,11 @@ def orchestrate():
         print(f"Task {task.get('id')} → {target}")
 
         if target == "codex":
+            prompt = build_codex_prompt(task)
             print("--- CODEX PROMPT START ---")
-            print(build_codex_prompt(task))
+            print(prompt)
             print("--- CODEX PROMPT END ---")
+            write_codex_task(task.get("id"), prompt)
 
 
 if __name__ == "__main__":

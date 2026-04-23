@@ -44,3 +44,4 @@ board/agent_mod_snapshots/agent_mod_snapshot_*.json
 # frontend build artifacts
 frontend/dist/
 specs_finitura/
+ai_orchestrator/generated_tasks/
