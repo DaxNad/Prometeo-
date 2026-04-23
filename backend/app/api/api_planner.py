@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from ..api_production import get_explain, get_sequence, get_turn_plan
 from ..db.session import get_db
+from ..services.atlas_engine import detect_anomaly
 
 router = APIRouter(prefix="/planner", tags=["planner"])
 
@@ -37,6 +38,17 @@ def build_decision_trace(payload: dict) -> dict:
 
 def build_decision_stub(payload: dict) -> dict:
     items = payload.get("items", [])
+    events = payload.get("events", []) or payload.get("open_events", [])
+
+    anomaly_stations: set[str] = set()
+    if isinstance(events, list):
+        for event in events:
+            if not isinstance(event, dict):
+                continue
+            station = event.get("station")
+            status = str(event.get("status", "")).strip().upper()
+            if station and status == "OPEN" and detect_anomaly(event):
+                anomaly_stations.add(str(station))
 
     if not items:
         return {
@@ -58,6 +70,7 @@ def build_decision_stub(payload: dict) -> dict:
 
     priorities = []
     has_blocking = False
+    anomaly_blocking = False
     stations = set()
 
     for item in items:
@@ -67,9 +80,17 @@ def build_decision_stub(payload: dict) -> dict:
         st = item.get("critical_station")
         if st:
             stations.add(st)
+            if st in anomaly_stations:
+                anomaly_blocking = True
+            if (
+                item.get("event_impact") is True
+                and item.get("open_events_total", 0) > 0
+            ):
+                anomaly_stations.add(st)
+                anomaly_blocking = True
 
     # STATUS
-    status = "DEFER" if has_blocking else "ALLOW"
+    status = "DEFER" if has_blocking or anomaly_blocking else "ALLOW"
 
     # PRIORITY
     priority = max(priorities) if priorities else 0.3
@@ -81,18 +102,33 @@ def build_decision_stub(payload: dict) -> dict:
     else:
         reasons.append("no_blockers")
 
+    if anomaly_blocking:
+        reasons.append("active_anomaly_on_critical_station")
+
     if "ZAW-1" in stations or "ZAW-2" in stations:
         reasons.append("zaw_cluster")
 
     if len(items) > 1:
         reasons.append("multi_item_cluster")
 
+    constraints = []
+    if anomaly_stations:
+        constraints.append(
+            {
+                "type": "ANOMALY",
+                "stations": sorted(anomaly_stations),
+            }
+        )
+
     return {
         "status": status,
         "priority": priority,
-        "constraints": [],
+        "constraints": constraints,
         "reasons": reasons,
-        "explain": f"items={len(items)}, blocking={has_blocking}, priority={priority}",
+        "explain": (
+            f"items={len(items)}, blocking={has_blocking}, "
+            f"anomaly_blocking={anomaly_blocking}, priority={priority}"
+        ),
         "source": "rule_v2",
     }
 @router.get("/sequence")
