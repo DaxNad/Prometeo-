@@ -1,7 +1,10 @@
 import json
 from pathlib import Path
 from typing import Dict, Any
-from loop_state import init_run
+try:
+    from .loop_state import init_run, mark_requires_claude
+except ImportError:
+    from loop_state import init_run, mark_requires_claude
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 AI_STATE_DIR = BASE_DIR / "backend" / "data" / "ai_state"
@@ -81,6 +84,24 @@ def write_codex_task(task_id: str, prompt: str):
     file.write_text(prompt)
     print(f"Saved Codex task: {file}")
 
+
+def get_changed_files() -> list[str]:
+    result = subprocess.run(
+        ["git", "diff", "--name-only"],
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    return [line.strip() for line in result.stdout.splitlines() if line.strip()]
+
+
+def evaluate_claude_requirement(task_id: str) -> bool:
+    changed_files = get_changed_files()
+    requires = mark_requires_claude(task_id, changed_files)
+    print(f"Changed files: {changed_files if changed_files else 'none'}")
+    print(f"Requires Claude: {requires}")
+    return requires
+
 def orchestrate():
     plan = load_latest_plan()
 
@@ -101,8 +122,15 @@ def orchestrate():
             print("--- CODEX PROMPT END ---")
             task_id = task.get("id")
             write_codex_task(task_id, prompt)
-            init_run(task_id, plan.get("id"))
-            print(f"Loop state: TASK_GENERATED for {task_id}")
+
+            from loop_state import load_run
+            existing = load_run(task_id)
+
+            if existing is None:
+                init_run(task_id, plan.get("id"))
+                print(f"Loop state: TASK_GENERATED for {task_id}")
+            else:
+                print(f"Loop state già esistente per {task_id} → skip")
             print(f"Manual run: codex < ai_orchestrator/generated_tasks/{task_id}.txt")
 
 
