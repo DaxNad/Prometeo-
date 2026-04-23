@@ -7,6 +7,7 @@ from ..db.session import get_db
 router = APIRouter(prefix="/planner", tags=["planner"])
 
 
+
 def build_decision_stub(payload: dict) -> dict:
     items = payload.get("items", [])
 
@@ -16,46 +17,57 @@ def build_decision_stub(payload: dict) -> dict:
             "priority": 0.3,
             "constraints": [],
             "reasons": ["no_items"],
-            "explain": "nessun item presente",
-            "source": "rule_v1",
+            "explain": "no items",
+            "source": "rule_v2",
         }
 
-    first = items[0]
+    # PRIORITY MAP
+    def map_priority(p):
+        if p == "CRITICA":
+            return 1.0
+        if p == "MEDIA":
+            return 0.6
+        return 0.4
 
-    open_events = first.get("open_events_total", 0)
-    customer_priority = first.get("customer_priority", "")
-    station = first.get("critical_station", "")
+    priorities = []
+    has_blocking = False
+    stations = set()
+
+    for item in items:
+        priorities.append(map_priority(item.get("customer_priority", "")))
+        if item.get("open_events_total", 0) > 0:
+            has_blocking = True
+        st = item.get("critical_station")
+        if st:
+            stations.add(st)
 
     # STATUS
-    if open_events > 0:
-        status = "DEFER"
-        reasons = ["has_blocking_events"]
-    else:
-        status = "ALLOW"
-        reasons = ["no_blockers"]
+    status = "DEFER" if has_blocking else "ALLOW"
 
     # PRIORITY
-    if customer_priority == "CRITICA":
-        priority = 1.0
-    elif customer_priority == "MEDIA":
-        priority = 0.6
-    else:
-        priority = 0.4
+    priority = max(priorities) if priorities else 0.3
 
-    # STATION CONTEXT
-    if station in ("ZAW-1", "ZAW-2"):
+    # REASONS
+    reasons = []
+    if has_blocking:
+        reasons.append("has_blocking_events")
+    else:
+        reasons.append("no_blockers")
+
+    if "ZAW-1" in stations or "ZAW-2" in stations:
         reasons.append("zaw_cluster")
+
+    if len(items) > 1:
+        reasons.append("multi_item_cluster")
 
     return {
         "status": status,
         "priority": priority,
         "constraints": [],
         "reasons": reasons,
-        "explain": f"status={status}, priority={priority}",
-        "source": "rule_v1",
+        "explain": f"items={len(items)}, blocking={has_blocking}, priority={priority}",
+        "source": "rule_v2",
     }
-
-
 @router.get("/sequence")
 def planner_sequence(db: Session = Depends(get_db)):
     result = get_sequence(db)
