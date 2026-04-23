@@ -18,6 +18,7 @@ from .api.postgres_probe import router as postgres_probe_router
 from .api.production_events import router as production_events_router
 from .api.routes.dev_db_init import router as dev_db_init_router
 from .api.state import router as state_router
+from .api.ai_state import router as ai_state_router
 from .api_dashboard import router as dashboard_router
 from .api_production import router as production_router
 from .api_search import router as search_router
@@ -156,6 +157,7 @@ app.include_router(agent_runtime_router)
 app.include_router(mobile_ui_router)
 app.include_router(signals_router)
 app.include_router(dev_executor_router)
+app.include_router(ai_state_router)
 
 install_auth(app)
 app.include_router(auth_router)
