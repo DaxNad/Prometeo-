@@ -20,10 +20,10 @@ def route_task(task: Dict) -> str:
     if task_type == "plan":
         return "chatgpt"
 
-    if task_type == "execution":
+    if task_type in {"execution", "backend", "frontend", "test", "file_patch"}:
         return "codex"
 
-    if task_type == "validation":
+    if task_type in {"validation", "architecture_review", "security_review"}:
         return "claude"
 
     return "unknown"
