@@ -133,6 +133,13 @@ def orchestrate():
                 print(f"Loop state già esistente per {task_id} → skip")
             print(f"Manual run: codex < ai_orchestrator/generated_tasks/{task_id}.txt")
 
+            requires_claude = evaluate_claude_requirement(task_id)
+
+            if requires_claude:
+                print(f"Claude review required for {task_id}")
+            else:
+                print(f"No Claude review needed for {task_id}")
+
 
 if __name__ == "__main__":
     orchestrate()
