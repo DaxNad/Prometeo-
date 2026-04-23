@@ -56,6 +56,23 @@ OUTPUT:
 
 
 
+
+
+import subprocess
+
+def run_codex_task(task_id: str):
+    file = Path("ai_orchestrator/generated_tasks") / f"{task_id}.txt"
+
+    if not file.exists():
+        print(f"Task file not found: {file}")
+        return
+
+    print(f"Running Codex task: {task_id}")
+
+    subprocess.run([
+        "codex"
+    ], input=file.read_text(), text=True)
+
 def write_codex_task(task_id: str, prompt: str):
     out_dir = Path("ai_orchestrator/generated_tasks")
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -81,7 +98,9 @@ def orchestrate():
             print("--- CODEX PROMPT START ---")
             print(prompt)
             print("--- CODEX PROMPT END ---")
-            write_codex_task(task.get("id"), prompt)
+            task_id = task.get("id")
+            write_codex_task(task_id, prompt)
+            print(f"Manual run: codex < ai_orchestrator/generated_tasks/{task_id}.txt")
 
 
 if __name__ == "__main__":
