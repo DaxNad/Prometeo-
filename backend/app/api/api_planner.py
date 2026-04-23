@@ -72,6 +72,7 @@ def build_decision_stub(payload: dict) -> dict:
     has_blocking = False
     anomaly_blocking = False
     stations = set()
+    tl_actions = []
 
     for item in items:
         priorities.append(map_priority(item.get("customer_priority", "")))
@@ -111,6 +112,18 @@ def build_decision_stub(payload: dict) -> dict:
     if len(items) > 1:
         reasons.append("multi_item_cluster")
 
+    if anomaly_blocking:
+        for item in items:
+            station = item.get("critical_station")
+            if station in anomaly_stations:
+                tl_actions.append(
+                    {
+                        "station": station,
+                        "action": item.get("tl_action"),
+                        "reason": item.get("event_titles"),
+                    }
+                )
+
     constraints = []
     if anomaly_stations:
         constraints.append(
@@ -129,6 +142,7 @@ def build_decision_stub(payload: dict) -> dict:
             f"items={len(items)}, blocking={has_blocking}, "
             f"anomaly_blocking={anomaly_blocking}, priority={priority}"
         ),
+        "tl_actions": tl_actions,
         "source": "rule_v2",
     }
 @router.get("/sequence")
