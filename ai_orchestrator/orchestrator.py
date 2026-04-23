@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 from typing import Dict, Any
+from loop_state import init_run
 
 BASE_DIR = Path(__file__).resolve().parents[1]
 AI_STATE_DIR = BASE_DIR / "backend" / "data" / "ai_state"
@@ -100,6 +101,8 @@ def orchestrate():
             print("--- CODEX PROMPT END ---")
             task_id = task.get("id")
             write_codex_task(task_id, prompt)
+            init_run(task_id, plan.get("id"))
+            print(f"Loop state: TASK_GENERATED for {task_id}")
             print(f"Manual run: codex < ai_orchestrator/generated_tasks/{task_id}.txt")
 
 
