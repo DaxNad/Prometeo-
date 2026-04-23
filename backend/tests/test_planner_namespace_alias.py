@@ -4,6 +4,14 @@ import app.api_production as api_production
 from app.main import app
 
 
+def strip_planner_addons(payload: dict) -> dict:
+    return {
+        k: v
+        for k, v in payload.items()
+        if k not in {"decision", "decision_trace"}
+    }
+
+
 def test_planner_namespace_matches_production(monkeypatch):
     monkeypatch.setattr(api_production, "trigger_runtime_analysis", lambda **kwargs: None)
 
@@ -52,9 +60,10 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_sequence_body = planner_sequence.json()
     production_sequence_body = prod_sequence.json()
     assert "decision" in planner_sequence_body
+    assert "decision_trace" in planner_sequence_body
     assert "decision" not in production_sequence_body
-    planner_sequence_without_decision = {k: v for k, v in planner_sequence_body.items() if k != "decision"}
-    assert planner_sequence_without_decision == production_sequence_body
+    assert "decision_trace" not in production_sequence_body
+    assert strip_planner_addons(planner_sequence_body) == production_sequence_body
 
     prod_turn_plan = client.get("/production/turn-plan", headers=headers)
     planner_turn_plan = client.get("/planner/turn-plan", headers=headers)
@@ -63,9 +72,10 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_turn_plan_body = planner_turn_plan.json()
     production_turn_plan_body = prod_turn_plan.json()
     assert "decision" in planner_turn_plan_body
+    assert "decision_trace" in planner_turn_plan_body
     assert "decision" not in production_turn_plan_body
-    planner_turn_plan_without_decision = {k: v for k, v in planner_turn_plan_body.items() if k != "decision"}
-    assert planner_turn_plan_without_decision == production_turn_plan_body
+    assert "decision_trace" not in production_turn_plan_body
+    assert strip_planner_addons(planner_turn_plan_body) == production_turn_plan_body
 
     prod_explain = client.get("/production/explain", headers=headers)
     planner_explain = client.get("/planner/explain", headers=headers)
@@ -74,6 +84,7 @@ def test_planner_namespace_matches_production(monkeypatch):
     planner_explain_body = planner_explain.json()
     production_explain_body = prod_explain.json()
     assert "decision" in planner_explain_body
+    assert "decision_trace" in planner_explain_body
     assert "decision" not in production_explain_body
-    planner_explain_without_decision = {k: v for k, v in planner_explain_body.items() if k != "decision"}
-    assert planner_explain_without_decision == production_explain_body
+    assert "decision_trace" not in production_explain_body
+    assert strip_planner_addons(planner_explain_body) == production_explain_body
