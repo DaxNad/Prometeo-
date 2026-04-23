@@ -26,6 +26,7 @@ CRITICAL_FILES = {
     "drawing_registry_service.py",
     "bom_family_service.py",
     "executor/service.py",
+    "ai_orchestrator/orchestrator.py",
 }
 
 
