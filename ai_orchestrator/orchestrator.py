@@ -102,6 +102,40 @@ def evaluate_claude_requirement(task_id: str) -> bool:
     print(f"Requires Claude: {requires}")
     return requires
 
+
+def build_claude_validation_prompt(task_id: str) -> str:
+    diff = subprocess.run(
+        ["git", "diff"],
+        text=True,
+        capture_output=True,
+        check=False,
+    ).stdout
+
+    return f"""PROMETEO — loop validation request
+
+task_id: {task_id}
+
+git diff:
+{diff}
+
+test results:
+PENDING_MANUAL_TEST
+
+guard_rail:
+PENDING_PRE_COMMIT
+
+Required response:
+ACCEPT / FIX_REQUIRED / ROLLBACK_REQUIRED + motivo in una riga
+"""
+
+
+def write_claude_review_task(task_id: str, prompt: str):
+    out_dir = Path("ai_orchestrator/generated_reviews")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    file = out_dir / f"{task_id}_claude_review.txt"
+    file.write_text(prompt)
+    print(f"Saved Claude review task: {file}")
+
 def orchestrate():
     plan = load_latest_plan()
 
@@ -137,6 +171,9 @@ def orchestrate():
 
             if requires_claude:
                 print(f"Claude review required for {task_id}")
+                claude_prompt = build_claude_validation_prompt(task_id)
+                write_claude_review_task(task_id, claude_prompt)
+                print(f"Manual Claude review: claude < ai_orchestrator/generated_reviews/{task_id}_claude_review.txt")
             else:
                 print(f"No Claude review needed for {task_id}")
 

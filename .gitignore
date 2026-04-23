@@ -46,3 +46,4 @@ frontend/dist/
 specs_finitura/
 ai_orchestrator/generated_tasks/
 ai_orchestrator/runs/
+ai_orchestrator/generated_reviews/
