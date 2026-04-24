@@ -3,9 +3,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-# backend in SQLite per test
-os.environ.setdefault("PROMETEO_DB_BACKEND", "sqlite")
-os.environ.setdefault("DATABASE_URL", "")
+# backend isolato in SQLite per test.
+# NON usare setdefault: se DATABASE_URL è esportata, i test sporcano il DB operativo.
+os.environ["PROMETEO_DB_BACKEND"] = "sqlite"
+os.environ["DATABASE_URL"] = ""
 
 from app.main import app  # noqa: E402
 from app.db.session import SessionLocal  # noqa: E402
@@ -14,7 +15,11 @@ from app.services.sequence_planner import sequence_planner_service  # noqa: E402
 
 def _seed_orders(client: TestClient) -> None:
     def post(payload: dict):
-        r = client.post("/production/order", json=payload)
+        r = client.post(
+            "/production/order",
+            json=payload,
+            headers={"X-API-Key": os.getenv("PROMETEO_API_KEY", "test-key")},
+        )
         assert r.status_code == 200
         assert r.json().get("ok") is True
 
@@ -93,6 +98,7 @@ def test_planner_regression_zaw(monkeypatch):
                 opened_at TEXT
             )
         """))
+        db.execute(text("DELETE FROM events WHERE id = 'E-REG-ZAW1-1'"))
         db.execute(text("""
             INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
             VALUES ('E-REG-ZAW1-1', 'ZAW', 'signal_open', 'HIGH', 'Coda elevata', 'ZAW-1', 'OPEN', '2026-04-13T10:00:00')
@@ -102,7 +108,7 @@ def test_planner_regression_zaw(monkeypatch):
         db.close()
 
     # machine-load → ZAW-1 deve avere open_events_total > 0
-    r_ml = client.get("/production/machine-load")
+    r_ml = client.get("/production/machine-load", headers={"X-API-Key": os.getenv("PROMETEO_API_KEY", "test-key")})
     assert r_ml.status_code == 200
     items_ml = r_ml.json().get("items", [])
     zaw1 = [i for i in items_ml if i.get("station") == "ZAW-1"]
@@ -127,7 +133,7 @@ def test_planner_regression_zaw(monkeypatch):
         sequence_planner_service, "fetch_station_board", fake_fetch_station_board
     )
 
-    r_seq = client.get("/production/sequence")
+    r_seq = client.get("/production/sequence", headers={"X-API-Key": os.getenv("PROMETEO_API_KEY", "test-key")})
     assert r_seq.status_code == 200
     items_seq = r_seq.json().get("items", [])
     match = [i for i in items_seq if i.get("critical_station") == "ZAW-1"]
