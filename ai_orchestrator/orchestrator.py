@@ -10,6 +10,14 @@ BASE_DIR = Path(__file__).resolve().parents[1]
 AI_STATE_DIR = BASE_DIR / "backend" / "data" / "ai_state"
 
 
+
+def load_auto_plan():
+    path = Path("ai_orchestrator/generated_plans/plan_auto.json")
+    if not path.exists():
+        return None
+    return json.loads(path.read_text())
+
+
 def load_latest_plan() -> Dict[str, Any] | None:
     plans_dir = AI_STATE_DIR / "plans"
     files = sorted(plans_dir.glob("*.json"), key=lambda p: p.stat().st_mtime, reverse=True)
@@ -137,7 +145,12 @@ def write_claude_review_task(task_id: str, prompt: str):
     print(f"Saved Claude review task: {file}")
 
 def orchestrate():
-    plan = load_latest_plan()
+    auto = load_auto_plan()
+    if auto:
+        print("Using auto-generated plan")
+        plan = auto
+    else:
+        plan = load_latest_plan()
 
     if not plan:
         print("No plan found")
