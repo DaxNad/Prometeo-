@@ -130,10 +130,10 @@ def get_tl_overview(db: Session = Depends(get_db)):
             "target_station": first.get("postazione"),
             "target_order_id": first.get("order_id"),
         }
-    elif critical_stations:
+    elif any(s.get("load_level") == "CRITICO" for s in critical_stations):
         first = sorted(
-            critical_stations,
-            key=lambda x: (x.get("load_level") != "CRITICO", -int(x.get("active_orders", 0))),
+            [s for s in critical_stations if s.get("load_level") == "CRITICO"],
+            key=lambda x: -int(x.get("active_orders", 0)),
         )[0]
         shift_action = {
             "title": "Presidiare postazione critica",
