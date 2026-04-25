@@ -125,7 +125,6 @@ class SequencePlannerService:
             tl_action = r["azione_tl"]
 
             if open_events_total > 0:
-                customer_priority = "CRITICA"
                 tl_action = "VERIFICA_SEGNALAZIONE_OPERATIVA"
 
             items.append(
