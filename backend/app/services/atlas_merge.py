@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.atlas_engine.adapters.component_conflict_adapter import evaluate_component_pressure
+
 
 BLOCKING_OUTCOMES = {"BLOCK", "HARD_BLOCK"}
 POSITIVE_OUTCOMES = {"PROCEED", "ACCELERATE"}
@@ -148,6 +150,15 @@ def build_sequence_signals(item: dict[str, Any]) -> list[dict[str, Any]]:
     open_events_total = int(item.get("open_events_total", 0) or 0)
     station_rank = int(item.get("station_rank", 0) or 0)
 
+    component_codes = (
+        item.get("componenti")
+        or item.get("componenti_coinvolti")
+        or item.get("shared_components")
+        or item.get("components")
+        or []
+    )
+    component_pressure = evaluate_component_pressure(component_codes)
+
     priority_signal = {
         "module": "priority_module",
         "outcome": "PROCEED" if priority in {"CRITICA", "ALTA"} else "MONITOR",
@@ -172,4 +183,29 @@ def build_sequence_signals(item: dict[str, Any]) -> list[dict[str, Any]]:
         "active_constraints": [],
     }
 
-    return [priority_signal, event_signal, queue_signal]
+    component_pressure_signal = {
+        "module": "component_pressure_module",
+        "outcome": (
+            "REVIEW"
+            if component_pressure["level"] in {"HIGH", "MEDIUM"}
+            else "PROCEED"
+        ),
+        "score": (
+            0.75
+            if component_pressure["level"] == "HIGH"
+            else 0.6
+            if component_pressure["level"] == "MEDIUM"
+            else 0.4
+        ),
+        "reasons": [
+            f"component_pressure={component_pressure['level']}",
+            f"component_pressure_score={component_pressure['score']}",
+        ],
+        "active_constraints": (
+            ["SHARED_COMPONENT_PRESSURE"]
+            if component_pressure["level"] in {"HIGH", "MEDIUM"}
+            else []
+        ),
+    }
+
+    return [priority_signal, event_signal, queue_signal, component_pressure_signal]

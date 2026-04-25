@@ -1,11 +1,12 @@
 from __future__ import annotations
 
-import os
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app.config import settings
+
 PUBLIC_PATHS = {
-    "/health", "/ping",
+    "/", "/health", "/ping",
     "/db/ping", "/postgres/ping",
     "/docs", "/openapi.json", "/redoc",
     "/version", "/auth/verify"
@@ -26,7 +27,7 @@ def install_auth(app):
         if path in PUBLIC_PATHS:
             return await call_next(request)
 
-        key = os.getenv("PROMETEO_API_KEY")
+        key = settings.prometeo_api_key
 
         if not key:
             return await call_next(request)

@@ -17,6 +17,7 @@ class Settings:
         self.sqlite_path: Path = self.sqlite_dir / "prometeo.sqlite3"
 
         self.database_url: str = os.getenv("DATABASE_URL", "").strip()
+        self.prometeo_api_key: str = os.getenv("PROMETEO_API_KEY", "").strip()
 
         raw_backend = os.getenv("PROMETEO_DB_BACKEND", "").strip().lower()
 

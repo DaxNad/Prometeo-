@@ -1,3 +1,4 @@
+from app.services.decision_engine import apply_decisions
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
@@ -148,6 +149,7 @@ def build_decision_stub(payload: dict) -> dict:
 @router.get("/sequence")
 def planner_sequence(db: Session = Depends(get_db)):
     result = get_sequence(db)
+    # decision handled in api_production
     result["decision"] = build_decision_stub(result)
     result["decision_trace"] = build_decision_trace(result)
     return result
