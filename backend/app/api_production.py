@@ -795,6 +795,12 @@ def get_sequence(db: Session = Depends(get_db)):
 
     # decision_engine DISABLED TEMP
 
+    sequence_items = payload.get("items", [])
+    shared_component_pressure = sum(
+        1 for item in sequence_items
+        if item.get("shared_component_impact") is True
+    )
+
     trigger_runtime_analysis(
         source="production_sequence",
         line_id="planner",
@@ -805,6 +811,7 @@ def get_sequence(db: Session = Depends(get_db)):
             "planner_stage": payload.get("planner_stage"),
             "source": payload.get("source_view"),
             "items_count": payload.get("items_count", 0),
+            "shared_component_pressure": shared_component_pressure,
         },
     )
 
@@ -875,6 +882,12 @@ def get_sequence_atlas_merge(db: Session = Depends(get_db)):
 def get_turn_plan(db: Session = Depends(get_db)):
     payload = sequence_planner_service.build_turn_plan(db)
 
+    assignments = payload.get("assignments", [])
+    shared_component_pressure = sum(
+        1 for item in assignments
+        if item.get("shared_component_impact") is True
+    )
+
     trigger_runtime_analysis(
         source="production_turn_plan",
         line_id="planner",
@@ -888,6 +901,7 @@ def get_turn_plan(db: Session = Depends(get_db)):
             "rotation_logic": payload.get("rotation_logic"),
             "clusters_count": payload.get("clusters_count", 0),
             "assignments_count": payload.get("assignments_count", 0),
+            "shared_component_pressure": shared_component_pressure,
         },
     )
 
