@@ -31,7 +31,12 @@ def classify_files(files: list[str]) -> dict[str, list[str]]:
             categories["rule_engine"].append(f)
         elif f.startswith("backend/app/data"):
             categories["runtime_data"].append(f)
-        elif f.startswith("smf_core"):
+        elif (
+            f.startswith("backend/app/smf")
+            or f.startswith("backend/app/ingest")
+            or f.startswith("backend/app/api_smf.py")
+            or f.startswith("smf_core")
+        ):
             categories["smf"].append(f)
         else:
             categories["other"].append(f)

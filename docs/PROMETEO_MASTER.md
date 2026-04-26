@@ -133,3 +133,84 @@ File chiave da non toccare senza review: `api_production.py`, `sequence_planner.
 - ADR decisioni architetturali: `docs/decisions/`
 - TL strategy domain: `docs/domain/TL_strategy_guideline.md`
 - Drawing behavior registry: `docs/domain/drawing_behavior_registry.json`
+
+---
+
+## PROMETEO — Colonna Vertebrale Operativa
+
+PROMETEO non deve generare regressioni, biforcazioni o branch logici paralleli.
+
+La colonna vertebrale operativa è unica:
+
+1. `docs/PROMETEO_MASTER.md`
+2. Agent Mod
+3. Guard rails pre-modifica
+4. Test minimi obbligatori
+5. Codex CLI per patch operative
+6. Claude Code solo per validazione architetturale
+7. Executor solo dopo decisione valida
+
+### Regola primaria
+
+Nessun agente, tool o modifica codice può operare senza:
+
+- obiettivo dichiarato
+- file ammessi
+- file vietati
+- test minimi
+- impatto previsto su Order → Route → Station → ProductionEvent
+- conferma che non crea biforcazioni tra SMF bridge, backend e frontend
+
+### Divieto di dispersione memoria
+
+È vietato creare nuovi layer documentali paralleli per contesto operativo.
+
+Tutto ciò che è stabile, permanente o architetturale deve convergere in:
+
+`docs/PROMETEO_MASTER.md`
+
+Sono ammessi file secondari solo se tecnici, esecutivi o derivati, ma non devono diventare fonte primaria di verità.
+
+### Regola anti-branch separati
+
+Ogni branch deve avere uno scope chiuso e ricongiungibile.
+
+Sono vietati branch che introducono:
+
+- nuova logica parallela
+- nuovo modello dominio alternativo
+- nuovo planner non allineato
+- nuovo executor non validato
+- nuovo SMF bridge separato
+- documentazione primaria duplicata
+
+### Gate obbligatorio prima di ogni modifica
+
+Prima di ogni modifica PROMETEO devono essere definiti:
+
+1. obiettivo
+2. file ammessi
+3. file vietati
+4. test minimi
+5. rischio regressione
+6. impatto dominio
+7. agente corretto da usare
+
+### Ordine agenti
+
+Ordine stabile:
+
+1. ChatGPT = orchestratore logico e dominio TL
+2. Codex CLI = patch codice, test, fix mirati
+3. Claude Code = validazione architetturale
+4. Agent Mod = gate obbligatorio
+5. Executor = esecuzione controllata solo dopo decisione valida
+
+### Regola finale
+
+Se una modifica non può essere spiegata rispetto alla catena:
+
+`Order → Route → Station → ProductionEvent`
+
+allora la modifica deve essere bloccata o riportata a scope.
+

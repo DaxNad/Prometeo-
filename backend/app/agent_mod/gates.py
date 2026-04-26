@@ -147,6 +147,43 @@ def _check_runtime_data_contracts(checks: list[CheckResult]) -> None:
 
 def gate_g2(context: RunContext) -> GateResult:
     checks: list[CheckResult] = []
+    # --- ANTI-BIFORCAZIONE CORE ---
+    core_categories = ["service", "api", "planner", "smf"]
+    core_touched = any(context.categories.get(cat) for cat in core_categories)
+
+    if core_touched:
+        missing_contracts = []
+
+        # controllo presenza file backbone
+        master = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+        if not master.exists():
+            missing_contracts.append("PROMETEO_MASTER.md mancante")
+
+        # controllo presenza termini dominio minimi
+        required_terms = [
+            "Order → Route → Station → ProductionEvent",
+            "SMF",
+            "Executor"
+        ]
+
+        if master.exists():
+            content = master.read_text(encoding="utf-8", errors="ignore")
+            for term in required_terms:
+                if term not in content:
+                    missing_contracts.append(f"termine mancante: {term}")
+
+        checks.append(
+            CheckResult(
+                name="core_domain_alignment",
+                passed=not missing_contracts,
+                details="coerenza dominio OK" if not missing_contracts else " | ".join(missing_contracts),
+                data={"core_touched": core_touched}
+            )
+        )
+
+        if missing_contracts:
+            return GateResult(gate="G2", passed=False, checks=checks)
+
     categories = context.categories or {}
 
     sql_changed = bool(categories.get("sql"))
@@ -220,3 +257,82 @@ def gate_g6(prior_gates: list[GateResult]) -> GateResult:
             )
         ],
     )
+
+
+def gate_g0_operational_backbone(context: RunContext) -> GateResult:
+    master_path = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+
+    required_markers = [
+        "## PROMETEO — Colonna Vertebrale Operativa",
+        "docs/PROMETEO_MASTER.md",
+        "Agent Mod",
+        "Guard rails pre-modifica",
+        "Test minimi obbligatori",
+        "Order → Route → Station → ProductionEvent",
+        "Divieto di dispersione memoria",
+        "Regola anti-branch separati",
+        "Gate obbligatorio prima di ogni modifica",
+    ]
+
+    checks: list[CheckResult] = []
+    # --- ANTI-BIFORCAZIONE CORE ---
+    core_categories = ["service", "api", "planner", "smf"]
+    core_touched = any(context.categories.get(cat) for cat in core_categories)
+
+    if core_touched:
+        missing_contracts = []
+
+        # controllo presenza file backbone
+        master = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+        if not master.exists():
+            missing_contracts.append("PROMETEO_MASTER.md mancante")
+
+        # controllo presenza termini dominio minimi
+        required_terms = [
+            "Order → Route → Station → ProductionEvent",
+            "SMF",
+            "Executor"
+        ]
+
+        if master.exists():
+            content = master.read_text(encoding="utf-8", errors="ignore")
+            for term in required_terms:
+                if term not in content:
+                    missing_contracts.append(f"termine mancante: {term}")
+
+        checks.append(
+            CheckResult(
+                name="core_domain_alignment",
+                passed=not missing_contracts,
+                details="coerenza dominio OK" if not missing_contracts else " | ".join(missing_contracts),
+                data={"core_touched": core_touched}
+            )
+        )
+
+        if missing_contracts:
+            return GateResult(gate="G2", passed=False, checks=checks)
+
+
+    if not master_path.exists():
+        checks.append(
+            CheckResult(
+                name="operational_backbone_master_exists",
+                passed=False,
+                details="docs/PROMETEO_MASTER.md assente",
+            )
+        )
+        return GateResult(gate="G0", passed=False, checks=checks)
+
+    text = master_path.read_text(encoding="utf-8", errors="ignore")
+    missing = [m for m in required_markers if m not in text]
+
+    checks.append(
+        CheckResult(
+            name="operational_backbone_declared",
+            passed=not missing,
+            details="colonna vertebrale presente" if not missing else "marker mancanti: " + ", ".join(missing),
+            data={"missing_markers": missing},
+        )
+    )
+
+    return GateResult(gate="G0", passed=all(c.passed for c in checks), checks=checks)
