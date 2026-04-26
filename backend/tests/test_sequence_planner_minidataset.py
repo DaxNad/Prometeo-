@@ -1,6 +1,7 @@
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
+import app.services.sequence_planner as sequence_planner_module
 from app.services.sequence_planner import sequence_planner_service
 from app.db.session import SessionLocal
 
@@ -27,6 +28,7 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
             ]
 
         monkeypatch.setattr(sequence_planner_service, "fetch_station_board", fake_fetch_station_board)
+        monkeypatch.setattr(sequence_planner_module, "build_component_usage_from_db", lambda _db: {})
 
         # Ensure 'events' table exists (SQLite path)
         db.execute(
@@ -53,8 +55,16 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
                 VALUES ('E-PLANNER-1', 'ZAW', 'signal_open', 'HIGH', 'Allarme planner', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                ON CONFLICT (id) DO UPDATE SET
+                    line = EXCLUDED.line,
+                    event_type = EXCLUDED.event_type,
+                    severity = EXCLUDED.severity,
+                    title = EXCLUDED.title,
+                    station = EXCLUDED.station,
+                    status = EXCLUDED.status,
+                    opened_at = EXCLUDED.opened_at
                 """
             )
         )
@@ -68,4 +78,3 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
         assert any(i.get("event_impact") is True for i in match), "event impact not propagated"
     finally:
         db.close()
-
