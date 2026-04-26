@@ -22,6 +22,13 @@ def build_component_usage_from_db(db: Session) -> Dict[str, int]:
         "SELECT componenti_condivisi FROM vw_tl_zaw2_board",
     ]
 
+    registry_query = """
+        SELECT codice_componente
+        FROM component_usage_registry
+        WHERE condiviso IS TRUE
+          AND codice_componente IS NOT NULL
+    """
+
     if db is None:
         return usage
 
@@ -37,6 +44,16 @@ def build_component_usage_from_db(db: Session) -> Dict[str, int]:
 
             for c in components:
                 usage[c] = usage.get(c, 0) + 1
+
+    try:
+        registry_rows = db.execute(text(registry_query)).fetchall()
+    except SQLAlchemyError:
+        registry_rows = []
+
+    for r in registry_rows:
+        component = str(r[0] or "").strip()
+        if component:
+            usage[component] = usage.get(component, 0) + 1
 
     return usage
 
