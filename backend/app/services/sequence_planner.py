@@ -155,6 +155,7 @@ class SequencePlannerService:
         items.sort(
             key=lambda item: (
                 self._priority_value(item.get("customer_priority")),
+                not item.get("shared_component_impact", False),
                 item.get("due_date") or "9999-12-31",
                 str(item.get("critical_station") or ""),
                 int(item.get("station_rank") or 999999),
