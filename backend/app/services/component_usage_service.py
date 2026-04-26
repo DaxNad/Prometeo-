@@ -4,6 +4,15 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 
+PLANNER_CRITICAL_SHARED_COMPONENTS = {
+    "468728",  # plastica / rapido critico
+    "468765",  # componente tecnico critico
+    "468796",  # O-ring / ZAW
+    "469122",  # HENN 16
+    "469124",  # HENN 32
+}
+
+
 def _split_components(raw):
     if not raw:
         return []
@@ -65,10 +74,10 @@ def apply_component_impact(items: List[dict], usage: Dict[str, int]) -> List[dic
 
         for c in item.get("shared_components", []):
             count = usage.get(c, 0)
-            if count > 1:
+            if count > 1 and c in PLANNER_CRITICAL_SHARED_COMPONENTS:
                 impact = True
                 impact_reasons.append(
-                    f"{c} shared across {count} articoli"
+                    f"{c} critical shared across {count} articoli"
                 )
 
         item["shared_component_impact"] = impact
