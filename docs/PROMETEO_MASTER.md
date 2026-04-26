@@ -213,4 +213,36 @@ Se una modifica non può essere spiegata rispetto alla catena:
 `Order → Route → Station → ProductionEvent`
 
 allora la modifica deve essere bloccata o riportata a scope.
+---
+
+## PROMETEO — Regola Dominio Reale: HENN 469122
+
+Il componente `469122` identifica HENN 16 ed è componente condiviso tra più articoli.
+
+Articoli attualmente collegati da BOM reale:
+
+- 12053
+- 12055
+- 12062
+- 12066
+- 12097
+- 12099
+- 12100
+- 12101
+- 12187
+- 12191
+- 12201
+- 12401
+
+Regola operativa:
+
+PROMETEO deve trattare `469122` come dipendenza trasversale critica.
+La disponibilità, saturazione o blocco del componente `469122` può impattare più articoli e deve influenzare priorità, sequenza e valutazione postazione HENN HC WATER.
+
+Classificazione:
+
+- fonte: BOM_Components reale
+- certezza: CERTO
+- postazione prevalente: HENN HC WATER
+- dominio: componente condiviso / vincolo produttivo trasversale
 
