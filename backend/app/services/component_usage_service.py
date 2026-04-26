@@ -61,13 +61,18 @@ def build_component_usage_from_db(db: Session) -> Dict[str, int]:
 def apply_component_impact(items: List[dict], usage: Dict[str, int]) -> List[dict]:
     for item in items:
         impact = False
+        impact_reasons: list[str] = []
 
         for c in item.get("shared_components", []):
-            if usage.get(c, 0) > 1:
+            count = usage.get(c, 0)
+            if count > 1:
                 impact = True
-                break
+                impact_reasons.append(
+                    f"{c} shared across {count} articoli"
+                )
 
         item["shared_component_impact"] = impact
+        item["shared_component_impact_reason"] = "; ".join(impact_reasons)
 
     return items
 
