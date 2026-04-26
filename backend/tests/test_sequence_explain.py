@@ -54,8 +54,16 @@ def test_explain_builder_adds_reasons(monkeypatch):
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
                 VALUES ('E-EXPL-1', 'ZAW', 'signal_open', 'HIGH', 'Test Impact', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                ON CONFLICT (id) DO UPDATE SET
+                    line = EXCLUDED.line,
+                    event_type = EXCLUDED.event_type,
+                    severity = EXCLUDED.severity,
+                    title = EXCLUDED.title,
+                    station = EXCLUDED.station,
+                    status = EXCLUDED.status,
+                    opened_at = EXCLUDED.opened_at
                 """
             )
         )

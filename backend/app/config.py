@@ -7,7 +7,7 @@ from pathlib import Path
 class Settings:
     def __init__(self) -> None:
         self.service_name: str = "prometeo-core"
-        self.version: str = "0.3.1"
+        self.version: str = "0.4.0"
 
         base_dir = Path(__file__).resolve().parent.parent
         default_sqlite_dir = Path(
@@ -17,6 +17,7 @@ class Settings:
         self.sqlite_path: Path = self.sqlite_dir / "prometeo.sqlite3"
 
         self.database_url: str = os.getenv("DATABASE_URL", "").strip()
+        self.prometeo_api_key: str = os.getenv("PROMETEO_API_KEY", "").strip()
 
         raw_backend = os.getenv("PROMETEO_DB_BACKEND", "").strip().lower()
 

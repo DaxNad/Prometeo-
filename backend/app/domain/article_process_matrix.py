@@ -32,6 +32,9 @@ def _normalize_code(value: str) -> str:
 def _load_cache() -> dict[str, Any]:
     global _CACHE_LOADED, _CACHE_DATA
 
+    if _CACHE_LOADED:
+        return _CACHE_DATA
+
     path = _matrix_path()
 
     if not path.exists():

@@ -12,6 +12,8 @@ from sqlalchemy.orm import Session
 
 from ..station_normalizer import normalize_station
 from app.agent_runtime.service import AgentRuntimeService
+from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact, get_component_conflicts
+from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact
 from app.domain.article_process_matrix import get_article_profile
 from app.domain.drawing_registry_service import override_postazioni_from_registry
 
@@ -123,7 +125,6 @@ class SequencePlannerService:
             tl_action = r["azione_tl"]
 
             if open_events_total > 0:
-                customer_priority = "CRITICA"
                 tl_action = "VERIFICA_SEGNALAZIONE_OPERATIVA"
 
             items.append(
@@ -166,6 +167,11 @@ class SequencePlannerService:
             ranked_item = dict(item)
             ranked_item["rank"] = idx
             ranked_items.append(ranked_item)
+
+        
+        # COMPONENT USAGE DA DB (cross-articolo reale)
+        usage = build_component_usage_from_db(db)
+        ranked_items = apply_component_impact(ranked_items, usage)
 
         payload = {
             "planner_stage": "ZAW_MULTI_SQL_EVENT_AWARE",
@@ -236,6 +242,11 @@ class SequencePlannerService:
             rotation_pointer = (rotation_pointer + 1) % len(self.SHIFT_SEQUENCE)
 
         assignments.sort(key=lambda x: x["slot"])
+
+        
+        # COMPONENT USAGE DA DB (cross-articolo reale)
+        usage = build_component_usage_from_db(db)
+        assignments = apply_component_impact(assignments, usage)
 
         payload = {
             "planner_stage": "TURN_PLAN_STAGE_4_EVENT_AWARE",

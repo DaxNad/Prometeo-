@@ -1,7 +1,9 @@
 from datetime import date, datetime
 from typing import Any, Dict
 
-from fastapi import APIRouter, Body, Depends
+from fastapi import APIRouter
+from app.services.decision_engine import apply_decisions
+from fastapi import Body, Depends
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -791,6 +793,8 @@ def get_sequence_compat_check(db: Session = Depends(get_db)):
 def get_sequence(db: Session = Depends(get_db)):
     payload = sequence_planner_service.build_global_sequence(db)
 
+    # decision_engine DISABLED TEMP
+
     trigger_runtime_analysis(
         source="production_sequence",
         line_id="planner",
@@ -809,7 +813,7 @@ def get_sequence(db: Session = Depends(get_db)):
         "planner_stage": payload.get("planner_stage"),
         "source": payload.get("source_view"),
         "items_count": payload.get("items_count", 0),
-        "items": payload.get("items", []),
+        "items": apply_decisions(payload.get("items", [])),
         "warnings": [],
     }
 
@@ -822,6 +826,8 @@ def get_sequence_explain(db: Session = Depends(get_db)):
     """
     try:
         payload = sequence_planner_service.build_global_sequence(db)
+
+    # decision_engine DISABLED TEMP
         explained = explain_global_sequence(payload)
         return {
             "ok": True,
@@ -839,6 +845,8 @@ def get_sequence_explain(db: Session = Depends(get_db)):
 @router.get("/sequence/atlas-merge")
 def get_sequence_atlas_merge(db: Session = Depends(get_db)):
     sequence_payload = sequence_planner_service.build_global_sequence(db)
+
+    # decision_engine DISABLED TEMP
     sequence_items = sequence_payload.get("items", [])
 
     items = []
@@ -924,7 +932,7 @@ def get_machine_load(db: Session = Depends(get_db)):
         "planner_stage": payload.get("planner_stage"),
         "source": payload.get("source"),
         "items_count": payload.get("items_count", 0),
-        "items": payload.get("items", []),
+        "items": apply_decisions(payload.get("items", [])),
         "warnings": payload.get("warnings", []),
     }
 

@@ -1,3 +1,5 @@
+from app.security.api_key_auth import install_auth
+from app.api.api_auth import router as auth_router
 from app.api.routes.dev_executor import router as dev_executor_router
 from pathlib import Path
 
@@ -8,6 +10,7 @@ from fastapi.staticfiles import StaticFiles
 
 from .api.agent_runtime import router as agent_runtime_router
 from .api.mobile_ui import router as mobile_ui_router
+from .api.api_planner import router as planner_router
 from .api.devos import router as dev_router
 from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
@@ -15,6 +18,8 @@ from .api.postgres_probe import router as postgres_probe_router
 from .api.production_events import router as production_events_router
 from .api.routes.dev_db_init import router as dev_db_init_router
 from .api.state import router as state_router
+from .api.ai_state import router as ai_state_router
+from .api.tl import router as tl_router
 from .api_dashboard import router as dashboard_router
 from .api_production import router as production_router
 from .api_search import router as search_router
@@ -144,6 +149,7 @@ app.include_router(state_router)
 app.include_router(postgres_probe_router)
 app.include_router(smf_router)
 app.include_router(production_router)
+app.include_router(planner_router)
 app.include_router(dashboard_router)
 app.include_router(production_events_router)
 app.include_router(devos_status_router)
@@ -152,6 +158,11 @@ app.include_router(agent_runtime_router)
 app.include_router(mobile_ui_router)
 app.include_router(signals_router)
 app.include_router(dev_executor_router)
+app.include_router(ai_state_router)
+app.include_router(tl_router)
+
+install_auth(app)
+app.include_router(auth_router)
 
 if UI_DIR.exists():
     app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")

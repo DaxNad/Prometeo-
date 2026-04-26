@@ -69,7 +69,7 @@ def test_snapshot_shapes_and_event_impact_for_zaw1(monkeypatch):
             text(
                 """
                 INSERT INTO board_state(order_id, cliente, codice, qta, postazione, stato, progress, semaforo, due_date, note, updated_at)
-                VALUES ('SNAP-ZAW1-001', 'ClienteSnap', 'CODE-ZAW-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', '', '', '')
+                VALUES ('SNAP-ZAW1-001', 'ClienteSnap', 'CODE-ZAW-A', 5, 'ZAW-1', 'da fare', 0, 'GIALLO', '2026-04-20', '', '2026-04-13T10:00:00')
                 """
             )
         )
@@ -99,8 +99,16 @@ def test_snapshot_shapes_and_event_impact_for_zaw1(monkeypatch):
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
                 VALUES ('E-SNAPSHOT-1', 'ZAW', 'signal_open', 'HIGH', 'Seed pressure', 'ZAW-1', 'OPEN', '2026-04-13T10:01:00')
+                ON CONFLICT (id) DO UPDATE SET
+                    line = EXCLUDED.line,
+                    event_type = EXCLUDED.event_type,
+                    severity = EXCLUDED.severity,
+                    title = EXCLUDED.title,
+                    station = EXCLUDED.station,
+                    status = EXCLUDED.status,
+                    opened_at = EXCLUDED.opened_at
                 """
             )
         )

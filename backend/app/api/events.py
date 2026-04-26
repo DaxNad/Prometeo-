@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from ..agent_runtime.runtime_hook import trigger_runtime_analysis
 from ..repositories.factory import get_events_repository
+from ..services.atlas_engine import detect_anomaly
 
 router = APIRouter()
 
@@ -152,6 +153,32 @@ def create_event(payload: EventCreate) -> Event:
     )
 
     return _to_event(item)
+
+
+@router.get("/events/anomaly")
+def anomaly_check():
+    repo = get_events_repository()
+    try:
+        events = repo.list_events()
+    except Exception:
+        events = []
+
+    if not events:
+        return {"status": "no_data"}
+
+    results = []
+    for e in events:
+        results.append({
+            "event_id": e.get("id"),
+            "event": e,
+            "anomaly": detect_anomaly(e)
+        })
+
+    return {
+        "status": "ok",
+        "events_checked": len(results),
+        "results": results
+    }
 
 
 @router.get("/events/{event_id}", response_model=Event)

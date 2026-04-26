@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import urllib.error
 import urllib.request
 
@@ -9,8 +10,17 @@ from app.agent_mod.contracts_registry import API_ENDPOINT_CONTRACTS
 from app.agent_mod.models import CheckResult, GateResult, RunContext
 
 
+def _build_headers() -> dict[str, str]:
+    api_key = os.getenv("PROMETEO_API_KEY", "").strip()
+    return {"X-API-Key": api_key} if api_key else {}
+
+
 def read_json_url(url: str) -> tuple[int, dict]:
-    req = urllib.request.Request(url, method="GET")
+    req = urllib.request.Request(
+        url,
+        method="GET",
+        headers=_build_headers(),
+    )
     with urllib.request.urlopen(req, timeout=15) as resp:
         body = resp.read().decode("utf-8")
         return resp.getcode(), json.loads(body)

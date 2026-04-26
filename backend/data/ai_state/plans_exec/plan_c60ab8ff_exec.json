@@ -1,0 +1,18 @@
+{
+  "plan_id": "plan_c60ab8ff",
+  "mode": "codex_exec",
+  "tasks": [
+    {
+      "id": "T1",
+      "type": "file_patch",
+      "target_file": "app/api/events.py",
+      "instruction": "add new FastAPI endpoint /events/anomaly with placeholder logic returning {'status': 'ok'}"
+    },
+    {
+      "id": "T2",
+      "type": "file_patch",
+      "target_file": "app/services/atlas_engine.py",
+      "instruction": "add function detect_anomaly(event) returning boolean placeholder"
+    }
+  ]
+}
