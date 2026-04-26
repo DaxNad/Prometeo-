@@ -3,7 +3,7 @@ from __future__ import annotations
 import argparse
 
 from app.agent_mod.config import BACKEND_DIR, ROOT_DIR
-from app.agent_mod.gates import gate_g1, gate_g2, gate_g6
+from app.agent_mod.gates import gate_g0_operational_backbone, gate_g1, gate_g2, gate_g6
 from app.agent_mod.models import GateResult, RunContext
 from app.agent_mod.probes import gate_g4
 from app.agent_mod.runtime import gate_g3
@@ -36,6 +36,10 @@ def main() -> int:
     )
 
     gates: list[GateResult] = []
+
+    g0 = gate_g0_operational_backbone(context)
+    gates.append(g0)
+    print_gate(g0)
 
     g1 = gate_g1(context)
     gates.append(g1)

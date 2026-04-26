@@ -220,3 +220,45 @@ def gate_g6(prior_gates: list[GateResult]) -> GateResult:
             )
         ],
     )
+
+
+def gate_g0_operational_backbone(context: RunContext) -> GateResult:
+    master_path = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+
+    required_markers = [
+        "## PROMETEO — Colonna Vertebrale Operativa",
+        "docs/PROMETEO_MASTER.md",
+        "Agent Mod",
+        "Guard rails pre-modifica",
+        "Test minimi obbligatori",
+        "Order → Route → Station → ProductionEvent",
+        "Divieto di dispersione memoria",
+        "Regola anti-branch separati",
+        "Gate obbligatorio prima di ogni modifica",
+    ]
+
+    checks: list[CheckResult] = []
+
+    if not master_path.exists():
+        checks.append(
+            CheckResult(
+                name="operational_backbone_master_exists",
+                passed=False,
+                details="docs/PROMETEO_MASTER.md assente",
+            )
+        )
+        return GateResult(gate="G0", passed=False, checks=checks)
+
+    text = master_path.read_text(encoding="utf-8", errors="ignore")
+    missing = [m for m in required_markers if m not in text]
+
+    checks.append(
+        CheckResult(
+            name="operational_backbone_declared",
+            passed=not missing,
+            details="colonna vertebrale presente" if not missing else "marker mancanti: " + ", ".join(missing),
+            data={"missing_markers": missing},
+        )
+    )
+
+    return GateResult(gate="G0", passed=all(c.passed for c in checks), checks=checks)
