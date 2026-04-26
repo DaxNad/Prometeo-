@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-CLUSTER_PATH = Path("/Users/davidepiangiolino/Documents/PROMETEO/backend/app/data/shared_component_clusters.json")
+CLUSTER_PATH = Path(__file__).resolve().parents[1] / "data" / "shared_component_clusters.json" 
 
 def load_clusters():
     if not CLUSTER_PATH.exists():

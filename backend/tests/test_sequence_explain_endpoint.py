@@ -61,8 +61,16 @@ def test_sequence_explain_endpoint_with_open_event(monkeypatch):
         db.execute(
             text(
                 """
-                INSERT OR REPLACE INTO events(id, line, event_type, severity, title, station, status, opened_at)
+                INSERT INTO events(id, line, event_type, severity, title, station, status, opened_at)
                 VALUES ('E-EXPL-ENDPOINT-1', 'ZAW', 'signal_open', 'HIGH', 'Explain endpoint test', 'ZAW-1', 'OPEN', '2026-04-13T10:05:00')
+                ON CONFLICT (id) DO UPDATE SET
+                    line = EXCLUDED.line,
+                    event_type = EXCLUDED.event_type,
+                    severity = EXCLUDED.severity,
+                    title = EXCLUDED.title,
+                    station = EXCLUDED.station,
+                    status = EXCLUDED.status,
+                    opened_at = EXCLUDED.opened_at
                 """
             )
         )
@@ -71,7 +79,10 @@ def test_sequence_explain_endpoint_with_open_event(monkeypatch):
         db.close()
 
     client = TestClient(app)
-    r = client.get("/production/sequence/explain")
+    r = client.get(
+        "/production/sequence/explain",
+        headers={"X-API-Key": os.getenv("PROMETEO_API_KEY", "")},
+    )
     assert r.status_code == 200
     data = r.json()
     assert data.get("ok") is True

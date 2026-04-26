@@ -63,8 +63,11 @@ def build_decision_stub(payload: dict) -> dict:
 
     # PRIORITY MAP
     def map_priority(p):
+        p = str(p or "").strip().upper()
         if p == "CRITICA":
             return 1.0
+        if p == "ALTA":
+            return 0.8
         if p == "MEDIA":
             return 0.6
         return 0.4

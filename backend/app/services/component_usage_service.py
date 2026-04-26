@@ -1,5 +1,6 @@
 from typing import Dict, List
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
 
@@ -21,8 +22,15 @@ def build_component_usage_from_db(db: Session) -> Dict[str, int]:
         "SELECT componenti_condivisi FROM vw_tl_zaw2_board",
     ]
 
+    if db is None:
+        return usage
+
     for q in queries:
-        rows = db.execute(text(q)).fetchall()
+        try:
+            rows = db.execute(text(q)).fetchall()
+        except SQLAlchemyError:
+            # Test SQLite / ambienti senza viste TL: fallback neutro.
+            continue
 
         for r in rows:
             components = _split_components(r[0])
