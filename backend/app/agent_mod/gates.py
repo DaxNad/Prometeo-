@@ -147,6 +147,43 @@ def _check_runtime_data_contracts(checks: list[CheckResult]) -> None:
 
 def gate_g2(context: RunContext) -> GateResult:
     checks: list[CheckResult] = []
+    # --- ANTI-BIFORCAZIONE CORE ---
+    core_categories = ["service", "api", "planner", "smf"]
+    core_touched = any(context.categories.get(cat) for cat in core_categories)
+
+    if core_touched:
+        missing_contracts = []
+
+        # controllo presenza file backbone
+        master = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+        if not master.exists():
+            missing_contracts.append("PROMETEO_MASTER.md mancante")
+
+        # controllo presenza termini dominio minimi
+        required_terms = [
+            "Order → Route → Station → ProductionEvent",
+            "SMF",
+            "Executor"
+        ]
+
+        if master.exists():
+            content = master.read_text(encoding="utf-8", errors="ignore")
+            for term in required_terms:
+                if term not in content:
+                    missing_contracts.append(f"termine mancante: {term}")
+
+        checks.append(
+            CheckResult(
+                name="core_domain_alignment",
+                passed=not missing_contracts,
+                details="coerenza dominio OK" if not missing_contracts else " | ".join(missing_contracts),
+                data={"core_touched": core_touched}
+            )
+        )
+
+        if missing_contracts:
+            return GateResult(gate="G2", passed=False, checks=checks)
+
     categories = context.categories or {}
 
     sql_changed = bool(categories.get("sql"))
@@ -238,6 +275,43 @@ def gate_g0_operational_backbone(context: RunContext) -> GateResult:
     ]
 
     checks: list[CheckResult] = []
+    # --- ANTI-BIFORCAZIONE CORE ---
+    core_categories = ["service", "api", "planner", "smf"]
+    core_touched = any(context.categories.get(cat) for cat in core_categories)
+
+    if core_touched:
+        missing_contracts = []
+
+        # controllo presenza file backbone
+        master = ROOT_DIR / "docs" / "PROMETEO_MASTER.md"
+        if not master.exists():
+            missing_contracts.append("PROMETEO_MASTER.md mancante")
+
+        # controllo presenza termini dominio minimi
+        required_terms = [
+            "Order → Route → Station → ProductionEvent",
+            "SMF",
+            "Executor"
+        ]
+
+        if master.exists():
+            content = master.read_text(encoding="utf-8", errors="ignore")
+            for term in required_terms:
+                if term not in content:
+                    missing_contracts.append(f"termine mancante: {term}")
+
+        checks.append(
+            CheckResult(
+                name="core_domain_alignment",
+                passed=not missing_contracts,
+                details="coerenza dominio OK" if not missing_contracts else " | ".join(missing_contracts),
+                data={"core_touched": core_touched}
+            )
+        )
+
+        if missing_contracts:
+            return GateResult(gate="G2", passed=False, checks=checks)
+
 
     if not master_path.exists():
         checks.append(
