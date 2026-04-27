@@ -39,7 +39,7 @@ class ORToolsAdapter(BaseAdapter):
 
         # Signals (global, non cambiano l'ordinamento relativo se uniformi)
         has_open_event = any(e.status == "OPEN" for e in snapshot.events)
-        shared_pressure = bool(snapshot.capacities.values.get("shared_component_pressure", False))
+        shared_pressure_value = snapshot.capacities.values.get("shared_component_pressure", 0)
 
         # Costruisco pesi deterministici per ogni ordine (Model v1) con breakdown
         weights: List[Tuple[float, str, bool, dict, str]] = []  # (w_i, order_id, feasible, breakdown, group_key)
@@ -56,7 +56,7 @@ class ORToolsAdapter(BaseAdapter):
             # componenti obiettivo
             priority_reward = prio * 10.0
             blocked_penalty = 0.0 if feasible else cfg.blocked_penalty
-            shared_component_penalty = cfg.shared_component_penalty if shared_pressure else 0.0
+            shared_component_penalty = cfg.shared_component_penalty * float(shared_pressure_value or 0)
             open_event_penalty = cfg.open_event_penalty if has_open_event else 0.0
             # penalità proporzionale alla quantità per riflettere la pressione di coda
             station_pressure_penalty = station_pressure_level * float(o.quantity or 0) * cfg.station_pressure_penalty

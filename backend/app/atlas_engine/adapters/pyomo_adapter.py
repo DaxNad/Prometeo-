@@ -23,7 +23,7 @@ class PyomoAdapter(BaseAdapter):
 
         cfg = self._cfg
         has_open_event = any(e.status == "OPEN" for e in snapshot.events)
-        shared_pressure = bool(snapshot.capacities.values.get("shared_component_pressure", False))
+        shared_pressure_value = snapshot.capacities.values.get("shared_component_pressure", 0)
 
         # Station queue pressure level (float), tolerate missing/non-numeric
         sp_level = 0.0
@@ -46,7 +46,7 @@ class PyomoAdapter(BaseAdapter):
 
             priority_reward = prio * 10.0
             blocked_penalty = 0.0 if feas else cfg.blocked_penalty
-            shared_component_penalty = cfg.shared_component_penalty if shared_pressure else 0.0
+            shared_component_penalty = cfg.shared_component_penalty * float(shared_pressure_value or 0)
             open_event_penalty = cfg.open_event_penalty if has_open_event else 0.0
             station_pressure_penalty = sp_level * float(o.quantity or 0) * cfg.station_pressure_penalty
 
