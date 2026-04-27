@@ -1,0 +1,331 @@
+{
+  "version": "0.1",
+  "purpose": "Archivio screenshot specifiche di finitura per consultazione TL e crosscheck PROMETEO.",
+  "rules": [
+    "La specifica è supporto visivo, non fonte runtime primaria.",
+    "I dati operativi certi devono essere strutturati in registry/BOM/SMF.",
+    "Ogni articolo deve avere cartella dedicata, metadata.json e screenshot PNG."
+  ],
+  "articles_count": 29,
+  "articles": [
+    {
+      "article": "12015",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12015/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12055",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12055/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12056",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12056/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12057",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12057/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12058",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12058/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12062",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12062/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12063",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12063/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12064",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12064/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12065",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12065/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12066",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12066/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12073",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12073/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12091",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12091/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12097",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12097/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12098",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12098/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12099",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12099/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12100",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12100/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12101",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12101/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12102",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12102/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12189",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12189/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12191",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12191/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12195",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12195/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12200",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12200/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12203",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12203/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12205",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12205/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12399",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12399/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12402",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12402/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12403",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12403/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12510",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12510/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    },
+    {
+      "article": "12511",
+      "drawing": "",
+      "revision": "",
+      "confidence": "DA_VERIFICARE",
+      "png_file": "",
+      "metadata_path": "12511/metadata.json",
+      "stations_expected": [],
+      "linked_bom_count": 0,
+      "status": "OK"
+    }
+  ]
+}
