@@ -40,6 +40,7 @@ class ORToolsAdapter(BaseAdapter):
         # Signals (global, non cambiano l'ordinamento relativo se uniformi)
         has_open_event = any(e.status == "OPEN" for e in snapshot.events)
         shared_pressure_value = snapshot.capacities.values.get("shared_component_pressure", 0)
+        shared_pressure = bool(shared_pressure_value)
 
         # Costruisco pesi deterministici per ogni ordine (Model v1) con breakdown
         weights: List[Tuple[float, str, bool, dict, str]] = []  # (w_i, order_id, feasible, breakdown, group_key)

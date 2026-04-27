@@ -24,6 +24,7 @@ class PyomoAdapter(BaseAdapter):
         cfg = self._cfg
         has_open_event = any(e.status == "OPEN" for e in snapshot.events)
         shared_pressure_value = snapshot.capacities.values.get("shared_component_pressure", 0)
+        shared_pressure = bool(shared_pressure_value)
 
         # Station queue pressure level (float), tolerate missing/non-numeric
         sp_level = 0.0
