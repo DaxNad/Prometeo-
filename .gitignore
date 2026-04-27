@@ -43,7 +43,11 @@ board/agent_mod_snapshots/agent_mod_snapshot_*.json
 
 # frontend build artifacts
 frontend/dist/
-specs_finitura/
+# Finitura screenshots/data: keep heavy/private article folders ignored.
+specs_finitura/*
+!specs_finitura/index.json
+!specs_finitura/_templates/
+!specs_finitura/_templates/metadata.template.json
 ai_orchestrator/generated_tasks/
 ai_orchestrator/runs/
 ai_orchestrator/generated_reviews/
