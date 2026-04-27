@@ -99,20 +99,25 @@ def health():
     except Exception as e:
         postgres_probe = {"reachable": False, "message": str(e)}
 
+    db_backend = current_backend()
+    events_create_status = "secondary_not_aligned_on_current_backend"
+    if startup_db_init_ok and db_backend in {"sqlite", "postgres"}:
+        events_create_status = "secondary_aligned_available"
+
     return {
         "ok": True,
         "service": settings.service_name,
         "version": settings.version,
         "ui_available": UI_DIR.exists() or FRONTEND_DIST_DIR.exists(),
         "database_configured": settings.database_configured,
-        "db_backend": current_backend(),
+        "db_backend": db_backend,
         "postgres_configured": settings.postgres_configured,
         "postgres_reachable": postgres_probe["reachable"],
         "postgres_message": postgres_probe["message"],
         "startup_db_init_ok": startup_db_init_ok,
         "startup_db_init_error": startup_db_init_error,
         "primary_operational_flow": "/production/order",
-        "events_create_status": "secondary_not_aligned_on_current_backend",
+        "events_create_status": events_create_status,
         "agent_runtime_enabled": True,
     }
 
@@ -171,4 +176,3 @@ if FRONTEND_DIST_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIST_DIR), html=True), name="frontend_dist")
 elif FRONTEND_DIR.exists():
     app.mount("/frontend", StaticFiles(directory=str(FRONTEND_DIR)), name="frontend")
-
