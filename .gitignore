@@ -52,3 +52,4 @@ ai_orchestrator/generated_tasks/
 ai_orchestrator/runs/
 ai_orchestrator/generated_reviews/
 ai_orchestrator/generated_plans/
+data/
