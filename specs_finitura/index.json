@@ -7,7 +7,7 @@
     "Ogni articolo deve avere cartella dedicata, metadata.json e screenshot PNG."
   ],
   "articles_count": 29,
-  "structured_count": 3,
+  "structured_count": 4,
   "articles": [
     {
       "article": "12015",
@@ -45,15 +45,15 @@
     },
     {
       "article": "12056",
-      "drawing": "",
-      "revision": "",
+      "drawing": "A 214 501 30 01",
+      "revision": "10",
       "revision_date": "",
-      "confidence": "DA_VERIFICARE",
-      "png_file": "",
+      "confidence": "CERTO",
+      "png_file": "12056_A2145013001_rev10.png",
       "metadata_path": "12056/metadata.json",
       "stations_expected": [],
-      "linked_bom_count": 0,
-      "status": "OK"
+      "linked_bom_count": 5,
+      "status": "STRUCTURED_FROM_SPEC"
     },
     {
       "article": "12057",
