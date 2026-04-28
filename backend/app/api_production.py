@@ -801,6 +801,11 @@ def get_sequence(db: Session = Depends(get_db)):
         if item.get("shared_component_impact") is True
     )
 
+    from .api.api_planner import build_decision_stub, build_decision_trace
+
+    decision = build_decision_stub(payload)
+    decision_trace = build_decision_trace(payload)
+
     trigger_runtime_analysis(
         source="production_sequence",
         line_id="planner",
@@ -812,6 +817,7 @@ def get_sequence(db: Session = Depends(get_db)):
             "source": payload.get("source_view"),
             "items_count": payload.get("items_count", 0),
             "shared_component_pressure": shared_component_pressure,
+            "decision_status": decision.get("status"),
         },
     )
 
@@ -822,6 +828,8 @@ def get_sequence(db: Session = Depends(get_db)):
         "items_count": payload.get("items_count", 0),
         "items": apply_decisions(payload.get("items", [])),
         "warnings": [],
+        "decision": decision,
+        "decision_trace": decision_trace,
     }
 
 

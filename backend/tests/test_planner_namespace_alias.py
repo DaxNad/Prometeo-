@@ -61,9 +61,9 @@ def test_planner_namespace_matches_production(monkeypatch):
     production_sequence_body = prod_sequence.json()
     assert "decision" in planner_sequence_body
     assert "decision_trace" in planner_sequence_body
-    assert "decision" not in production_sequence_body
-    assert "decision_trace" not in production_sequence_body
-    assert strip_planner_addons(planner_sequence_body) == production_sequence_body
+    assert "decision" in production_sequence_body
+    assert "decision_trace" in production_sequence_body
+    assert planner_sequence_body == production_sequence_body
 
     prod_turn_plan = client.get("/production/turn-plan", headers=headers)
     planner_turn_plan = client.get("/planner/turn-plan", headers=headers)
