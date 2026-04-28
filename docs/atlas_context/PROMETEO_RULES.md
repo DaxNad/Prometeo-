@@ -2,7 +2,7 @@
 
 1. non sovrascrivere file esistenti senza confronto diff
 2. ogni script deve essere eseguibile da terminale mac
-3. smf_update.py deve rimanere compatibile con ~/Documents/local_smf
+3. smf_update.py deve rimanere compatibile con ~/PROMETEO/data/local_smf
 4. PostgreSQL deve restare database principale
 5. ogni modifica deve mantenere compatibilità Railway
 6. ogni configurazione Codex deve essere locale al progetto: .codex/config.toml
