@@ -1,6 +1,8 @@
 import json
 
-COMP_PATH = "/Users/davidepiangiolino/Documents/local_smf/prometeo_componenti.json"
+from pathlib import Path
+
+COMP_PATH = Path.home() / "PROMETEO" / "data" / "local_smf" / "prometeo_componenti.json"
 
 # temporaneo: quantità mock (da sostituire con SMF reale)
 QUANTITA = {

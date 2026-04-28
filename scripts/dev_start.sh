@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$HOME/Documents/PROMETEO"
+ROOT_DIR="$HOME/PROMETEO"
 BACKEND_DIR="$ROOT_DIR/backend"
 GATE_SCRIPT="$ROOT_DIR/scripts/agent_runtime_gate.sh"
 

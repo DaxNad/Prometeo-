@@ -7,7 +7,7 @@ echo "=============================="
 echo ""
 
 echo "---- GIT ----"
-git -C /Users/davidepiangiolino/Documents/PROMETEO status -s || true
+git -C "$HOME/PROMETEO" status -s || true
 echo ""
 
 echo "---- WORKTREE HYGIENE ----"

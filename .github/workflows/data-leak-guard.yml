@@ -1,0 +1,16 @@
+name: Data Leak Guard
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  data-leak-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Block repo-wide sensitive data leaks
+        run: python3 scripts/data_leak_guard.py

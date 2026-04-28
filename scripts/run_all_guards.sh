@@ -17,4 +17,4 @@ echo "ALL GUARDS (backend+frontend) PASS"
 
 echo ""
 echo "---- AI STACK STATUS ----"
-/Users/davidepiangiolino/Documents/PROMETEO/scripts/ai_stack_status.sh || true
+"$HOME/PROMETEO/scripts/ai_stack_status.sh" || true

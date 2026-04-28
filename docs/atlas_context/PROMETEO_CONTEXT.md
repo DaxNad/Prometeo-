@@ -68,10 +68,10 @@ Priorità:
 
 Contesto operativo:
 cartella principale:
-~/Documents/PROMETEO
+~/PROMETEO
 
 cartella dati locale:
-~/Documents/local_smf
+~/PROMETEO/data/local_smf
 
 script principale SMF:
 smf_update.py

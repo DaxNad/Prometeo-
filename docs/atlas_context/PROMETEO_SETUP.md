@@ -10,11 +10,11 @@ Pacchetti base
 brew install git python node postgresql@16 tree
 
 Creazione struttura base
-mkdir -p ~/Documents/PROMETEO
-mkdir -p ~/Documents/local_smf
+mkdir -p ~/PROMETEO
+mkdir -p ~/PROMETEO/data/local_smf
 
 Ambiente Python
-cd ~/Documents/PROMETEO
+cd ~/PROMETEO
 python3 -m venv .venv
 source .venv/bin/activate
 pip install fastapi uvicorn sqlalchemy psycopg2-binary python-dotenv pyyaml
@@ -27,14 +27,14 @@ Verifica DB
 psql prometeo
 
 Avvio backend
-cd ~/Documents/PROMETEO
+cd ~/PROMETEO
 uvicorn backend.app.main:app --reload
 
 URL API
 http://127.0.0.1:8000/docs
 
 Frontend
-cd ~/Documents/PROMETEO/frontend
+cd ~/PROMETEO/frontend
 npm install
 npm run dev
 

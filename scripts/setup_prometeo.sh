@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT="${HOME}/Documents/PROMETEO"
-SMF_ROOT="${HOME}/Documents/local_smf"
+ROOT="${HOME}/PROMETEO"
+SMF_ROOT="${HOME}/PROMETEO/data/local_smf"
 
 echo "== PROMETEO bootstrap =="
 
