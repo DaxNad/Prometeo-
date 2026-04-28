@@ -246,3 +246,49 @@ Classificazione:
 - postazione prevalente: HENN HC WATER
 - dominio: componente condiviso / vincolo produttivo trasversale
 
+## PROMETEO — Non-negotiable data protection policy
+
+The following rules are mandatory for every AI agent, automation, browser agent, Claude, Codex, ChatGPT, or human-assisted workflow operating on this repository.
+
+### Private production material
+
+The following material is strictly private and must never be committed, pushed, attached to pull requests, copied into public logs, or exposed through generated artifacts:
+
+- `specs_finitura/*/*.png`
+- `specs_finitura/*/*.jpg`
+- `specs_finitura/*/*.jpeg`
+- `specs_finitura/*/*.pdf`
+- `specs_finitura/*/metadata.json`
+- real Excel production files
+- screenshots, photos, industrial documents, database dumps, local logs, API keys, tokens, passwords, real `DATABASE_URL` values, personal names, personal email addresses, and local user paths
+
+Only these `specs_finitura` files may be versioned:
+
+- `specs_finitura/index.json`
+- `specs_finitura/_templates/metadata.template.json`
+
+### Forbidden actions
+
+Agents must not run or suggest:
+
+- `git add -f` on private production files
+- commits containing private images, metadata, Excel files, dumps, logs, or secrets
+- pull requests that modify security guards together with unrelated runtime/application changes
+- bypasses of `Privacy Guard` or `Data Leak Guard`
+
+### Required checks before push or merge
+
+Before any push or merge, agents must verify:
+
+- `python3 scripts/privacy_guard_specs.py`
+- `python3 scripts/data_leak_guard.py`
+- `git status --short`
+- `git diff --cached --stat`
+
+A pull request must not be merged if either `Privacy Guard` or `Data Leak Guard` fails.
+
+### Guard policy changes
+
+Changes to guard scripts or guard workflows must be isolated in a dedicated pull request. No runtime, planner, API, frontend, SMF, or domain logic may be mixed into the same PR.
+
+
