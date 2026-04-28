@@ -129,15 +129,26 @@ def main() -> int:
             continue
 
     if guard_modifications:
-        print("[PROMETEO PRIVACY GUARD] BLOCCO MODIFICA GUARD")
-        print("I file di protezione privacy non possono essere modificati insieme ad altre PR.")
-        print("Serve PR dedicata e override esplicito:")
-        print("  PROMETEO_ALLOW_PRIVACY_GUARD_EDIT=1 python3 scripts/privacy_guard_specs.py")
-        print("")
-        print("File guard modificati:")
-        for v in guard_modifications:
-            print(f" - {v}")
-        return 1
+        non_guard_changes = sorted(changed - PROTECTED_GUARD_FILES)
+
+        if non_guard_changes and os.getenv("PROMETEO_ALLOW_PRIVACY_GUARD_EDIT") != "1":
+            print("[PROMETEO PRIVACY GUARD] BLOCCO MODIFICA GUARD")
+            print("I file di protezione privacy non possono essere modificati insieme ad altre modifiche.")
+            print("Le modifiche al guard devono stare in PR dedicata.")
+            print("")
+            print("File guard modificati:")
+            for v in guard_modifications:
+                print(f" - {v}")
+            print("")
+            print("Altri file modificati nella stessa PR:")
+            for v in non_guard_changes:
+                print(f" - {v}")
+            print("")
+            print("Override locale consentito solo per manutenzione controllata:")
+            print("  PROMETEO_ALLOW_PRIVACY_GUARD_EDIT=1 python3 scripts/privacy_guard_specs.py")
+            return 1
+
+        print("[PROMETEO PRIVACY GUARD] Guard policy edit rilevato in PR dedicata: consentito.")
 
     if violations:
         print("[PROMETEO PRIVACY GUARD] REPOSITORY VIOLATION")
