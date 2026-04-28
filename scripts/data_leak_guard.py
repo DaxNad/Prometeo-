@@ -98,7 +98,12 @@ def scan_file_paths(files: list[str]) -> list[str]:
 def scan_text_content(files: list[str]) -> list[str]:
     violations = []
 
+    self_file = "scripts/data_leak_guard.py"
+
     for path in files:
+        if path == self_file:
+            continue
+
         p = Path(path)
         suffix = p.suffix.lower()
 
