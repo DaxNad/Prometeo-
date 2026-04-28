@@ -53,3 +53,23 @@ ai_orchestrator/runs/
 ai_orchestrator/generated_reviews/
 ai_orchestrator/generated_plans/
 data/
+
+# PROMETEO private production data - never version
+*.xlsx
+*.xls
+*.xlsm
+*.csv.local
+*.db
+*.sqlite
+*.sqlite3
+*.sql.gz
+*.dump
+*.backup
+*.bak
+*.log
+.env
+.env.*
+!.env.example
+backend/data/local_smf/
+smf_core/SuperMegaFile*.xlsx
+
