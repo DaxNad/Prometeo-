@@ -7,7 +7,7 @@
     "Ogni articolo deve avere cartella dedicata, metadata.json e screenshot PNG."
   ],
   "articles_count": 29,
-  "structured_count": 2,
+  "structured_count": 3,
   "articles": [
     {
       "article": "12015",
@@ -236,15 +236,27 @@
     },
     {
       "article": "12102",
-      "drawing": "",
-      "revision": "",
-      "revision_date": "",
-      "confidence": "DA_VERIFICARE",
-      "png_file": "",
+      "drawing": "A236 830 55 00",
+      "revision": "9",
+      "revision_date": "2025-09-08",
+      "confidence": "CERTO",
+      "png_file": "12102_A2368305500_rev9.png",
       "metadata_path": "12102/metadata.json",
-      "stations_expected": [],
-      "linked_bom_count": 0,
-      "status": "OK"
+      "stations_expected": [
+        "LAVAGGIO",
+        "CONTROLLO_VISIVO",
+        "INSERIMENTO_GUAINA",
+        "MARCATURA",
+        "INSERIMENTO_INNESTO_RAPIDO",
+        "ZAW1",
+        "INSERIMENTO_INNESTO_RAPIDO_2",
+        "ZAW1_2",
+        "COLLAUDO_PRESSIONE",
+        "COLLAUDO_VERTICALE",
+        "SACCHETTO"
+      ],
+      "linked_bom_count": 12,
+      "status": "STRUCTURED_FROM_SPEC"
     },
     {
       "article": "12189",
