@@ -1,0 +1,13 @@
+name: Privacy Guard
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  privacy-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Block private finitura files
+        run: python3 scripts/privacy_guard_specs.py
