@@ -144,10 +144,24 @@ def ai_mimo(payload: dict):
 
     try:
         result = adapter.ask(prompt=prompt, system=system)
+        message = (
+            result.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+
+        usage = result.get("usage", {})
+
         return {
             "model": adapter.model,
             "enabled": True,
-            "result": result,
+            "content": message,
+            "usage": {
+                "prompt_tokens": usage.get("prompt_tokens"),
+                "completion_tokens": usage.get("completion_tokens"),
+                "total_tokens": usage.get("total_tokens"),
+                "cost": usage.get("cost"),
+            },
         }
     except MiMoAdapterError as exc:
         return {

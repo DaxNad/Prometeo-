@@ -1,6 +1,8 @@
 import os
 import json
 import urllib.request
+import ssl
+import certifi
 
 
 class MiMoAdapterError(RuntimeError):
@@ -50,7 +52,8 @@ class MiMoAdapter:
         )
 
         try:
-            with urllib.request.urlopen(req, timeout=60) as res:
+            context = ssl.create_default_context(cafile=certifi.where())
+            with urllib.request.urlopen(req, timeout=60, context=context) as res:
                 return json.loads(res.read().decode("utf-8"))
         except Exception as exc:
             raise MiMoAdapterError(f"Errore chiamata MiMo: {exc}") from exc
