@@ -6,6 +6,7 @@ from app.db.session import get_db
 from app.repositories.factory import get_events_repository
 from app.services.llm_service import run_local_llm
 from app.services.sequence_planner import sequence_planner_service
+from app.ai_adapters.mimo_adapter import MiMoAdapter, MiMoAdapterError
 
 router = APIRouter()
 
@@ -82,7 +83,31 @@ def ai_sequence(db: Session = Depends(get_db)):
     except Exception:
         active_events = []
 
+    # costruzione vincoli reali da eventi
+    blocking = False
+    high_risk = False
+    zaw_blocked = set()
+
+    for e in active_events:
+        severity = (e.get("severity") or "").upper()
+        station = (e.get("station") or "").upper()
+
+        if severity == "CRITICAL":
+            blocking = True
+
+        if severity in ("CRITICAL", "HIGH"):
+            high_risk = True
+
+        if "ZAW" in station:
+            zaw_blocked.add(station)
+
     prompt = _build_sequence_prompt(sequence_payload, active_events)
+
+    # append vincoli
+    prompt += "\n\nVincoli operativi reali:"
+    prompt += f"\n- blocking={blocking}"
+    prompt += f"\n- high_risk={high_risk}"
+    prompt += f"\n- zaw_blocked={list(zaw_blocked)}"
 
     return {
         "model": "mistral",
@@ -92,3 +117,42 @@ def ai_sequence(db: Session = Depends(get_db)):
         "sequence": sequence_payload,
         "warning": "Suggerimento AI locale su sequenza reale — da validare TL",
     }
+
+@router.post("/ai/mimo")
+def ai_mimo(payload: dict):
+    """
+    Endpoint MiMo isolato.
+    Protetto dal middleware PROMETEO_API_KEY.
+    Non modifica dominio, planner, SMF o ProductionEvent.
+    """
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt:
+        return {
+            "model": "mimo",
+            "enabled": False,
+            "error": "prompt mancante",
+        }
+
+    system = (
+        "Sei un adapter AI secondario per PROMETEO. "
+        "Non prendere decisioni produttive autonome. "
+        "Classifica sempre le affermazioni come CERTO, INFERITO o DA_VERIFICARE. "
+        "Non proporre modifiche runtime senza gate esplicito."
+    )
+
+    adapter = MiMoAdapter()
+
+    try:
+        result = adapter.ask(prompt=prompt, system=system)
+        return {
+            "model": adapter.model,
+            "enabled": True,
+            "result": result,
+        }
+    except MiMoAdapterError as exc:
+        return {
+            "model": adapter.model,
+            "enabled": adapter.enabled,
+            "error": str(exc),
+        }
+
