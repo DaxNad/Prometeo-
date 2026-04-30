@@ -1,0 +1,51 @@
+[
+  {
+    "id": "zaw_non_interchangeable",
+    "tags": [
+      "ZAW",
+      "ZAW-1",
+      "ZAW-2"
+    ],
+    "rule": "ZAW-1 e ZAW-2 non sono intercambiabili.",
+    "priority": "high"
+  },
+  {
+    "id": "cp_final_block",
+    "tags": [
+      "CP",
+      "collaudo"
+    ],
+    "rule": "CP è fase finale vincolante: un lotto non è chiuso senza collaudo pressione.",
+    "priority": "high"
+  },
+  {
+    "id": "shared_components_check",
+    "tags": [
+      "O-ring",
+      "connettori",
+      "componenti condivisi"
+    ],
+    "rule": "Prima di intervenire su un collo di bottiglia verificare sempre se il componente è condiviso tra più articoli.",
+    "priority": "high"
+  },
+  {
+    "id": "no_operator_blind_shift",
+    "tags": [
+      "operatori",
+      "bilanciamento"
+    ],
+    "rule": "Non spostare operatori su una postazione critica senza verificare la causa reale del blocco.",
+    "priority": "medium"
+  },
+  {
+    "id": "zaw_are_stations_not_components",
+    "tags": [
+      "ZAW",
+      "ZAW-1",
+      "ZAW-2",
+      "postazioni"
+    ],
+    "rule": "ZAW-1 e ZAW-2 sono postazioni/funzioni produttive, non componenti fisici da sostituire.",
+    "priority": "high"
+  }
+]
