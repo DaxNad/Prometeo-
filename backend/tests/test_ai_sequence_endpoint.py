@@ -26,7 +26,7 @@ def test_build_sequence_prompt_contains_real_planner_fields():
 
     prompt = _build_sequence_prompt(payload)
 
-    assert "Decisione planner: ALLOW" in prompt
+    assert "Planner stage:" in prompt
     assert "articolo=12063" in prompt
     assert "postazione=ZAW-1" in prompt
     assert "468796" in prompt
