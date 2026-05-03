@@ -173,3 +173,57 @@ def ai_mimo(payload: dict):
             "error": str(exc),
         }
 
+@router.post("/ai/mimo/validate-sequence")
+def ai_mimo_validate_sequence(payload: dict):
+    """
+    Confronto planner vs MiMo.
+    Nessun override. Solo analisi parallela.
+    """
+    sequence = payload.get("sequence") or {}
+    events = payload.get("events") or []
+
+    prompt = f"""
+Analizza questa sequenza di produzione PROMETEO.
+
+SEQUENZA:
+{sequence}
+
+EVENTI:
+{events}
+
+Obiettivo:
+- Individua incoerenze logiche rispetto a sequenza, postazione, eventi e priorità
+- Evidenzia rischi operativi in linguaggio Team Leader, non linguaggio generico IT
+- NON parlare di automazioni, ridondanza, failover o azioni automatiche
+- NON proporre modifiche runtime
+- NON sostituire il planner
+- Classifica CERTO / INFERITO / DA_VERIFICARE
+- Usa solo concetti PROMETEO: postazione, saturazione, evento, priorità, sequenza, vincolo, conferma TL
+
+Rispondi in modo sintetico e strutturato.
+"""
+
+    adapter = MiMoAdapter()
+
+    try:
+        result = adapter.ask(prompt=prompt)
+
+        message = (
+            result.get("choices", [{}])[0]
+            .get("message", {})
+            .get("content", "")
+        )
+
+        return {
+            "model": adapter.model,
+            "enabled": True,
+            "validation": message,
+        }
+
+    except MiMoAdapterError as exc:
+        return {
+            "model": adapter.model,
+            "enabled": adapter.enabled,
+            "error": str(exc),
+        }
+
