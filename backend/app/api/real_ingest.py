@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.domain.article_pilot_profile import build_article_pilot_profile_from_reader
 from app.smf.smf_adapter import MASTER_NAME, _default_smf_dir
 from app.smf.smf_reader import SMFReader
 
@@ -408,3 +409,20 @@ def ingest_real_order(
         validation=validation,
         code_validation=code_validation,
     )
+
+@router.get("/real/article-profile/{article}")
+def get_real_article_profile(
+    article: str,
+    smf_reader: SMFReader = Depends(_get_smf_reader),
+) -> dict:
+    """
+    Read-only article pilot profile.
+
+    Contract:
+    - does not write to SMF
+    - does not write to database
+    - does not instantiate SMFAdapter
+    - does not bootstrap directories/workbooks
+    """
+    return build_article_pilot_profile_from_reader(article, smf_reader)
+
