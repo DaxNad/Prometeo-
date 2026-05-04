@@ -105,3 +105,76 @@ def test_build_article_pilot_profile_missing_specs_is_da_verificare():
     assert profile["ok"] is False
     assert profile["confidence"] == "DA_VERIFICARE"
     assert "missing_bom_specs" in profile["discrepancies"]
+
+def test_build_article_pilot_profile_from_reader_is_read_only(tmp_path):
+    import pandas as pd
+
+    from app.domain.article_pilot_profile import build_article_pilot_profile_from_reader
+
+    workbook = tmp_path / "smf.xlsx"
+
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+        pd.DataFrame(
+            [
+                {
+                    "articolo": "12056",
+                    "codice_articolo": "7090883X00D0",
+                    "disegno": "A 214 501 3001",
+                    "rev": "10",
+                    "cluster_name": "DOPPIO_INNESTO_ZAW",
+                    "raw_json": json.dumps(
+                        {
+                            "pattern": "SINGOLO_INNESTO_ZAW",
+                            "innesto_rapido_1": {
+                                "componenti": ["468791", "468948"],
+                                "attrezzatura": "CRT015",
+                            },
+                            "zaw_1": {"crm": "CRM015"},
+                            "packaging": {"sacchetto": "467660"},
+                        }
+                    ),
+                }
+            ]
+        ).to_excel(writer, sheet_name="BOM_Specs", index=False)
+
+        pd.DataFrame(
+            [
+                {"articolo": "12056", "seq_no": 1, "fase": "LAVAGGIO"},
+                {"articolo": "12056", "seq_no": 2, "fase": "IMBALLO"},
+            ]
+        ).to_excel(writer, sheet_name="BOM_Operations", index=False)
+
+        pd.DataFrame(
+            [
+                {
+                    "articolo": "12056",
+                    "extra": json.dumps({"visivo_100": True}),
+                }
+            ]
+        ).to_excel(writer, sheet_name="BOM_Controls", index=False)
+
+    class _Reader:
+        path = workbook
+
+    profile = build_article_pilot_profile_from_reader("12056", _Reader())
+
+    assert profile["ok"] is True
+    assert profile["article"] == "12056"
+    assert profile["route_raw"] == ["LAVAGGIO", "IMBALLO"]
+    assert profile["components_from_specs"] == ["468791", "468948"]
+    assert profile["tooling"] == ["CRT015", "CRM015"]
+    assert "pattern_cluster_mismatch" in profile["discrepancies"]
+
+    missing_dir = tmp_path / "missing"
+    missing_reader_path = missing_dir / "SuperMegaFile_Master.xlsx"
+
+    class _MissingReader:
+        path = missing_reader_path
+
+    missing_profile = build_article_pilot_profile_from_reader("12056", _MissingReader())
+
+    assert missing_profile["ok"] is False
+    assert missing_profile["confidence"] == "DA_VERIFICARE"
+    assert "missing_bom_specs" in missing_profile["discrepancies"]
+    assert not missing_dir.exists()
+
