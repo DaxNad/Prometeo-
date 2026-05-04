@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -29,7 +31,7 @@ class RealIngestOrderIn(BaseModel):
 class SMFRowPreview(BaseModel):
     id: str | None = None
     codice_articolo: str | None = None
-    quantita: int | float | str | None = None
+    quantita: float | int | str | None = None
     cliente: str | None = None
     data_scadenza: str | None = None
     postazione_principale: str | None = None
@@ -85,6 +87,59 @@ STATION_ALIASES = {
 }
 
 KNOWN_ROUTE_STATIONS = set(STATION_ALIASES.values())
+KNOWN_PRIORITIES = {"BASSA", "MEDIA", "ALTA", "CRITICA"}
+
+
+def _normalize_quantity(value: int | float | str | None) -> tuple[float | None, str | None]:
+    if value is None:
+        return None, "qta_missing"
+
+    if isinstance(value, str):
+        raw = value.strip().replace(",", ".")
+        if not raw:
+            return None, "qta_missing"
+    else:
+        raw = value
+
+    try:
+        normalized = float(raw)
+    except (TypeError, ValueError):
+        return None, "qta_not_numeric"
+
+    if normalized <= 0:
+        return normalized, "qta_not_positive"
+
+    return normalized, None
+
+
+def _normalize_due_date(value: str | None) -> tuple[str | None, str | None]:
+    if value is None:
+        return None, None
+
+    raw = str(value).strip()
+    if not raw:
+        return None, None
+
+    try:
+        parsed = date.fromisoformat(raw)
+    except ValueError:
+        return raw, "due_date_not_iso"
+
+    return parsed.isoformat(), None
+
+
+def _normalize_priority(value: str | None) -> tuple[str, str | None]:
+    if value is None:
+        return "MEDIA", None
+
+    raw = str(value).strip().upper()
+    if not raw:
+        return "MEDIA", None
+
+    if raw not in KNOWN_PRIORITIES:
+        return "MEDIA", "priority_unknown"
+
+    return raw, None
 
 
 def _get_smf_reader() -> SMFReader:
@@ -193,14 +248,18 @@ def ingest_real_order(
 
     route = _clean_route(payload.route)
 
+    normalized_qta, qta_error = _normalize_quantity(payload.qta)
+    normalized_due_date, due_date_warning = _normalize_due_date(payload.due_date)
+    normalized_priority, priority_warning = _normalize_priority(payload.priority)
+
     code_validation = _build_code_validation(payload.codice, smf_reader)
 
     smf_row_preview = SMFRowPreview(
         id=payload.order_id,
         codice_articolo=payload.codice,
-        quantita=payload.qta,
+        quantita=normalized_qta if normalized_qta is not None else payload.qta,
         cliente=payload.cliente,
-        data_scadenza=payload.due_date,
+        data_scadenza=normalized_due_date,
         postazione_principale=route[0] if route else None,
         route=route,
     )
@@ -211,6 +270,16 @@ def ingest_real_order(
         warnings=[],
         blocking_errors=[],
     )
+
+    if qta_error:
+        validation.is_valid = False
+        validation.blocking_errors.append(qta_error)
+
+    if due_date_warning:
+        validation.warnings.append(due_date_warning)
+
+    if priority_warning:
+        validation.warnings.append(priority_warning)
 
     if not route:
         validation.is_valid = False
