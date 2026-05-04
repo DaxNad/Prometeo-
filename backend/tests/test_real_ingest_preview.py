@@ -253,3 +253,110 @@ def test_real_ingest_order_preview_does_not_bootstrap_missing_smf_dir(monkeypatc
     assert "codice_registry_non_accessibile" in data["validation"]["warnings"]
     assert not base.exists()
 
+def test_real_ingest_order_preview_blocks_non_positive_quantity():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-010",
+            "codice": "12056",
+            "qta": 0,
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is False
+    assert data["validation"]["is_valid"] is False
+    assert "qta_not_positive" in data["validation"]["blocking_errors"]
+
+
+def test_real_ingest_order_preview_blocks_non_numeric_quantity():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-011",
+            "codice": "12056",
+            "qta": "abc",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is False
+    assert data["validation"]["is_valid"] is False
+    assert "qta_not_numeric" in data["validation"]["blocking_errors"]
+
+
+def test_real_ingest_order_preview_warns_on_non_iso_due_date():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-012",
+            "codice": "12056",
+            "qta": 10,
+            "due_date": "10/05/2026",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert "due_date_not_iso" in data["validation"]["warnings"]
+
+
+def test_real_ingest_order_preview_warns_on_unknown_priority():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-013",
+            "codice": "12056",
+            "qta": 10,
+            "priority": "URGENTISSIMA",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert "priority_unknown" in data["validation"]["warnings"]
+
+
+def test_real_ingest_order_preview_normalizes_decimal_quantity_string():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-014",
+            "codice": "12056",
+            "qta": "12,5",
+            "due_date": "2026-05-10",
+            "priority": "alta",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["smf_row_preview"]["quantita"] == 12.5
+    assert data["smf_row_preview"]["data_scadenza"] == "2026-05-10"
+    assert "priority_unknown" not in data["validation"]["warnings"]
+
