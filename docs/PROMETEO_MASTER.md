@@ -114,6 +114,41 @@ Stato componenti:
 
 ---
 
+## 6.1 Real ingest preview contract
+
+Endpoint: `POST /real/ingest-order`
+
+Scopo: ingresso controllato dati reali per densificazione dominio, senza mutare SMF o database.
+
+Contratto stabile:
+- preview-only
+- nessuna scrittura SMF
+- nessuna scrittura DB
+- nessun uso di `SMFAdapter` nel path preview
+- nessun bootstrap implicito directory/workbook
+- lettura SMF solo tramite `SMFReader`
+
+Output operativo: `SMFRowPreview` con:
+- `id`
+- `codice_articolo`
+- `quantita` normalizzata
+- `cliente`
+- `data_scadenza`
+- `priorita` normalizzata
+- `postazione_principale`
+- `route`
+- `stato = DA_VALIDARE`
+- `origine = REAL_INGEST_PREVIEW`
+
+Gerarchia `code_validation`:
+- `CERTO`: codice trovato in `Codici`
+- `INFERITO_DA_BOM`: codice non in `Codici` ma presente in `BOM_Specs`
+- `DA_VERIFICARE`: codice assente o registry non accessibile
+
+Regola dominio: durante densificazione reale, un codice non presente in `Codici` non blocca la preview se è inferibile da BOM o se richiede verifica TL.
+
+---
+
 ## 7. Prossima milestone
 
 Decision layer TL-aligned:
