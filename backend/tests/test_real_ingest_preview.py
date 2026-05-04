@@ -85,3 +85,71 @@ def test_real_ingest_order_preview_warns_without_final_cp():
     assert data["ok"] is True
     assert data["validation"]["is_valid"] is True
     assert "route_without_final_CP" in data["validation"]["warnings"]
+
+def test_real_ingest_order_preview_normalizes_station_aliases():
+    client = TestClient(app)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-004",
+            "codice": "12056",
+            "qta": 10,
+            "postazione": "ZAW1",
+            "route": ["ZAW1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["smf_row_preview"]["postazione_principale"] == "ZAW-1"
+    assert data["smf_row_preview"]["route"] == ["ZAW-1", "CP"]
+    assert data["validation"]["blocking_errors"] == []
+
+
+def test_real_ingest_order_preview_blocks_unknown_route_station():
+    client = TestClient(app)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-005",
+            "codice": "12056",
+            "qta": 10,
+            "route": ["BANCO-FANTASMA", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is False
+    assert data["validation"]["is_valid"] is False
+    assert any(
+        item.startswith("unknown_route_stations")
+        for item in data["validation"]["blocking_errors"]
+    )
+
+
+def test_real_ingest_order_preview_warns_on_postazione_route_mismatch():
+    client = TestClient(app)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-006",
+            "codice": "12056",
+            "qta": 10,
+            "postazione": "ZAW-2",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert "postazione_mismatch_route_start" in data["validation"]["warnings"]
+

@@ -54,6 +54,36 @@ class RealIngestPreviewResponse(BaseModel):
 
 REQUIRED_FIELDS = ("order_id", "codice", "qta", "route")
 
+STATION_ALIASES = {
+    "ZAW1": "ZAW-1",
+    "ZAW 1": "ZAW-1",
+    "ZAW_1": "ZAW-1",
+    "ZAW-1": "ZAW-1",
+    "ZAW2": "ZAW-2",
+    "ZAW 2": "ZAW-2",
+    "ZAW_2": "ZAW-2",
+    "ZAW-2": "ZAW-2",
+    "PIDMILL": "PIDMILL",
+    "HENN": "HENN",
+    "FORNO": "FORNO",
+    "WINTEC": "WINTEC",
+    "ULTRASUONI": "ULTRASUONI",
+    "CP": "CP",
+}
+
+KNOWN_ROUTE_STATIONS = set(STATION_ALIASES.values())
+
+
+def _normalize_station(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    cleaned = str(value).strip().upper()
+    if not cleaned:
+        return None
+
+    return STATION_ALIASES.get(cleaned, cleaned)
+
 
 def _field_is_missing(payload: RealIngestOrderIn, field_name: str) -> bool:
     if field_name not in payload.model_fields_set:
@@ -74,7 +104,13 @@ def _clean_route(route: list[str] | None) -> list[str]:
     if not route:
         return []
 
-    return [str(item).strip() for item in route if str(item).strip()]
+    cleaned: list[str] = []
+    for item in route:
+        normalized = _normalize_station(str(item))
+        if normalized:
+            cleaned.append(normalized)
+
+    return cleaned
 
 
 @router.post("/real/ingest-order", response_model=RealIngestPreviewResponse)
@@ -127,6 +163,15 @@ def ingest_real_order(
     if not route:
         validation.is_valid = False
         validation.blocking_errors.append("route_empty")
+
+    unknown_stations = [station for station in route if station not in KNOWN_ROUTE_STATIONS]
+    if unknown_stations:
+        validation.is_valid = False
+        validation.blocking_errors.append(f"unknown_route_stations: {unknown_stations}")
+
+    declared_station = _normalize_station(payload.postazione)
+    if declared_station and route and declared_station != route[0]:
+        validation.warnings.append("postazione_mismatch_route_start")
 
     if route and route[-1] != "CP":
         validation.warnings.append("route_without_final_CP")
