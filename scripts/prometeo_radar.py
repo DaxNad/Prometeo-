@@ -16,6 +16,7 @@ except Exception:  # pragma: no cover
 ROOT = Path(__file__).resolve().parents[1]
 SMF_BASE = ROOT / "data" / "local_smf"
 SMF_MASTER = SMF_BASE / "SuperMegaFile_Master.xlsx"
+LIFECYCLE_REGISTRY = SMF_BASE / "article_lifecycle_registry.json"
 MASTER_DOC = ROOT / "docs" / "PROMETEO_MASTER.md"
 REAL_INGEST = ROOT / "backend" / "app" / "api" / "real_ingest.py"
 
@@ -161,6 +162,49 @@ def _smf_info() -> dict[str, Any]:
     return info
 
 
+
+def _lifecycle_info() -> dict[str, Any]:
+    info: dict[str, Any] = {
+        "path": str(LIFECYCLE_REGISTRY),
+        "exists": LIFECYCLE_REGISTRY.exists(),
+        "total": 0,
+        "by_status": {},
+        "sample": [],
+    }
+
+    if not LIFECYCLE_REGISTRY.exists():
+        return info
+
+    try:
+        data = json.loads(LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
+    except Exception as exc:
+        info["error"] = str(exc)
+        return info
+
+    if not isinstance(data, dict):
+        info["error"] = "registry not object"
+        return info
+
+    info["total"] = len(data)
+
+    by_status: dict[str, int] = {}
+    sample: list[str] = []
+
+    for code, payload in sorted(data.items()):
+        status = "SCONOSCIUTO"
+        if isinstance(payload, dict):
+            status = str(payload.get("status") or "SCONOSCIUTO").strip().upper()
+
+        by_status[status] = by_status.get(status, 0) + 1
+
+        if len(sample) < 12:
+            sample.append(str(code))
+
+    info["by_status"] = by_status
+    info["sample"] = sample
+    return info
+
+
 def _real_ingest_info() -> dict[str, Any]:
     text = REAL_INGEST.read_text(encoding="utf-8") if REAL_INGEST.exists() else ""
 
@@ -192,6 +236,7 @@ def main() -> int:
     git = _git_info()
     smf = _smf_info()
     real_ingest = _real_ingest_info()
+    lifecycle = _lifecycle_info()
     docs = _docs_info()
     ollama = _ollama_info()
 
@@ -220,6 +265,15 @@ def main() -> int:
         if sample:
             print(f"- sample: {', '.join(sample)}")
 
+    _print_section("Lifecycle registry")
+    print(f"- registry: {'presente' if lifecycle['exists'] else 'mancante'}")
+    print(f"- voci: {lifecycle['total']}")
+    for status, count in sorted((lifecycle.get("by_status") or {}).items()):
+        print(f"- {status}: {count}")
+    sample = lifecycle.get("sample") or []
+    if sample:
+        print(f"- sample: {', '.join(sample)}")
+
     _print_section("Real ingest")
     print(f"- file endpoint: {'presente' if real_ingest['file_exists'] else 'mancante'}")
     print(f"- /real/ingest-order: {'presente' if real_ingest['preview_endpoint'] else 'mancante'}")
@@ -247,6 +301,8 @@ def main() -> int:
         risks.append("working tree non pulito")
     if smf.get("bom_articles_not_in_codici", 0):
         risks.append("Codici non allineato a BOM_Specs")
+    if lifecycle.get("by_status", {}).get("DA_VERIFICARE", 0):
+        risks.append("lifecycle registry contiene articoli DA_VERIFICARE")
     if not docs["real_ingest_contract_documented"]:
         risks.append("contratto real_ingest non documentato")
     if real_ingest["mentions_smf_adapter_bootstrap"]:
