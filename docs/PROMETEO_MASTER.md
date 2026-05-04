@@ -292,3 +292,35 @@ A pull request must not be merged if either `Privacy Guard` or `Data Leak Guard`
 Changes to guard scripts or guard workflows must be isolated in a dedicated pull request. No runtime, planner, API, frontend, SMF, or domain logic may be mixed into the same PR.
 
 
+## AI ADAPTER — MiMo (STATO CONSOLIDATO)
+
+MiMo è integrato come adapter AI secondario.
+
+Ruolo:
+- analisi lunga
+- validazione parallela al planner
+- supporto TL
+- classificazione CERTO / INFERITO / DA_VERIFICARE
+
+Endpoint attivi:
+- /ai/mimo
+- /ai/mimo/validate-sequence
+
+Vincoli:
+- NON modifica dominio
+- NON modifica planner
+- NON esegue azioni
+- NON decide produzione
+
+Pattern operativo:
+planner → decisione deterministica
+MiMo → validazione parallela
+TL → decisione finale
+
+Guard rail:
+- output sanificato (no reasoning)
+- dominio PROMETEO enforced (ZAW/HENN non operatori)
+- no override planner
+
+Stato: ATTIVO IN PRODUZIONE (adapter isolato)
+

@@ -16,6 +16,7 @@ from .services.sequence_explain import explain_global_sequence
 from .services.explainability import build_tl_explanation
 from .smf.smf_adapter import SMFAdapter
 from .station_normalizer import normalize_station
+from app.ai_adapters.mimo_adapter import MiMoAdapter, MiMoAdapterError
 
 router = APIRouter(prefix="/production", tags=["production"])
 smf_adapter = SMFAdapter()
@@ -821,12 +822,43 @@ def get_sequence(db: Session = Depends(get_db)):
         },
     )
 
+    mimo_validation = None
+
+    try:
+        adapter = MiMoAdapter()
+        if adapter.enabled:
+            prompt = f"""
+Analizza questa sequenza PROMETEO come validatore parallelo.
+
+SEQUENZA:
+{payload}
+
+DECISIONE PLANNER:
+{decision}
+
+Regole:
+- non sostituire il planner
+- non proporre modifiche runtime
+- non decidere produzione
+- segnala solo incoerenze, rischi TL o dati DA_VERIFICARE
+- usa CERTO / INFERITO / DA_VERIFICARE
+"""
+            result = adapter.ask(prompt=prompt)
+            mimo_validation = (
+                result.get("choices", [{}])[0]
+                .get("message", {})
+                .get("content", "")
+            )
+    except MiMoAdapterError:
+        mimo_validation = None
+
     return {
         "ok": True,
         "planner_stage": payload.get("planner_stage"),
         "source": payload.get("source_view"),
         "items_count": payload.get("items_count", 0),
         "items": apply_decisions(payload.get("items", [])),
+        "mimo_validation": mimo_validation,
         "warnings": [],
         "decision": decision,
         "decision_trace": decision_trace,
