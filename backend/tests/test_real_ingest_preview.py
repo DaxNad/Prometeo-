@@ -89,6 +89,7 @@ def test_real_ingest_order_preview_builds_smfrow_without_write():
     assert preview["quantita"] == 10
     assert preview["cliente"] == "TEST"
     assert preview["data_scadenza"] == "2026-05-10"
+    assert preview["priorita"] == "ALTA"
     assert preview["postazione_principale"] == "ZAW-1"
     assert preview["route"] == ["ZAW-1", "CP"]
     assert preview["stato"] == "DA_VALIDARE"
@@ -334,6 +335,7 @@ def test_real_ingest_order_preview_warns_on_unknown_priority():
     data = response.json()
 
     assert data["ok"] is True
+    assert data["smf_row_preview"]["priorita"] == "MEDIA"
     assert "priority_unknown" in data["validation"]["warnings"]
 
 
@@ -358,5 +360,6 @@ def test_real_ingest_order_preview_normalizes_decimal_quantity_string():
     assert data["ok"] is True
     assert data["smf_row_preview"]["quantita"] == 12.5
     assert data["smf_row_preview"]["data_scadenza"] == "2026-05-10"
+    assert data["smf_row_preview"]["priorita"] == "ALTA"
     assert "priority_unknown" not in data["validation"]["warnings"]
 

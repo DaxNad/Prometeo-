@@ -34,6 +34,7 @@ class SMFRowPreview(BaseModel):
     quantita: float | int | str | None = None
     cliente: str | None = None
     data_scadenza: str | None = None
+    priorita: str | None = None
     postazione_principale: str | None = None
     route: list[str] = Field(default_factory=list)
     stato: str = "DA_VALIDARE"
@@ -260,6 +261,7 @@ def ingest_real_order(
         quantita=normalized_qta if normalized_qta is not None else payload.qta,
         cliente=payload.cliente,
         data_scadenza=normalized_due_date,
+        priorita=normalized_priority,
         postazione_principale=route[0] if route else None,
         route=route,
     )
