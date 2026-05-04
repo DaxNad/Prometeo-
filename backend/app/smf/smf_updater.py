@@ -151,4 +151,19 @@ class SMFUpdater:
         return expanded
 
     def _normalized_text(self, series: pd.Series) -> pd.Series:
-        return series.astype("string").fillna("").str.strip()
+        def normalize_cell(value) -> str:
+            if pd.isna(value):
+                return ""
+
+            text = str(value).strip()
+
+            # Excel/pandas may read ID-like cells as floats.
+            # Example: "12345.0" must match incoming order_id "12345".
+            if text.endswith(".0"):
+                integer_part = text[:-2]
+                if integer_part.isdigit():
+                    return integer_part
+
+            return text
+
+        return series.map(normalize_cell).astype("string").fillna("").str.strip()
