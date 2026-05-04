@@ -5,6 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
+from app.smf.smf_adapter import SMFAdapter
 
 
 router = APIRouter()
@@ -43,12 +44,23 @@ class RealIngestValidation(BaseModel):
     blocking_errors: list[str] = Field(default_factory=list)
 
 
+class RealIngestCodeValidation(BaseModel):
+    status: str
+    found: bool
+    sheet: str = "Codici"
+    column: str = "Codice"
+    matched_column: str | None = None
+    code: str | None = None
+    error: str | None = None
+
+
 class RealIngestPreviewResponse(BaseModel):
     ok: bool
     validated: bool = True
     error: str | None = None
     smf_row_preview: SMFRowPreview | None = None
     validation: RealIngestValidation | None = None
+    code_validation: RealIngestCodeValidation | None = None
     note: str = "Preview SMFRow — nessuna scrittura su SMF/database"
 
 
@@ -72,6 +84,36 @@ STATION_ALIASES = {
 }
 
 KNOWN_ROUTE_STATIONS = set(STATION_ALIASES.values())
+
+
+def _get_smf_adapter() -> SMFAdapter:
+    return SMFAdapter()
+
+
+def _build_code_validation(codice: str | None, smf_adapter: SMFAdapter) -> RealIngestCodeValidation:
+    clean_code = str(codice or "").strip()
+
+    if not clean_code:
+        return RealIngestCodeValidation(
+            status="DA_VERIFICARE",
+            found=False,
+            code=clean_code,
+            error="empty_code",
+        )
+
+    code_check = smf_adapter.reader().code_exists(clean_code)
+
+    status = "CERTO" if code_check.get("found") else "DA_VERIFICARE"
+
+    return RealIngestCodeValidation(
+        status=status,
+        found=bool(code_check.get("found")),
+        sheet=str(code_check.get("sheet", "Codici")),
+        column=str(code_check.get("column", "Codice")),
+        matched_column=code_check.get("matched_column"),
+        code=str(code_check.get("code", clean_code)),
+        error=code_check.get("error"),
+    )
 
 
 def _normalize_station(value: str | None) -> str | None:
@@ -117,6 +159,7 @@ def _clean_route(route: list[str] | None) -> list[str]:
 def ingest_real_order(
     payload: RealIngestOrderIn,
     db: Session = Depends(get_db),  # noqa: ARG001 - reserved for future controlled write phase
+    smf_adapter: SMFAdapter = Depends(_get_smf_adapter),
 ) -> RealIngestPreviewResponse:
     """
     Ingest controllato articoli reali.
@@ -142,6 +185,8 @@ def ingest_real_order(
         )
 
     route = _clean_route(payload.route)
+
+    code_validation = _build_code_validation(payload.codice, smf_adapter)
 
     smf_row_preview = SMFRowPreview(
         id=payload.order_id,
@@ -173,6 +218,12 @@ def ingest_real_order(
     if declared_station and route and declared_station != route[0]:
         validation.warnings.append("postazione_mismatch_route_start")
 
+    if code_validation.status == "DA_VERIFICARE":
+        if code_validation.error:
+            validation.warnings.append("codice_registry_non_accessibile")
+        else:
+            validation.warnings.append("codice_da_verificare")
+
     if route and route[-1] != "CP":
         validation.warnings.append("route_without_final_CP")
 
@@ -181,4 +232,5 @@ def ingest_real_order(
         validated=True,
         smf_row_preview=smf_row_preview,
         validation=validation,
+        code_validation=code_validation,
     )

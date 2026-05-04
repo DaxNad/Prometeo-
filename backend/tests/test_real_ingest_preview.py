@@ -3,10 +3,46 @@ from __future__ import annotations
 from fastapi.testclient import TestClient
 
 from app.main import app
+from app.api import real_ingest as real_ingest_api
+
+
+class _FakeSMFReader:
+    def __init__(self, *, found: bool = True, error: str | None = None) -> None:
+        self.found = found
+        self.error = error
+
+    def code_exists(self, code: str) -> dict:
+        payload = {
+            "ok": self.error is None,
+            "found": self.found,
+            "sheet": "Codici",
+            "column": "Codice",
+            "matched_column": "Codice" if self.found else None,
+            "code": code,
+        }
+        if self.error:
+            payload["error"] = self.error
+        return payload
+
+
+class _FakeSMFAdapter:
+    def __init__(self, *, found: bool = True, error: str | None = None) -> None:
+        self._reader = _FakeSMFReader(found=found, error=error)
+
+    def reader(self) -> _FakeSMFReader:
+        return self._reader
+
+
+def _client_with_code_registry(*, found: bool = True, error: str | None = None) -> TestClient:
+    app.dependency_overrides[real_ingest_api._get_smf_adapter] = lambda: _FakeSMFAdapter(
+        found=found,
+        error=error,
+    )
+    return TestClient(app)
 
 
 def test_real_ingest_order_preview_requires_route():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -25,7 +61,7 @@ def test_real_ingest_order_preview_requires_route():
 
 
 def test_real_ingest_order_preview_builds_smfrow_without_write():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -51,6 +87,9 @@ def test_real_ingest_order_preview_builds_smfrow_without_write():
     assert data["validation"]["missing_fields"] == []
     assert data["validation"]["warnings"] == []
     assert data["validation"]["blocking_errors"] == []
+    assert data["code_validation"]["status"] == "CERTO"
+    assert data["code_validation"]["found"] is True
+    assert data["code_validation"]["code"] == "12056"
 
     preview = data["smf_row_preview"]
     assert preview["id"] == "REAL-PREVIEW-TEST-002"
@@ -67,7 +106,7 @@ def test_real_ingest_order_preview_builds_smfrow_without_write():
 
 
 def test_real_ingest_order_preview_warns_without_final_cp():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -87,7 +126,7 @@ def test_real_ingest_order_preview_warns_without_final_cp():
     assert "route_without_final_CP" in data["validation"]["warnings"]
 
 def test_real_ingest_order_preview_normalizes_station_aliases():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -110,7 +149,7 @@ def test_real_ingest_order_preview_normalizes_station_aliases():
 
 
 def test_real_ingest_order_preview_blocks_unknown_route_station():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -134,7 +173,7 @@ def test_real_ingest_order_preview_blocks_unknown_route_station():
 
 
 def test_real_ingest_order_preview_warns_on_postazione_route_mismatch():
-    client = TestClient(app)
+    client = _client_with_code_registry()
 
     response = client.post(
         "/real/ingest-order",
@@ -152,4 +191,47 @@ def test_real_ingest_order_preview_warns_on_postazione_route_mismatch():
 
     assert data["ok"] is True
     assert "postazione_mismatch_route_start" in data["validation"]["warnings"]
+
+def test_real_ingest_order_preview_marks_unknown_code_as_da_verificare():
+    client = _client_with_code_registry(found=False)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-007",
+            "codice": "ART-NUOVO",
+            "qta": 10,
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["code_validation"]["status"] == "DA_VERIFICARE"
+    assert data["code_validation"]["found"] is False
+    assert "codice_da_verificare" in data["validation"]["warnings"]
+
+
+def test_real_ingest_order_preview_marks_code_registry_error_as_da_verificare():
+    client = _client_with_code_registry(found=False, error="sheet Codici not found")
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-008",
+            "codice": "12056",
+            "qta": 10,
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["code_validation"]["status"] == "DA_VERIFICARE"
+    assert data["code_validation"]["error"] == "sheet Codici not found"
+    assert "codice_registry_non_accessibile" in data["validation"]["warnings"]
 
