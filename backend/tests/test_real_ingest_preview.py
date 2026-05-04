@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -10,6 +12,7 @@ class _FakeSMFReader:
     def __init__(self, *, found: bool = True, error: str | None = None) -> None:
         self.found = found
         self.error = error
+        self.path = Path("/tmp/prometeo_test_missing_smf.xlsx")
 
     def code_exists(self, code: str) -> dict:
         payload = {
@@ -204,7 +207,7 @@ def test_real_ingest_order_preview_marks_unknown_code_as_da_verificare():
     assert data["ok"] is True
     assert data["code_validation"]["status"] == "DA_VERIFICARE"
     assert data["code_validation"]["found"] is False
-    assert "codice_da_verificare" in data["validation"]["warnings"]
+    assert "codice_registry_non_accessibile" in data["validation"]["warnings"]
 
 
 def test_real_ingest_order_preview_marks_code_registry_error_as_da_verificare():
@@ -362,4 +365,51 @@ def test_real_ingest_order_preview_normalizes_decimal_quantity_string():
     assert data["smf_row_preview"]["data_scadenza"] == "2026-05-10"
     assert data["smf_row_preview"]["priorita"] == "ALTA"
     assert "priority_unknown" not in data["validation"]["warnings"]
+
+def test_real_ingest_order_preview_marks_code_in_bom_as_inferito_da_bom(tmp_path):
+    import pandas as pd
+
+    workbook = tmp_path / "smf.xlsx"
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+        pd.DataFrame(columns=["Codice"]).to_excel(writer, sheet_name="Codici", index=False)
+        pd.DataFrame(
+            [
+                {
+                    "articolo": "12056",
+                    "codice_articolo": "7090883X00D0",
+                    "disegno": "A 214 501 3001",
+                }
+            ]
+        ).to_excel(writer, sheet_name="BOM_Specs", index=False)
+
+    class _ReaderWithBom(_FakeSMFReader):
+        def __init__(self, *, found: bool = True, error: str | None = None) -> None:
+            super().__init__(found=found, error=error)
+            self.path = workbook
+
+    app.dependency_overrides[real_ingest_api._get_smf_reader] = lambda: _ReaderWithBom(
+        found=False,
+        error=None,
+    )
+    client = TestClient(app)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-015",
+            "codice": "12056",
+            "qta": 10,
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["code_validation"]["status"] == "INFERITO_DA_BOM"
+    assert data["code_validation"]["found"] is True
+    assert data["code_validation"]["source"] == "BOM_Specs"
+    assert data["code_validation"]["matched_column"] == "articolo"
+    assert "codice_inferito_da_bom" in data["validation"]["warnings"]
 

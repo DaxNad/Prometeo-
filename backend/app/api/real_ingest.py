@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
+import pandas as pd
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
@@ -56,6 +57,7 @@ class RealIngestCodeValidation(BaseModel):
     matched_column: str | None = None
     code: str | None = None
     error: str | None = None
+    source: str | None = None
 
 
 class RealIngestPreviewResponse(BaseModel):
@@ -153,6 +155,70 @@ def _get_smf_reader() -> SMFReader:
     return SMFReader(_default_smf_dir() / MASTER_NAME)
 
 
+def _bom_specs_code_exists(code: str, smf_reader: SMFReader) -> dict:
+    if not smf_reader.path.exists():
+        return {
+            "ok": False,
+            "found": False,
+            "sheet": "BOM_Specs",
+            "matched_column": None,
+            "code": code,
+            "error": "file not found",
+        }
+
+    try:
+        df = pd.read_excel(smf_reader.path, sheet_name="BOM_Specs").fillna("")
+    except ValueError:
+        return {
+            "ok": False,
+            "found": False,
+            "sheet": "BOM_Specs",
+            "matched_column": None,
+            "code": code,
+            "error": "sheet BOM_Specs not found",
+        }
+    except Exception:
+        return {
+            "ok": False,
+            "found": False,
+            "sheet": "BOM_Specs",
+            "matched_column": None,
+            "code": code,
+            "error": "sheet read error",
+        }
+
+    candidate_columns = [column for column in ("articolo", "codice_articolo") if column in df.columns]
+    if not candidate_columns:
+        return {
+            "ok": False,
+            "found": False,
+            "sheet": "BOM_Specs",
+            "matched_column": None,
+            "code": code,
+            "error": "columns articolo/codice_articolo not found",
+        }
+
+    target = code.strip().upper()
+    for column in candidate_columns:
+        values = df[column].astype(str).str.strip().str.upper()
+        if bool((values == target).any()):
+            return {
+                "ok": True,
+                "found": True,
+                "sheet": "BOM_Specs",
+                "matched_column": column,
+                "code": code,
+            }
+
+    return {
+        "ok": True,
+        "found": False,
+        "sheet": "BOM_Specs",
+        "matched_column": None,
+        "code": code,
+    }
+
+
 def _build_code_validation(codice: str | None, smf_reader: SMFReader) -> RealIngestCodeValidation:
     clean_code = str(codice or "").strip()
 
@@ -162,20 +228,47 @@ def _build_code_validation(codice: str | None, smf_reader: SMFReader) -> RealIng
             found=False,
             code=clean_code,
             error="empty_code",
+            source="input",
         )
 
     code_check = smf_reader.code_exists(clean_code)
 
-    status = "CERTO" if code_check.get("found") else "DA_VERIFICARE"
+    if code_check.get("found"):
+        return RealIngestCodeValidation(
+            status="CERTO",
+            found=True,
+            sheet=str(code_check.get("sheet", "Codici")),
+            column=str(code_check.get("column", "Codice")),
+            matched_column=code_check.get("matched_column"),
+            code=str(code_check.get("code", clean_code)),
+            error=code_check.get("error"),
+            source="Codici",
+        )
+
+    bom_check = _bom_specs_code_exists(clean_code, smf_reader)
+    if bom_check.get("found"):
+        return RealIngestCodeValidation(
+            status="INFERITO_DA_BOM",
+            found=True,
+            sheet="BOM_Specs",
+            column=str(bom_check.get("matched_column") or ""),
+            matched_column=bom_check.get("matched_column"),
+            code=str(bom_check.get("code", clean_code)),
+            error=None,
+            source="BOM_Specs",
+        )
+
+    error = code_check.get("error") or bom_check.get("error")
 
     return RealIngestCodeValidation(
-        status=status,
-        found=bool(code_check.get("found")),
+        status="DA_VERIFICARE",
+        found=False,
         sheet=str(code_check.get("sheet", "Codici")),
         column=str(code_check.get("column", "Codice")),
         matched_column=code_check.get("matched_column"),
         code=str(code_check.get("code", clean_code)),
-        error=code_check.get("error"),
+        error=error,
+        source="Codici+BOM_Specs",
     )
 
 
@@ -295,6 +388,9 @@ def ingest_real_order(
     declared_station = _normalize_station(payload.postazione)
     if declared_station and route and declared_station != route[0]:
         validation.warnings.append("postazione_mismatch_route_start")
+
+    if code_validation.status == "INFERITO_DA_BOM":
+        validation.warnings.append("codice_inferito_da_bom")
 
     if code_validation.status == "DA_VERIFICARE":
         if code_validation.error:
