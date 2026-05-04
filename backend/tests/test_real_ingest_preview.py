@@ -413,3 +413,89 @@ def test_real_ingest_order_preview_marks_code_in_bom_as_inferito_da_bom(tmp_path
     assert data["code_validation"]["matched_column"] == "articolo"
     assert "codice_inferito_da_bom" in data["validation"]["warnings"]
 
+def test_real_article_profile_endpoint_returns_profile_read_only(tmp_path):
+    import json
+    import pandas as pd
+
+    workbook = tmp_path / "smf.xlsx"
+
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+        pd.DataFrame(
+            [
+                {
+                    "articolo": "12056",
+                    "codice_articolo": "7090883X00D0",
+                    "disegno": "A 214 501 3001",
+                    "rev": "10",
+                    "cluster_name": "DOPPIO_INNESTO_ZAW",
+                    "raw_json": json.dumps(
+                        {
+                            "pattern": "SINGOLO_INNESTO_ZAW",
+                            "innesto_rapido_1": {
+                                "componenti": ["468791", "468948"],
+                                "attrezzatura": "CRT015",
+                            },
+                            "zaw_1": {"crm": "CRM015"},
+                            "packaging": {"sacchetto": "467660"},
+                        }
+                    ),
+                }
+            ]
+        ).to_excel(writer, sheet_name="BOM_Specs", index=False)
+
+        pd.DataFrame(
+            [
+                {"articolo": "12056", "seq_no": 1, "fase": "LAVAGGIO"},
+                {"articolo": "12056", "seq_no": 2, "fase": "IMBALLO"},
+            ]
+        ).to_excel(writer, sheet_name="BOM_Operations", index=False)
+
+        pd.DataFrame(
+            [
+                {
+                    "articolo": "12056",
+                    "extra": json.dumps({"visivo_100": True}),
+                }
+            ]
+        ).to_excel(writer, sheet_name="BOM_Controls", index=False)
+
+    class _Reader:
+        path = workbook
+
+    app.dependency_overrides[real_ingest_api._get_smf_reader] = lambda: _Reader()
+    client = TestClient(app)
+
+    response = client.get("/real/article-profile/12056")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["article"] == "12056"
+    assert data["sap_code"] == "7090883X00D0"
+    assert data["route_raw"] == ["LAVAGGIO", "IMBALLO"]
+    assert data["components_from_specs"] == ["468791", "468948"]
+    assert data["tooling"] == ["CRT015", "CRM015"]
+    assert "pattern_cluster_mismatch" in data["discrepancies"]
+
+
+def test_real_article_profile_endpoint_does_not_bootstrap_missing_smf_dir(tmp_path):
+    missing_dir = tmp_path / "missing_smf_dir"
+    missing_path = missing_dir / "SuperMegaFile_Master.xlsx"
+
+    class _MissingReader:
+        path = missing_path
+
+    app.dependency_overrides[real_ingest_api._get_smf_reader] = lambda: _MissingReader()
+    client = TestClient(app)
+
+    response = client.get("/real/article-profile/12056")
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is False
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert "missing_bom_specs" in data["discrepancies"]
+    assert not missing_dir.exists()
+
