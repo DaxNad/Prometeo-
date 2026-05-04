@@ -17,14 +17,38 @@ def ingest_real_order(payload: dict, db: Session = Depends(get_db)):
     if missing:
         return {"ok": False, "error": f"missing_fields: {missing}"}
 
+    route = payload.get("route") or []
+
+    smf_row_preview = {
+        "id": payload.get("order_id"),
+        "codice_articolo": payload.get("codice"),
+        "quantita": payload.get("qta"),
+        "cliente": payload.get("cliente"),
+        "data_scadenza": payload.get("due_date"),
+        "postazione_principale": route[0] if route else None,
+        "route": route,
+        "stato": "DA_VALIDARE",
+        "origine": "REAL_INGEST_PREVIEW",
+    }
+
+    validation = {
+        "is_valid": True,
+        "missing_fields": missing,
+        "warnings": [],
+        "blocking_errors": [],
+    }
+
+    if not route:
+        validation["is_valid"] = False
+        validation["blocking_errors"].append("route_empty")
+
+    if route and route[-1] != "CP":
+        validation["warnings"].append("route_without_final_CP")
+
     return {
-        "ok": True,
+        "ok": validation["is_valid"],
         "validated": True,
-        "order_preview": {
-            "order_id": payload.get("order_id"),
-            "codice": payload.get("codice"),
-            "qta": payload.get("qta"),
-            "route": payload.get("route"),
-        },
-        "note": "Non inserito in produzione — solo validazione"
+        "smf_row_preview": smf_row_preview,
+        "validation": validation,
+        "note": "Preview SMFRow — nessuna scrittura su SMF/database"
     }
