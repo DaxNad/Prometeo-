@@ -191,6 +191,99 @@ Ruolo nella spina dorsale: PROMETEO RADAR è osservatore locale. Non decide, non
 
 ---
 
+## 7.2 PROMETEO TL-CENTRIC WORK MODEL
+
+PROMETEO non è un gestionale classico e non è un sistema Enterprise tradizionale.
+
+PROMETEO è un modello operativo TL-centrico:
+
+`realtà reparto → memoria tecnica → memoria viva TL → filtro coerenza → proposta spiegabile → conferma umana → azione controllata`
+
+### Principio primario
+
+Il cervello finale resta il Team Leader.
+
+PROMETEO non sostituisce il TL.  
+PROMETEO osserva, struttura, confronta, segnala, propone e protegge la coerenza operativa.
+
+### Cosa integra
+
+PROMETEO fonde tre livelli:
+
+1. memoria tecnica:
+   - BOM
+   - Codici
+   - route
+   - postazioni
+   - specifiche
+   - imballi
+
+2. memoria viva di reparto:
+   - codici fuori produzione
+   - new entry
+   - lifecycle articolo
+   - note TL
+   - vincoli reali emersi nel turno o in riunione
+
+3. ragionamento operativo:
+   - cosa è certo
+   - cosa è inferito
+   - cosa è da verificare
+   - cosa è prioritario
+   - cosa non va promosso senza conferma TL
+
+### Regola di azione
+
+PROMETEO deve seguire sempre questa catena:
+
+`osserva → classifica → separa CERTO / INFERITO / DA_VERIFICARE → mostra al TL → attende conferma → solo dopo agisce`
+
+### Divieti
+
+PROMETEO non deve diventare:
+- decisore cieco
+- AI autonoma di reparto
+- capo turno automatico
+- sistema che scrive direttamente su SMF/database senza gate
+- planner che forza il TL
+- software che tratta BOM o Codici come verità assoluta senza realtà reparto
+
+### Ruolo operativo
+
+PROMETEO deve funzionare come:
+- radar
+- memoria
+- filtro
+- consigliere
+- guardiano della coerenza
+- supporto alla decisione TL
+
+### Lifecycle articolo
+
+Un articolo presente in `BOM_Specs` non è automaticamente articolo attivo.
+
+La realtà reparto può classificare l'articolo come:
+- `ATTIVO`
+- `NEW_ENTRY`
+- `FUORI_PRODUZIONE`
+- `DA_VERIFICARE`
+- `SCONOSCIUTO`
+
+Lo stato vita articolo influenza la priorità di densificazione e impedisce di costruire PROMETEO su una fotografia tecnica già superata.
+
+### Gate umano
+
+Ogni passaggio da preview a staging o scrittura controllata deve avere conferma TL esplicita, specialmente in presenza di:
+- lifecycle `DA_VERIFICARE`
+- codice inferito da BOM
+- discrepanze pattern/cluster
+- route incompleta
+- revisione mancante
+- disegno multiplo
+- dati emersi da memoria reparto non ancora formalizzati
+
+---
+
 ## Riferimenti
 
 - Regole operative Claude Code: `CLAUDE.md` (root)
