@@ -282,6 +282,33 @@ Ogni passaggio da preview a staging o scrittura controllata deve avere conferma 
 - disegno multiplo
 - dati emersi da memoria reparto non ancora formalizzati
 
+### Interfaccia TL
+
+L’interfaccia principale per il Team Leader deve essere interrogabile, simile a una chat operativa.
+
+Obiettivo: permettere al TL di chiedere, verificare e confermare senza vedere rumore tecnico.
+
+La vista TL non deve esporre:
+- guard
+- CI
+- branch
+- PR
+- log tecnici
+- dettagli di manutenzione
+- implementazioni interne
+
+La vista TL deve mostrare:
+- risposta operativa breve
+- motivazione essenziale
+- livello `CERTO / INFERITO / DA_VERIFICARE`
+- rischio reale
+- azione consigliata
+- eventuale richiesta di conferma
+
+Separazione stabile:
+- `PROMETEO RADAR` = vista sviluppatore/orchestratore
+- `PROMETEO TL CHAT` = vista operativa del Team Leader
+
 ---
 
 ## Riferimenti
