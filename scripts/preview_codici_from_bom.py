@@ -76,6 +76,20 @@ def lifecycle_priority(status: str) -> str:
     return "NORMALE"
 
 
+
+def next_action_from_lifecycle(status: str) -> str:
+    normalized = clean(status).upper()
+
+    if normalized == "NEW_ENTRY":
+        return "REVIEW_HIGH_PRIORITY"
+    if normalized == "FUORI_PRODUZIONE":
+        return "DO_NOT_STAGE"
+    if normalized == "DA_VERIFICARE":
+        return "TL_REVIEW_REQUIRED"
+
+    return "REVIEW_BEFORE_STAGING"
+
+
 def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
     codici = pd.read_excel(MASTER, sheet_name="Codici").fillna("")
     specs = pd.read_excel(MASTER, sheet_name="BOM_Specs").fillna("")
@@ -141,6 +155,8 @@ def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
             "lifecycle_status": lifecycle_status,
             "lifecycle_source": lifecycle_source,
             "densification_priority": lifecycle_priority(lifecycle_status),
+            "tl_decision": "PENDING",
+            "next_action": next_action_from_lifecycle(lifecycle_status),
             "Note": (
                 f"PREVIEW_DA_BOM; codice_sap={codice_sap}; "
                 f"cluster={cluster}; pattern={pattern}; "
@@ -182,7 +198,7 @@ def main() -> int:
 
     if not excluded.empty:
         print("## ESCLUSI / DA VERIFICARE")
-        cols = ["Codice", "Revisione", "Disegno associato (link)", "Imballo", "lifecycle_status", "densification_priority", "issues"]
+        cols = ["Codice", "Revisione", "Disegno associato (link)", "Imballo", "lifecycle_status", "densification_priority", "tl_decision", "next_action", "issues"]
         available = [c for c in cols if c in excluded.columns]
         print(excluded[available].to_string(index=False))
 
