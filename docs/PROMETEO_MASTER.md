@@ -161,6 +161,36 @@ File chiave da non toccare senza review: `api_production.py`, `sequence_planner.
 
 ---
 
+## 7.1 PROMETEO RADAR
+
+Comando locale read-only:
+
+`python3 scripts/prometeo_radar.py`
+
+Scopo: avere una vista unica dello stato progetto prima di ogni nuovo blocco operativo.
+
+Contratto:
+- nessuna scrittura
+- nessuna API esterna
+- nessun accesso GitHub/Railway/Vercel online
+- nessuna lettura di `.env`, segreti, immagini o specifiche private
+- lettura solo di repo locale, `PROMETEO_MASTER.md`, endpoint code path e SMF master locale
+
+Output atteso:
+- stato Git
+- path e presenza SMF
+- conteggi principali `Codici`, `BOM_Specs`, `BOM_Operations`, `BOM_Controls`
+- articoli presenti in BOM ma assenti in `Codici`
+- stato endpoint `real_ingest`
+- stato documentazione
+- stato Ollama locale
+- rischi visibili
+- prossimo blocco consigliato
+
+Ruolo nella spina dorsale: PROMETEO RADAR è osservatore locale. Non decide, non corregge e non modifica file.
+
+---
+
 ## Riferimenti
 
 - Regole operative Claude Code: `CLAUDE.md` (root)
