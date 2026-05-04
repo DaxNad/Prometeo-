@@ -10,6 +10,7 @@ import pandas as pd
 
 ROOT = Path(__file__).resolve().parents[1]
 MASTER = ROOT / "data" / "local_smf" / "SuperMegaFile_Master.xlsx"
+LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 
 
 def clean(value: Any) -> str:
@@ -39,6 +40,42 @@ def looks_like_multi_drawing(value: str) -> bool:
     return v.startswith("{") and v.endswith("}")
 
 
+
+def load_lifecycle_registry() -> dict[str, dict[str, Any]]:
+    if not LIFECYCLE_REGISTRY.exists():
+        return {}
+
+    try:
+        data = json.loads(LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    output: dict[str, dict[str, Any]] = {}
+    for code, payload in data.items():
+        if isinstance(payload, dict):
+            output[str(code).strip().upper()] = payload
+
+    return output
+
+
+def lifecycle_priority(status: str) -> str:
+    normalized = clean(status).upper()
+
+    if normalized == "NEW_ENTRY":
+        return "ALTA"
+    if normalized == "FUORI_PRODUZIONE":
+        return "BASSA_NON_PRIORITARIO"
+    if normalized == "DA_VERIFICARE":
+        return "VERIFICA_TL"
+    if normalized == "ATTIVO":
+        return "NORMALE"
+
+    return "NORMALE"
+
+
 def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
     codici = pd.read_excel(MASTER, sheet_name="Codici").fillna("")
     specs = pd.read_excel(MASTER, sheet_name="BOM_Specs").fillna("")
@@ -49,6 +86,8 @@ def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
         for v in codici.get("Codice", pd.Series(dtype=str)).tolist()
         if str(v).strip()
     }
+
+    lifecycle = load_lifecycle_registry()
 
     candidate_rows: list[dict[str, Any]] = []
     excluded_rows: list[dict[str, Any]] = []
@@ -85,6 +124,11 @@ def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
         if article_ops.empty:
             issues.append("missing_operations")
 
+        lifecycle_payload = lifecycle.get(articolo.upper(), {})
+        lifecycle_status = clean(lifecycle_payload.get("status")) or "SCONOSCIUTO"
+        lifecycle_source = clean(lifecycle_payload.get("source"))
+        lifecycle_note = clean(lifecycle_payload.get("note"))
+
         base = {
             "Codice": articolo,
             "Descrizione": f"Articolo {articolo} - {disegno}",
@@ -94,10 +138,14 @@ def build_preview() -> tuple[pd.DataFrame, pd.DataFrame]:
             "Revisione": rev,
             "Disegno associato (link)": disegno,
             "Imballo": codice_imballo,
+            "lifecycle_status": lifecycle_status,
+            "lifecycle_source": lifecycle_source,
+            "densification_priority": lifecycle_priority(lifecycle_status),
             "Note": (
                 f"PREVIEW_DA_BOM; codice_sap={codice_sap}; "
                 f"cluster={cluster}; pattern={pattern}; "
-                f"qta_imballo={qta_imballo}; ops={len(article_ops)}"
+                f"qta_imballo={qta_imballo}; ops={len(article_ops)}; "
+                f"lifecycle_note={lifecycle_note}"
             ),
         }
 
@@ -134,7 +182,7 @@ def main() -> int:
 
     if not excluded.empty:
         print("## ESCLUSI / DA VERIFICARE")
-        cols = ["Codice", "Revisione", "Disegno associato (link)", "Imballo", "issues"]
+        cols = ["Codice", "Revisione", "Disegno associato (link)", "Imballo", "lifecycle_status", "densification_priority", "issues"]
         available = [c for c in cols if c in excluded.columns]
         print(excluded[available].to_string(index=False))
 
