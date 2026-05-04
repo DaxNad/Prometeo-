@@ -5,7 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.smf.smf_adapter import SMFAdapter
+from app.smf.smf_adapter import MASTER_NAME, _default_smf_dir
+from app.smf.smf_reader import SMFReader
 
 
 router = APIRouter()
@@ -86,11 +87,17 @@ STATION_ALIASES = {
 KNOWN_ROUTE_STATIONS = set(STATION_ALIASES.values())
 
 
-def _get_smf_adapter() -> SMFAdapter:
-    return SMFAdapter()
+def _get_smf_reader() -> SMFReader:
+    """
+    Read-only SMF access for preview endpoints.
+
+    Do not instantiate SMFAdapter here:
+    SMFAdapter bootstraps missing workbooks/directories and can write to disk.
+    """
+    return SMFReader(_default_smf_dir() / MASTER_NAME)
 
 
-def _build_code_validation(codice: str | None, smf_adapter: SMFAdapter) -> RealIngestCodeValidation:
+def _build_code_validation(codice: str | None, smf_reader: SMFReader) -> RealIngestCodeValidation:
     clean_code = str(codice or "").strip()
 
     if not clean_code:
@@ -101,7 +108,7 @@ def _build_code_validation(codice: str | None, smf_adapter: SMFAdapter) -> RealI
             error="empty_code",
         )
 
-    code_check = smf_adapter.reader().code_exists(clean_code)
+    code_check = smf_reader.code_exists(clean_code)
 
     status = "CERTO" if code_check.get("found") else "DA_VERIFICARE"
 
@@ -159,7 +166,7 @@ def _clean_route(route: list[str] | None) -> list[str]:
 def ingest_real_order(
     payload: RealIngestOrderIn,
     db: Session = Depends(get_db),  # noqa: ARG001 - reserved for future controlled write phase
-    smf_adapter: SMFAdapter = Depends(_get_smf_adapter),
+    smf_reader: SMFReader = Depends(_get_smf_reader),
 ) -> RealIngestPreviewResponse:
     """
     Ingest controllato articoli reali.
@@ -186,7 +193,7 @@ def ingest_real_order(
 
     route = _clean_route(payload.route)
 
-    code_validation = _build_code_validation(payload.codice, smf_adapter)
+    code_validation = _build_code_validation(payload.codice, smf_reader)
 
     smf_row_preview = SMFRowPreview(
         id=payload.order_id,

@@ -25,16 +25,8 @@ class _FakeSMFReader:
         return payload
 
 
-class _FakeSMFAdapter:
-    def __init__(self, *, found: bool = True, error: str | None = None) -> None:
-        self._reader = _FakeSMFReader(found=found, error=error)
-
-    def reader(self) -> _FakeSMFReader:
-        return self._reader
-
-
 def _client_with_code_registry(*, found: bool = True, error: str | None = None) -> TestClient:
-    app.dependency_overrides[real_ingest_api._get_smf_adapter] = lambda: _FakeSMFAdapter(
+    app.dependency_overrides[real_ingest_api._get_smf_reader] = lambda: _FakeSMFReader(
         found=found,
         error=error,
     )
@@ -234,4 +226,30 @@ def test_real_ingest_order_preview_marks_code_registry_error_as_da_verificare():
     assert data["code_validation"]["status"] == "DA_VERIFICARE"
     assert data["code_validation"]["error"] == "sheet Codici not found"
     assert "codice_registry_non_accessibile" in data["validation"]["warnings"]
+
+def test_real_ingest_order_preview_does_not_bootstrap_missing_smf_dir(monkeypatch, tmp_path):
+    base = tmp_path / "missing_smf_dir"
+    monkeypatch.setenv("SMF_BASE_PATH", str(base))
+    app.dependency_overrides.pop(real_ingest_api._get_smf_reader, None)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-TEST-009",
+            "codice": "12056",
+            "qta": 10,
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["code_validation"]["status"] == "DA_VERIFICARE"
+    assert data["code_validation"]["error"] == "file not found"
+    assert "codice_registry_non_accessibile" in data["validation"]["warnings"]
+    assert not base.exists()
 
