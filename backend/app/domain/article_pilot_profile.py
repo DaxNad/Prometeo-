@@ -162,3 +162,33 @@ def build_article_pilot_profile(
         "discrepancies": discrepancies,
         "source": "BOM_Specs+BOM_Operations+BOM_Controls",
     }
+
+def _read_sheet_or_empty(path, sheet_name: str) -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+
+    try:
+        return pd.read_excel(path, sheet_name=sheet_name).fillna("")
+    except Exception:
+        return pd.DataFrame()
+
+
+def build_article_pilot_profile_from_reader(article: str, smf_reader) -> dict[str, Any]:
+    """
+    Build article pilot profile from an SMFReader-like object.
+
+    Read-only contract:
+    - uses smf_reader.path directly
+    - does not instantiate SMFAdapter
+    - does not create directories/workbooks
+    - does not write to SMF/database
+    """
+    path = smf_reader.path
+
+    return build_article_pilot_profile(
+        article,
+        specs=_read_sheet_or_empty(path, "BOM_Specs"),
+        operations=_read_sheet_or_empty(path, "BOM_Operations"),
+        controls=_read_sheet_or_empty(path, "BOM_Controls"),
+    )
+
