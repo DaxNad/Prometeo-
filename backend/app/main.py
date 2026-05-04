@@ -22,6 +22,7 @@ from .api.ai_state import router as ai_state_router
 from .api.ai import router as ai_router
 from .api.real_ingest import router as real_ingest_router
 from .api.tl import router as tl_router
+from .api.tl_chat import router as tl_chat_router
 from .api_dashboard import router as dashboard_router
 from .api_production import router as production_router
 from .api_search import router as search_router
@@ -169,6 +170,7 @@ app.include_router(ai_state_router)
 app.include_router(ai_router)
 app.include_router(real_ingest_router)
 app.include_router(tl_router)
+app.include_router(tl_chat_router)
 
 install_auth(app)
 app.include_router(auth_router)
