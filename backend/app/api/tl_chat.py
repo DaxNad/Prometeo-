@@ -134,20 +134,32 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
 
 
 
-def _question_asks_for_verification_list(question: str) -> bool:
+def _requested_lifecycle_status_from_question(question: str) -> str | None:
     normalized = question.strip().lower()
-    return (
-        "quali" in normalized
-        and "codici" in normalized
-        and (
-            "verificare" in normalized
-            or "da verificare" in normalized
-            or "verifica" in normalized
-        )
-    )
+
+    if "quali" not in normalized or "codici" not in normalized:
+        return None
+
+    if (
+        "verificare" in normalized
+        or "da verificare" in normalized
+        or "verifica" in normalized
+    ):
+        return "DA_VERIFICARE"
+
+    if "new entry" in normalized or "nuovi" in normalized or "nuovo" in normalized:
+        return "NEW_ENTRY"
+
+    if "fuori produzione" in normalized or "fuori-prod" in normalized:
+        return "FUORI_PRODUZIONE"
+
+    return None
 
 
-def _response_for_lifecycle_verification_list(lifecycle: dict[str, dict[str, Any]]) -> TLChatResponse:
+def _response_for_lifecycle_status_list(
+    lifecycle: dict[str, dict[str, Any]],
+    requested_status: str,
+) -> TLChatResponse:
     codes: list[str] = []
 
     for code, payload in sorted(lifecycle.items()):
@@ -155,25 +167,42 @@ def _response_for_lifecycle_verification_list(lifecycle: dict[str, dict[str, Any
             continue
 
         status = _clean(payload.get("status")).upper()
-        if status == "DA_VERIFICARE":
+        if status == requested_status:
             codes.append(code)
+
+    if requested_status == "DA_VERIFICARE":
+        empty_answer = "Non risultano codici DA_VERIFICARE nel lifecycle registry reparto."
+        risk = "Sono presenti codici con stato vita articolo non ancora confermato."
+        recommended = "Verifica TL richiesta prima di densificazione o staging."
+    elif requested_status == "NEW_ENTRY":
+        empty_answer = "Non risultano codici NEW_ENTRY nel lifecycle registry reparto."
+        risk = "I codici NEW_ENTRY richiedono densificazione prioritaria e conferma TL."
+        recommended = "Verificare i codici nuovi e prepararli per preview/staging controllato."
+    elif requested_status == "FUORI_PRODUZIONE":
+        empty_answer = "Non risultano codici FUORI_PRODUZIONE nel lifecycle registry reparto."
+        risk = "I codici fuori produzione non devono essere promossi automaticamente."
+        recommended = "Escludere dalla densificazione prioritaria salvo conferma TL."
+    else:
+        empty_answer = f"Non risultano codici {requested_status} nel lifecycle registry reparto."
+        risk = "Stato lifecycle richiesto non gestito esplicitamente."
+        recommended = "Verifica TL richiesta."
 
     if not codes:
         return TLChatResponse(
             ok=True,
-            answer="Non risultano codici DA_VERIFICARE nel lifecycle registry reparto.",
+            answer=empty_answer,
             confidence="CERTO",
             risk=None,
-            recommended_action="Nessuna verifica lifecycle urgente rilevata.",
+            recommended_action="Nessuna azione lifecycle urgente rilevata.",
             requires_confirmation=False,
         )
 
     return TLChatResponse(
         ok=True,
-        answer="Codici DA_VERIFICARE nel lifecycle registry reparto: " + ", ".join(codes) + ".",
+        answer=f"Codici {requested_status} nel lifecycle registry reparto: " + ", ".join(codes) + ".",
         confidence="CERTO",
-        risk="Sono presenti codici con stato vita articolo non ancora confermato.",
-        recommended_action="Verifica TL richiesta prima di densificazione o staging.",
+        risk=risk,
+        recommended_action=recommended,
         requires_confirmation=True,
     )
 
@@ -183,8 +212,9 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     lifecycle = _load_lifecycle_registry()
 
-    if not article and _question_asks_for_verification_list(question):
-        return _response_for_lifecycle_verification_list(lifecycle)
+    requested_status = _requested_lifecycle_status_from_question(question)
+    if not article and requested_status:
+        return _response_for_lifecycle_status_list(lifecycle, requested_status)
 
     if article:
         lifecycle_payload = lifecycle.get(article)
