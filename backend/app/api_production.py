@@ -823,6 +823,11 @@ def get_sequence(db: Session = Depends(get_db)):
     )
 
     mimo_validation = None
+    mimo_signals = {
+        "zaw_saturation": False,
+        "event_incoherence": False,
+        "flow_block_risk": False,
+    }
 
     try:
         adapter = MiMoAdapter()
@@ -865,9 +870,17 @@ OUTPUT:
                 .get("message", {})
                 .get("content", "")
             )
+
+            text = mimo_validation.lower()
+            if "saturazione_zaw" in text:
+                mimo_signals["zaw_saturation"] = True
+            if "incoerenza_eventi" in text:
+                mimo_signals["event_incoherence"] = True
+            if "rischio_blocco" in text:
+                mimo_signals["flow_block_risk"] = True
+
     except MiMoAdapterError:
         mimo_validation = None
-
     return {
         "ok": True,
         "planner_stage": payload.get("planner_stage"),
@@ -875,6 +888,7 @@ OUTPUT:
         "items_count": payload.get("items_count", 0),
         "items": apply_decisions(payload.get("items", [])),
         "mimo_validation": mimo_validation,
+        "mimo_signals": mimo_signals,
         "warnings": [],
         "decision": decision,
         "decision_trace": decision_trace,
