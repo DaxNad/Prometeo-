@@ -307,3 +307,77 @@ def test_tl_chat_contract_lists_fuori_produzione_codes(monkeypatch, tmp_path):
     assert "12410" not in data["answer"]
     assert "FUORI_PRODUZIONE" in data["answer"]
 
+def test_tl_chat_contract_lists_densification_candidates(monkeypatch, tmp_path):
+    staging = tmp_path / "codici_staging_preview.json"
+    staging.write_text(
+        json.dumps(
+            {
+                "ok": True,
+                "mode": "CODICI_STAGING_PREVIEW_V1",
+                "items": [
+                    {
+                        "codice": "12056",
+                        "tl_decision": "PENDING",
+                        "staging_status": "PREVIEW_ONLY",
+                        "next_action": "REVIEW_BEFORE_STAGING",
+                    },
+                    {
+                        "codice": "12410",
+                        "tl_decision": "PENDING",
+                        "staging_status": "PREVIEW_ONLY",
+                        "next_action": "REVIEW_HIGH_PRIORITY",
+                    },
+                    {
+                        "codice": "12402",
+                        "tl_decision": "PENDING",
+                        "staging_status": "PREVIEW_ONLY",
+                        "next_action": "TL_REVIEW_REQUIRED",
+                    },
+                ],
+                "excluded": [],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici posso densificare?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "12056" in data["answer"]
+    assert "12410" in data["answer"]
+    assert "12402" not in data["answer"]
+    assert "conferma TL" in data["risk"]
+
+
+def test_tl_chat_contract_handles_missing_staging_preview(monkeypatch, tmp_path):
+    missing = tmp_path / "missing" / "codici_staging_preview.json"
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", missing)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici posso densificare?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "Non risultano codici pronti" in data["answer"]
+    assert not missing.parent.exists()
+

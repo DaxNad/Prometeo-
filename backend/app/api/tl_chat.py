@@ -11,6 +11,7 @@ router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
 ROOT = Path(__file__).resolve().parents[3]
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
+CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
 
 
 class TLChatContext(BaseModel):
@@ -134,6 +135,94 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
 
 
 
+
+def _load_codici_staging_preview() -> dict[str, Any]:
+    """
+    Read-only Codici staging preview loader.
+
+    Contract:
+    - reads local staging preview if present
+    - does not create files/directories
+    - does not write to SMF/database
+    - does not call external APIs
+    """
+    if not CODICI_STAGING_PREVIEW.exists():
+        return {}
+
+    try:
+        data = json.loads(CODICI_STAGING_PREVIEW.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def _question_asks_for_densification_candidates(question: str) -> bool:
+    normalized = question.strip().lower()
+
+    return (
+        "quali" in normalized
+        and "codici" in normalized
+        and (
+            "densificare" in normalized
+            or "staging" in normalized
+            or "posso portare" in normalized
+            or "candidati" in normalized
+        )
+    )
+
+
+def _response_for_densification_candidates(staging: dict[str, Any]) -> TLChatResponse:
+    items = staging.get("items")
+    if not isinstance(items, list):
+        items = []
+
+    codes: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        code = _clean(item.get("codice"))
+        tl_decision = _clean(item.get("tl_decision")).upper()
+        staging_status = _clean(item.get("staging_status")).upper()
+        next_action = _clean(item.get("next_action")).upper()
+
+        if (
+            code
+            and tl_decision == "PENDING"
+            and staging_status == "PREVIEW_ONLY"
+            and next_action in {"REVIEW_BEFORE_STAGING", "REVIEW_HIGH_PRIORITY"}
+        ):
+            codes.append(code)
+
+    if not codes:
+        return TLChatResponse(
+            ok=True,
+            answer="Non risultano codici pronti per review TL nello staging preview.",
+            confidence="CERTO",
+            risk=None,
+            recommended_action="Rigenerare lo staging preview o verificare lifecycle/Codici/BOM.",
+            requires_confirmation=False,
+        )
+
+    sample = codes[:20]
+    suffix = "" if len(codes) <= 20 else f" Altri {len(codes) - 20} codici non mostrati."
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            "Codici pronti per review TL prima della densificazione: "
+            + ", ".join(sample)
+            + "."
+            + suffix
+        ),
+        confidence="CERTO",
+        risk="I codici sono candidati da staging preview: serve conferma TL prima di qualsiasi scrittura.",
+        recommended_action="Revisionare i candidati e confermare esplicitamente prima dello staging controllato.",
+        requires_confirmation=True,
+    )
+
+
 def _requested_lifecycle_status_from_question(question: str) -> str | None:
     normalized = question.strip().lower()
 
@@ -211,6 +300,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     article = _normalize_article(payload.context.article)
     question = payload.question.strip()
     lifecycle = _load_lifecycle_registry()
+
+    if not article and _question_asks_for_densification_candidates(question):
+        staging = _load_codici_staging_preview()
+        return _response_for_densification_candidates(staging)
 
     requested_status = _requested_lifecycle_status_from_question(question)
     if not article and requested_status:
