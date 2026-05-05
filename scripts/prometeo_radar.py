@@ -19,6 +19,7 @@ SMF_MASTER = SMF_BASE / "SuperMegaFile_Master.xlsx"
 LIFECYCLE_REGISTRY = SMF_BASE / "article_lifecycle_registry.json"
 MASTER_DOC = ROOT / "docs" / "PROMETEO_MASTER.md"
 REAL_INGEST = ROOT / "backend" / "app" / "api" / "real_ingest.py"
+TL_CHAT = ROOT / "backend" / "app" / "api" / "tl_chat.py"
 
 
 def _run(cmd: list[str], *, timeout: int = 8) -> tuple[int, str]:
@@ -218,6 +219,24 @@ def _real_ingest_info() -> dict[str, Any]:
     }
 
 
+
+def _tl_chat_info() -> dict[str, Any]:
+    text = TL_CHAT.read_text(encoding="utf-8") if TL_CHAT.exists() else ""
+
+    return {
+        "file_exists": TL_CHAT.exists(),
+        "endpoint_present": 'router.post("/chat"' in text or '@router.post("/chat"' in text,
+        "reads_lifecycle_registry": "LIFECYCLE_REGISTRY" in text and "_load_lifecycle_registry" in text,
+        "read_only_contract": (
+            "no SMF write" in text
+            and "no DB write" in text
+            and "no planner mutation" in text
+            and "no executor" in text
+        ),
+        "technical_details_hidden": "technical_details_hidden" in text,
+    }
+
+
 def _docs_info() -> dict[str, Any]:
     text = MASTER_DOC.read_text(encoding="utf-8") if MASTER_DOC.exists() else ""
     return {
@@ -237,6 +256,7 @@ def main() -> int:
     smf = _smf_info()
     real_ingest = _real_ingest_info()
     lifecycle = _lifecycle_info()
+    tl_chat = _tl_chat_info()
     docs = _docs_info()
     ollama = _ollama_info()
 
@@ -282,6 +302,13 @@ def main() -> int:
     print(f"- ArticlePilotProfile builder: {'sì' if real_ingest['uses_article_profile_builder'] else 'no'}")
     print(f"- SMFAdapter diretto nel path: {'ATTENZIONE' if real_ingest['mentions_smf_adapter_bootstrap'] else 'no'}")
 
+    _print_section("TL Chat")
+    print(f"- file endpoint: {'presente' if tl_chat['file_exists'] else 'mancante'}")
+    print(f"- /tl/chat: {'presente' if tl_chat['endpoint_present'] else 'mancante'}")
+    print(f"- lifecycle registry: {'collegato' if tl_chat['reads_lifecycle_registry'] else 'non collegato'}")
+    print(f"- modalità read-only: {'sì' if tl_chat['read_only_contract'] else 'da verificare'}")
+    print(f"- rumore tecnico nascosto: {'sì' if tl_chat['technical_details_hidden'] else 'da verificare'}")
+
     _print_section("Documentazione")
     print(f"- PROMETEO_MASTER.md: {'presente' if docs['master_doc_exists'] else 'mancante'}")
     print(f"- real_ingest contract: {'documentato' if docs['real_ingest_contract_documented'] else 'mancante'}")
@@ -307,6 +334,10 @@ def main() -> int:
         risks.append("contratto real_ingest non documentato")
     if real_ingest["mentions_smf_adapter_bootstrap"]:
         risks.append("possibile uso SMFAdapter nel path real_ingest")
+    if not tl_chat["endpoint_present"]:
+        risks.append("TL Chat endpoint non rilevato")
+    if tl_chat["endpoint_present"] and not tl_chat["reads_lifecycle_registry"]:
+        risks.append("TL Chat non collegata al lifecycle registry")
     if not ollama.get("server_running"):
         risks.append("Ollama server non attivo")
 
