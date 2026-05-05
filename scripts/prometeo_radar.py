@@ -54,6 +54,21 @@ def _git_info() -> dict[str, Any]:
     }
 
 
+
+def _local_ai_health_contract_info() -> dict[str, Any]:
+    ai_api = ROOT / "backend" / "app" / "api" / "ai.py"
+    text = ai_api.read_text(encoding="utf-8") if ai_api.exists() else ""
+
+    return {
+        "file_exists": ai_api.exists(),
+        "endpoint_present": '@router.get("/ai/local/health")' in text or 'router.get("/ai/local/health")' in text,
+        "provider_ollama": '"provider": "ollama"' in text or "'provider': 'ollama'" in text,
+        "writable_false": '"writable": False' in text or "'writable': False" in text,
+        "decision_authority_false": '"decision_authority": False' in text or "'decision_authority': False" in text,
+        "health_only_note": "no production decision authority" in text,
+    }
+
+
 def _ollama_info() -> dict[str, Any]:
     code, version = _run(["ollama", "--version"], timeout=5)
     if code != 0:
@@ -298,6 +313,7 @@ def main() -> int:
     codici_staging = _codici_staging_info()
     tl_chat = _tl_chat_info()
     docs = _docs_info()
+    local_ai_health = _local_ai_health_contract_info()
     ollama = _ollama_info()
 
     print("# PROMETEO RADAR")
@@ -363,6 +379,13 @@ def main() -> int:
     print(f"- real_ingest contract: {'documentato' if docs['real_ingest_contract_documented'] else 'mancante'}")
     print(f"- PROMETEO RADAR: {'documentato' if docs['radar_documented'] else 'non ancora documentato'}")
 
+    _print_section("Local AI health contract")
+    print(f"- endpoint /ai/local/health: {'presente' if local_ai_health['endpoint_present'] else 'mancante'}")
+    print(f"- provider ollama: {'sì' if local_ai_health['provider_ollama'] else 'da verificare'}")
+    print(f"- writable=false: {'sì' if local_ai_health['writable_false'] else 'da verificare'}")
+    print(f"- decision_authority=false: {'sì' if local_ai_health['decision_authority_false'] else 'da verificare'}")
+    print(f"- solo health check: {'sì' if local_ai_health['health_only_note'] else 'da verificare'}")
+
     _print_section("AI locale")
     print(f"- Ollama CLI: {'presente' if ollama['available'] else 'mancante'}")
     if ollama.get("version"):
@@ -393,6 +416,10 @@ def main() -> int:
         risks.append("TL Chat endpoint non rilevato")
     if tl_chat["endpoint_present"] and not tl_chat["reads_lifecycle_registry"]:
         risks.append("TL Chat non collegata al lifecycle registry")
+    if local_ai_health["endpoint_present"] and not local_ai_health["decision_authority_false"]:
+        risks.append("Local AI health non dichiara decision_authority=false")
+    if local_ai_health["endpoint_present"] and not local_ai_health["writable_false"]:
+        risks.append("Local AI health non dichiara writable=false")
     if not ollama.get("server_running"):
         risks.append("Ollama server non attivo")
 
