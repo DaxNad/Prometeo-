@@ -18,6 +18,58 @@ async function apiGet<T>(path: string): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+
+function getApiKey(): string {
+  if (typeof window === "undefined") return "";
+  return window.localStorage.getItem("PROMETEO_API_KEY") || "";
+}
+
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const apiKey = getApiKey();
+
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      ...(apiKey ? { "X-API-Key": apiKey } : {}),
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`POST ${path} failed: ${res.status} ${text}`);
+  }
+
+  return res.json() as Promise<T>;
+}
+
+export type TLChatRequest = {
+  question: string;
+  context?: {
+    article?: string;
+    station?: string;
+    drawing?: string;
+    [key: string]: unknown;
+  };
+};
+
+export type TLChatResponse = {
+  ok: boolean;
+  mode: string;
+  answer: string;
+  confidence: string;
+  risk: string | null;
+  recommended_action: string | null;
+  requires_confirmation: boolean;
+  technical_details_hidden: boolean;
+};
+
+export async function tlChat(payload: TLChatRequest) {
+  return apiPost<TLChatResponse>("/tl/chat", payload);
+}
+
 export type MachineLoadItem = {
   station: string;
   orders_total: number;
