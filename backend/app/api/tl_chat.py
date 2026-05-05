@@ -133,11 +133,60 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
     )
 
 
+
+def _question_asks_for_verification_list(question: str) -> bool:
+    normalized = question.strip().lower()
+    return (
+        "quali" in normalized
+        and "codici" in normalized
+        and (
+            "verificare" in normalized
+            or "da verificare" in normalized
+            or "verifica" in normalized
+        )
+    )
+
+
+def _response_for_lifecycle_verification_list(lifecycle: dict[str, dict[str, Any]]) -> TLChatResponse:
+    codes: list[str] = []
+
+    for code, payload in sorted(lifecycle.items()):
+        if not isinstance(payload, dict):
+            continue
+
+        status = _clean(payload.get("status")).upper()
+        if status == "DA_VERIFICARE":
+            codes.append(code)
+
+    if not codes:
+        return TLChatResponse(
+            ok=True,
+            answer="Non risultano codici DA_VERIFICARE nel lifecycle registry reparto.",
+            confidence="CERTO",
+            risk=None,
+            recommended_action="Nessuna verifica lifecycle urgente rilevata.",
+            requires_confirmation=False,
+        )
+
+    return TLChatResponse(
+        ok=True,
+        answer="Codici DA_VERIFICARE nel lifecycle registry reparto: " + ", ".join(codes) + ".",
+        confidence="CERTO",
+        risk="Sono presenti codici con stato vita articolo non ancora confermato.",
+        recommended_action="Verifica TL richiesta prima di densificazione o staging.",
+        requires_confirmation=True,
+    )
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     article = _normalize_article(payload.context.article)
+    question = payload.question.strip()
+    lifecycle = _load_lifecycle_registry()
+
+    if not article and _question_asks_for_verification_list(question):
+        return _response_for_lifecycle_verification_list(lifecycle)
 
     if article:
-        lifecycle = _load_lifecycle_registry()
         lifecycle_payload = lifecycle.get(article)
 
         if lifecycle_payload:

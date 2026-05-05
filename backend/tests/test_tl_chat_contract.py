@@ -170,3 +170,75 @@ def test_tl_chat_contract_requires_context_for_specific_answer():
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
     assert "codice articolo" in data["recommended_action"].lower()
+
+def test_tl_chat_contract_lists_codes_da_verificare(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "12402": {
+                    "status": "DA_VERIFICARE",
+                    "source": "riunione_aziendale_memoria_tl",
+                },
+                "12053": {
+                    "status": "FUORI_PRODUZIONE",
+                    "source": "tl",
+                },
+                "12410": {
+                    "status": "NEW_ENTRY",
+                    "source": "tl",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici sono da verificare?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "12402" in data["answer"]
+    assert "12053" not in data["answer"]
+    assert "12410" not in data["answer"]
+    assert "Verifica TL richiesta" in data["recommended_action"]
+
+
+def test_tl_chat_contract_lists_no_codes_da_verificare(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "12053": {"status": "FUORI_PRODUZIONE"},
+                "12410": {"status": "NEW_ENTRY"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici sono da verificare?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "Non risultano codici DA_VERIFICARE" in data["answer"]
+
