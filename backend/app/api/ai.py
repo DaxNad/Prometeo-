@@ -1,3 +1,7 @@
+import json
+import urllib.request
+import urllib.error
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
@@ -62,6 +66,64 @@ def _build_sequence_prompt(sequence_payload: dict, active_events: list[dict] | N
         )
 
     return "\n".join(lines)
+
+
+
+def _ollama_health(base_url: str = "http://127.0.0.1:11434") -> dict:
+    """
+    Local AI health check only.
+
+    Contract:
+    - read-only
+    - no production decision authority
+    - no planner mutation
+    - no SMF/database write
+    - no executor invocation
+    """
+    url = base_url.rstrip("/") + "/api/tags"
+
+    try:
+        with urllib.request.urlopen(url, timeout=2) as response:
+            raw = response.read().decode("utf-8")
+            payload = json.loads(raw)
+    except Exception as exc:
+        return {
+            "ok": True,
+            "provider": "ollama",
+            "available": False,
+            "base_url": base_url,
+            "models": [],
+            "writable": False,
+            "decision_authority": False,
+            "error": str(exc),
+            "note": "Local AI health check only — no production decision authority",
+        }
+
+    models_payload = payload.get("models", [])
+    models: list[str] = []
+
+    if isinstance(models_payload, list):
+        for item in models_payload:
+            if isinstance(item, dict):
+                name = item.get("name")
+                if isinstance(name, str) and name.strip():
+                    models.append(name.strip())
+
+    return {
+        "ok": True,
+        "provider": "ollama",
+        "available": True,
+        "base_url": base_url,
+        "models": models,
+        "writable": False,
+        "decision_authority": False,
+        "note": "Local AI health check only — no production decision authority",
+    }
+
+
+@router.get("/ai/local/health")
+def ai_local_health():
+    return _ollama_health()
 
 
 @router.post("/ai/local")
