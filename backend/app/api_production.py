@@ -828,7 +828,7 @@ def get_sequence(db: Session = Depends(get_db)):
         adapter = MiMoAdapter()
         if adapter.enabled:
             prompt = f"""
-Analizza questa sequenza PROMETEO come validatore parallelo.
+Analizza questa sequenza PROMETEO come VALIDATORE ZAW.
 
 SEQUENZA:
 {payload}
@@ -836,12 +836,28 @@ SEQUENZA:
 DECISIONE PLANNER:
 {decision}
 
-Regole:
-- non sostituire il planner
-- non proporre modifiche runtime
-- non decidere produzione
-- segnala solo incoerenze, rischi TL o dati DA_VERIFICARE
-- usa CERTO / INFERITO / DA_VERIFICARE
+CONTESTO OPERATIVO REALE:
+- ZAW-1 e ZAW-2 NON sono intercambiabili
+- ZAW è spesso collo di bottiglia reale
+- Eventi OPEN su ZAW sono critici
+- Componenti condivisi possono saturare ZAW
+
+OBIETTIVO:
+- rileva saturazione ZAW
+- rileva incoerenze tra eventi OPEN e sequenza
+- rileva rischio blocco flusso su ZAW
+- segnala se planner ignora segnali critici
+
+VINCOLI:
+- NON proporre strategie generiche
+- NON suggerire spostamenti casuali operatori
+- NON sostituire il planner
+- NON proporre modifiche runtime
+
+OUTPUT:
+- stato: CERTO / INFERITO / DA_VERIFICARE
+- tipo_anomalia: (saturazione_zaw / incoerenza_eventi / rischio_blocco / ok)
+- spiegazione TL breve
 """
             result = adapter.ask(prompt=prompt)
             mimo_validation = (
