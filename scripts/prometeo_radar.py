@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SMF_BASE = ROOT / "data" / "local_smf"
 SMF_MASTER = SMF_BASE / "SuperMegaFile_Master.xlsx"
 LIFECYCLE_REGISTRY = SMF_BASE / "article_lifecycle_registry.json"
+CODICI_STAGING_PREVIEW = SMF_BASE / "codici_staging_preview.json"
 MASTER_DOC = ROOT / "docs" / "PROMETEO_MASTER.md"
 REAL_INGEST = ROOT / "backend" / "app" / "api" / "real_ingest.py"
 TL_CHAT = ROOT / "backend" / "app" / "api" / "tl_chat.py"
@@ -220,6 +221,44 @@ def _real_ingest_info() -> dict[str, Any]:
 
 
 
+
+def _codici_staging_info() -> dict[str, Any]:
+    info: dict[str, Any] = {
+        "path": str(CODICI_STAGING_PREVIEW),
+        "exists": CODICI_STAGING_PREVIEW.exists(),
+        "mode": None,
+        "items_ready_for_tl_review": None,
+        "excluded_or_blocked": None,
+        "writes_to_smf": None,
+        "writes_to_db": None,
+    }
+
+    if not CODICI_STAGING_PREVIEW.exists():
+        return info
+
+    try:
+        data = json.loads(CODICI_STAGING_PREVIEW.read_text(encoding="utf-8"))
+    except Exception as exc:
+        info["error"] = str(exc)
+        return info
+
+    if not isinstance(data, dict):
+        info["error"] = "staging preview not object"
+        return info
+
+    summary = data.get("summary")
+    if not isinstance(summary, dict):
+        summary = {}
+
+    info["mode"] = data.get("mode")
+    info["items_ready_for_tl_review"] = summary.get("items_ready_for_tl_review")
+    info["excluded_or_blocked"] = summary.get("excluded_or_blocked")
+    info["writes_to_smf"] = summary.get("writes_to_smf")
+    info["writes_to_db"] = summary.get("writes_to_db")
+
+    return info
+
+
 def _tl_chat_info() -> dict[str, Any]:
     text = TL_CHAT.read_text(encoding="utf-8") if TL_CHAT.exists() else ""
 
@@ -256,6 +295,7 @@ def main() -> int:
     smf = _smf_info()
     real_ingest = _real_ingest_info()
     lifecycle = _lifecycle_info()
+    codici_staging = _codici_staging_info()
     tl_chat = _tl_chat_info()
     docs = _docs_info()
     ollama = _ollama_info()
@@ -302,6 +342,15 @@ def main() -> int:
     print(f"- ArticlePilotProfile builder: {'sì' if real_ingest['uses_article_profile_builder'] else 'no'}")
     print(f"- SMFAdapter diretto nel path: {'ATTENZIONE' if real_ingest['mentions_smf_adapter_bootstrap'] else 'no'}")
 
+    _print_section("Codici staging preview")
+    print(f"- file: {'presente' if codici_staging['exists'] else 'mancante'}")
+    if codici_staging.get("mode"):
+        print(f"- mode: {codici_staging['mode']}")
+    print(f"- items_ready_for_tl_review: {codici_staging.get('items_ready_for_tl_review')}")
+    print(f"- excluded_or_blocked: {codici_staging.get('excluded_or_blocked')}")
+    print(f"- writes_to_smf: {codici_staging.get('writes_to_smf')}")
+    print(f"- writes_to_db: {codici_staging.get('writes_to_db')}")
+
     _print_section("TL Chat")
     print(f"- file endpoint: {'presente' if tl_chat['file_exists'] else 'mancante'}")
     print(f"- /tl/chat: {'presente' if tl_chat['endpoint_present'] else 'mancante'}")
@@ -330,6 +379,12 @@ def main() -> int:
         risks.append("Codici non allineato a BOM_Specs")
     if lifecycle.get("by_status", {}).get("DA_VERIFICARE", 0):
         risks.append("lifecycle registry contiene articoli DA_VERIFICARE")
+    if codici_staging.get("exists") and codici_staging.get("items_ready_for_tl_review"):
+        risks.append("staging Codici contiene candidati PENDING da review TL")
+    if codici_staging.get("writes_to_smf") not in {0, None}:
+        risks.append("ATTENZIONE: staging Codici segnala scritture SMF non nulle")
+    if codici_staging.get("writes_to_db") not in {0, None}:
+        risks.append("ATTENZIONE: staging Codici segnala scritture DB non nulle")
     if not docs["real_ingest_contract_documented"]:
         risks.append("contratto real_ingest non documentato")
     if real_ingest["mentions_smf_adapter_bootstrap"]:
