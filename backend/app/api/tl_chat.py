@@ -6,6 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter
+from app.domain.article_tl_summary import build_article_tl_summary
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -42,6 +43,13 @@ class TLChatResponse(BaseModel):
 
 def _normalize_article(value: str | None) -> str:
     return str(value or "").strip().upper()
+
+
+def _extract_article_from_question(question: str) -> str:
+    import re
+
+    match = re.search(r"\b\d{5}\b", question or "")
+    return match.group(0) if match else ""
 
 
 def _clean(value: Any) -> str:
@@ -296,9 +304,58 @@ def _response_for_lifecycle_status_list(
     )
 
 
+def _response_from_article_summary(article: str) -> TLChatResponse | None:
+    summary = build_article_tl_summary(article)
+
+    if not summary.get("ok"):
+        return None
+
+    signals = summary.get("signals") if isinstance(summary.get("signals"), dict) else {}
+    criticalities = summary.get("criticalities") if isinstance(summary.get("criticalities"), list) else []
+
+    compact: list[str] = []
+    compact.append(f"{article} — {summary.get('confidence', 'DA_VERIFICARE')}.")
+
+    primary_zaw = signals.get("primary_zaw_station")
+    if primary_zaw:
+        compact.append(f"Usa {primary_zaw}; non trattare ZAW2 come alternativa automatica.")
+
+    if signals.get("has_henn"):
+        compact.append("HENN prima di innesto rapido/ZAW.")
+
+    if signals.get("has_pidmill"):
+        compact.append("PIDMILL presente.")
+
+    cp_mode = signals.get("cp_machine_mode")
+    if signals.get("cp_required") and cp_mode:
+        compact.append(f"CP finale obbligatorio, modalità {cp_mode}.")
+    elif signals.get("cp_required"):
+        compact.append("CP finale obbligatorio.")
+
+    shared = signals.get("shared_components") or []
+    if shared:
+        compact.append("Componenti condivisi da monitorare: " + ", ".join(str(x) for x in shared) + ".")
+
+    for item in criticalities:
+        text = str(item)
+        if "Discrepanza" in text or "discrepanza" in text:
+            compact.append(text)
+            break
+
+    return TLChatResponse(
+        ok=True,
+        answer=" ".join(compact),
+        confidence=str(summary.get("confidence") or "DA_VERIFICARE"),
+        risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
+        recommended_action=str(summary.get("tl_action") or "Seguire risposta operativa sintetica."),
+        requires_confirmation=False,
+        technical_details_hidden=True,
+    )
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
-    article = _normalize_article(payload.context.article)
     question = payload.question.strip()
+    article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
     lifecycle = _load_lifecycle_registry()
 
     if not article and _question_asks_for_densification_candidates(question):
@@ -310,6 +367,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         return _response_for_lifecycle_status_list(lifecycle, requested_status)
 
     if article:
+        article_summary_response = _response_from_article_summary(article)
+        if article_summary_response:
+            return article_summary_response
+
         lifecycle_payload = lifecycle.get(article)
 
         if lifecycle_payload:
