@@ -398,6 +398,48 @@ Se una modifica non può essere spiegata rispetto alla catena:
 `Order → Route → Station → ProductionEvent`
 
 allora la modifica deve essere bloccata o riportata a scope.
+
+## PROMETEO — Assembly Progression / Evoluzione Stato Assemblaggio
+
+`assembly_progression` è il contratto dominio che descrive come un articolo cambia comportamento operativo quando viene assemblato con altri articoli o componenti.
+
+PROMETEO non deve trattare tutti gli articoli come route statiche `article → stations[]`.
+
+Alcuni articoli hanno una progressione reale:
+
+`articolo standalone → accoppiamento → nuovo componente → nuova postazione → nuovo vincolo → CP finale`
+
+Regole dominio:
+
+1. `assembly_progression` non sostituisce `Route`: la integra quando la route statica non basta.
+2. Ogni stato della progressione può introdurre nuove stazioni, articoli collegati, componenti condivisi o vincoli.
+3. Ogni stato ha una propria `confidence`.
+4. `TL_KNOWLEDGE` non equivale a documento ufficiale.
+5. In assenza dei documenti di assemblaggio complessivi, gli stati restano `TL_DA_DOCUMENTARE`.
+6. Il profilo articolo può restare `INFERITO` anche se alcuni stati sono confermati dal Team Leader.
+7. La TL chat può esporre una sintesi compatta della progressione, senza promuovere il profilo a `CERTO`.
+8. ATLAS Engine deve usare `assembly_progression` come base del futuro world model produttivo, ma non deve mutare direttamente SMF, database o repo.
+
+Esempio dominio reale 12056:
+
+- `STATE_0`: 12056 standalone → ZAW1
+- `STATE_1`: 12056 viene assemblato con 12057 tramite connettore due vie `468773` → ZAW2
+- `STATE_2`: dopo ZAW2 viene aggiunto 12058 → PIDMILL
+- `STATE_3`: CP finale obbligatorio
+
+Regola specifica 12056:
+
+- 12056 non ha HENN diretto nella specifica/fase iniziale.
+- 12056 acquisisce comportamento HENN solo nel complessivo con 12057.
+- Il PIDMILL non è assente: arriva dopo ZAW2 per effetto dell’aggiunta di 12058.
+- Fino a disponibilità dei documenti di assemblaggio complessivi, questa progressione resta `INFERITO / TL_DA_DOCUMENTARE`.
+
+Implementazione attuale:
+
+- dominio: `backend/app/domain/assembly_progression.py`
+- test: `backend/tests/test_assembly_progression_contract.py`
+- esposizione runtime: TL chat summary compatto
+
 ---
 
 ## PROMETEO — Regola Dominio Reale: HENN 469122
