@@ -7,6 +7,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter
 from app.domain.article_tl_summary import build_article_tl_summary
+from app.domain.assembly_progression import summarize_assembly_progression
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -375,6 +376,10 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
 
     if shared:
         pieces.append("Componenti condivisi da monitorare: " + ", ".join(str(x) for x in shared) + ".")
+
+    progression_lines = summarize_assembly_progression(profile)
+    if progression_lines:
+        pieces.append("Progressione assemblaggio: " + " | ".join(progression_lines[:3]) + ".")
 
     if review_reasons:
         pieces.append("Motivi verifica: " + ", ".join(str(x) for x in review_reasons) + ".")
