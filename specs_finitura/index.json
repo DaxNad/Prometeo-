@@ -148,7 +148,15 @@
         "SACCHETTO"
       ],
       "linked_bom_count": 13,
-      "status": "STRUCTURED_FROM_SPEC"
+      "status": "STRUCTURED_FROM_SPEC",
+      "process_details": {
+        "collaudo_pressione": {
+          "station": "COLLAUDO_PRESSIONE",
+          "alias": "CP",
+          "machine_mode": "VERTICALE_DUE_PIANI",
+          "routing_note": "COLLAUDO_VERTICALE è modalità macchina del CP, non fase separata."
+        }
+      }
     },
     {
       "article": "12073",
