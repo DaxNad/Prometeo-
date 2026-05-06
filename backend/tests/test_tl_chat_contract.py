@@ -513,3 +513,81 @@ def test_tl_chat_answers_12055_from_article_summary(monkeypatch, tmp_path):
     assert "468763" in data["answer"]
     assert "HENN_ZAW1" in data["answer"]
     assert data["technical_details_hidden"] is True
+
+def test_tl_chat_answers_12102_double_zaw_pass_without_henn(monkeypatch, tmp_path):
+    import importlib
+    import json
+
+    import app.domain.article_process_matrix as apm
+    import app.domain.article_tl_summary as ats
+    from app.api import tl_chat as tl_chat_api
+
+    env_base = tmp_path / "env_base"
+    matrix_path = env_base / "finiture" / "article_route_matrix.json"
+    matrix_path.parent.mkdir(parents=True, exist_ok=True)
+
+    matrix_path.write_text(
+        json.dumps(
+            {
+                "version": "0.1",
+                "profiles": {
+                    "12102": {
+                        "article": "12102",
+                        "confidence": "CERTO",
+                        "route": [
+                            "INSERIMENTO_INNESTO_RAPIDO",
+                            "ZAW1",
+                            "INSERIMENTO_INNESTO_RAPIDO_2",
+                            "ZAW1_2",
+                            "COLLAUDO_PRESSIONE",
+                        ],
+                        "signals": {
+                            "has_henn": False,
+                            "has_zaw1": True,
+                            "has_zaw2": False,
+                            "primary_zaw_station": "ZAW1",
+                            "zaw_passes": 2,
+                            "has_pidmill": False,
+                            "cp_required": True,
+                            "cp_machine_mode": "VERTICALE_DUE_PIANI",
+                            "shared_components": ["468728", "468796", "468830", "468841"],
+                        },
+                        "discrepancies": [
+                            {
+                                "code": "bom_family_process_mismatch",
+                                "correct_value": "ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA",
+                                "status": "CONFIRMED_BY_SPEC",
+                            },
+                            {
+                                "code": "cp_vertical_mode_not_route_phase",
+                                "correct_value": "COLLAUDO_PRESSIONE con machine_mode=VERTICALE_DUE_PIANI",
+                                "status": "NORMALIZED_BY_DOMAIN_RULE",
+                            },
+                        ],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
+    importlib.reload(apm)
+    importlib.reload(ats)
+    importlib.reload(tl_chat_api)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12102?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert "12102" in data["answer"]
+    assert "ZAW1 con 2 passaggi" in data["answer"]
+    assert "ZAW1_2 non è ZAW2" in data["answer"]
+    assert "Nessun HENN" in data["answer"]
+    assert "VERTICALE_DUE_PIANI" in data["answer"]
+    assert "468830" in data["answer"]
+    assert "ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA" in data["answer"]
+    assert data["technical_details_hidden"] is True
