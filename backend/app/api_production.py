@@ -17,6 +17,7 @@ from .services.explainability import build_tl_explanation
 from .smf.smf_adapter import SMFAdapter
 from .station_normalizer import normalize_station
 from app.ai_adapters.mimo_adapter import MiMoAdapter, MiMoAdapterError
+from app.domain.article_tl_summary import build_article_tl_summary
 
 router = APIRouter(prefix="/production", tags=["production"])
 smf_adapter = SMFAdapter()
@@ -893,6 +894,19 @@ OUTPUT:
         "decision": decision,
         "decision_trace": decision_trace,
     }
+
+
+@router.get("/article-summary/{article_code}")
+def get_article_summary(article_code: str):
+    """
+    Read-only TL operational summary for one article.
+
+    Contract:
+    - no planner mutation
+    - no SMF/database write
+    - reads article_process_matrix through article_tl_summary
+    """
+    return build_article_tl_summary(article_code)
 
 
 @router.get("/sequence/explain")
