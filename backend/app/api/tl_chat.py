@@ -317,11 +317,19 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     compact.append(f"{article} — {summary.get('confidence', 'DA_VERIFICARE')}.")
 
     primary_zaw = signals.get("primary_zaw_station")
-    if primary_zaw:
+    zaw_passes = signals.get("zaw_passes")
+
+    if primary_zaw and isinstance(zaw_passes, int) and zaw_passes > 1:
+        compact.append(
+            f"Usa {primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2."
+        )
+    elif primary_zaw:
         compact.append(f"Usa {primary_zaw}; non trattare ZAW2 come alternativa automatica.")
 
     if signals.get("has_henn"):
         compact.append("HENN prima di innesto rapido/ZAW.")
+    elif signals.get("has_henn") is False:
+        compact.append("Nessun HENN indicato nel profilo operativo.")
 
     if signals.get("has_pidmill"):
         compact.append("PIDMILL presente.")
