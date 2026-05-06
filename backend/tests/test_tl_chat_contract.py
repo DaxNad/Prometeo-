@@ -13,7 +13,7 @@ def test_tl_chat_contract_reads_12402_from_lifecycle_registry(monkeypatch, tmp_p
     registry.write_text(
         json.dumps(
             {
-                "12402": {
+                "99997": {
                     "status": "DA_VERIFICARE",
                     "source": "riunione_aziendale_memoria_tl",
                     "note": "Codice citato tra quelli da rivalutare.",
@@ -29,8 +29,8 @@ def test_tl_chat_contract_reads_12402_from_lifecycle_registry(monkeypatch, tmp_p
     response = client.post(
         "/tl/chat",
         json={
-            "question": "Il 12402 è da verificare?",
-            "context": {"article": "12402"},
+            "question": "Il 99997 è da verificare?",
+            "context": {"article": "99997"},
         },
     )
 
@@ -42,7 +42,7 @@ def test_tl_chat_contract_reads_12402_from_lifecycle_registry(monkeypatch, tmp_p
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
-    assert "12402" in data["answer"]
+    assert "99997" in data["answer"]
     assert "riunione_aziendale_memoria_tl" in data["answer"]
     assert "Verifica TL richiesta" in data["recommended_action"]
 
@@ -141,8 +141,8 @@ def test_tl_chat_contract_missing_registry_is_safe(monkeypatch, tmp_path):
     response = client.post(
         "/tl/chat",
         json={
-            "question": "Il 12402 è da verificare?",
-            "context": {"article": "12402"},
+            "question": "Il 99997 è da verificare?",
+            "context": {"article": "99997"},
         },
     )
 
@@ -176,7 +176,7 @@ def test_tl_chat_contract_lists_codes_da_verificare(monkeypatch, tmp_path):
     registry.write_text(
         json.dumps(
             {
-                "12402": {
+                "99997": {
                     "status": "DA_VERIFICARE",
                     "source": "riunione_aziendale_memoria_tl",
                 },
@@ -208,7 +208,7 @@ def test_tl_chat_contract_lists_codes_da_verificare(monkeypatch, tmp_path):
     assert data["confidence"] == "CERTO"
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
-    assert "12402" in data["answer"]
+    assert "99997" in data["answer"]
     assert "12053" not in data["answer"]
     assert "12410" not in data["answer"]
     assert "Verifica TL richiesta" in data["recommended_action"]
@@ -693,4 +693,82 @@ def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
     assert "discrepancies_to_verify" in data["answer"]
     assert "PIDMILL_ZAW2" in data["answer"]
     assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+
+def test_tl_chat_answers_12402_confirmed_double_zaw_pidmill_profile(monkeypatch, tmp_path):
+    import importlib
+    import json
+
+    import app.domain.article_process_matrix as apm
+    import app.domain.article_tl_summary as ats
+    from app.api import tl_chat as tl_chat_api
+
+    env_base = tmp_path / "env_base"
+    matrix_path = env_base / "finiture" / "article_route_matrix.json"
+    matrix_path.parent.mkdir(parents=True, exist_ok=True)
+
+    matrix_path.write_text(
+        json.dumps(
+            {
+                "version": "0.1",
+                "profiles": {
+                    "12402": {
+                        "article": "12402",
+                        "confidence": "CERTO",
+                        "route": [
+                            "MARCATURA",
+                            "INNESTO_RAPIDO_1",
+                            "CRIMP_RING_ZAW_1",
+                            "INNESTO_RAPIDO_2",
+                            "CRIMP_RING_ZAW_2",
+                            "PIDMILL_MOLLETTA",
+                            "PIDMILL_GOMMOTTO",
+                            "COLLAUDO_PRESSIONE",
+                        ],
+                        "signals": {
+                            "has_henn": False,
+                            "has_zaw1": True,
+                            "has_zaw2": False,
+                            "primary_zaw_station": "ZAW1",
+                            "zaw_passes": 2,
+                            "has_pidmill": True,
+                            "cp_required": True,
+                            "cp_machine_mode": "VERTICALE_DUE_PIANI",
+                            "shared_components": ["468796"],
+                        },
+                        "discrepancies": [
+                            {
+                                "code": "bom_family_process_mismatch",
+                                "correct_value": "ZAW1_DOPPIO_PASSAGGIO_PIDMILL",
+                                "status": "CONFIRMED_BY_TL",
+                            }
+                        ],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
+    importlib.reload(apm)
+    importlib.reload(ats)
+    importlib.reload(tl_chat_api)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12402?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert "12402" in data["answer"]
+    assert "ZAW1 con 2 passaggi" in data["answer"]
+    assert "ZAW1_2 non è ZAW2" in data["answer"]
+    assert "Nessun HENN" in data["answer"]
+    assert "PIDMILL presente" in data["answer"]
+    assert "VERTICALE_DUE_PIANI" in data["answer"]
+    assert "468796" in data["answer"]
+    assert "ZAW1_DOPPIO_PASSAGGIO_PIDMILL" in data["answer"]
+    assert data["requires_confirmation"] is False
     assert data["technical_details_hidden"] is True
