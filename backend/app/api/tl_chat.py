@@ -13,6 +13,7 @@ router = APIRouter(prefix="/tl", tags=["tl-chat"])
 ROOT = Path(__file__).resolve().parents[3]
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
+ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "article_route_matrix.preview.json"
 
 
 class TLChatContext(BaseModel):
@@ -304,6 +305,112 @@ def _response_for_lifecycle_status_list(
     )
 
 
+def _load_article_route_matrix_preview() -> dict[str, Any]:
+    """
+    Read-only preview matrix loader.
+
+    Contract:
+    - reads local preview matrix only
+    - does not write to SMF/database
+    - does not call external APIs
+    - preview is secondary fallback after active article_tl_summary
+    """
+    if not ARTICLE_ROUTE_MATRIX_PREVIEW.exists():
+        return {}
+
+    try:
+        data = json.loads(ARTICLE_ROUTE_MATRIX_PREVIEW.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
+def _response_from_preview_profile(article: str) -> TLChatResponse | None:
+    matrix = _load_article_route_matrix_preview()
+    profiles = matrix.get("profiles")
+
+    if not isinstance(profiles, dict):
+        return None
+
+    profile = profiles.get(article)
+    if not isinstance(profile, dict):
+        return None
+
+    confidence = str(profile.get("confidence") or "DA_VERIFICARE").upper()
+    signals = profile.get("signals") if isinstance(profile.get("signals"), dict) else {}
+    review_reasons = profile.get("review_reasons") if isinstance(profile.get("review_reasons"), list) else []
+    discrepancies = profile.get("discrepancies") if isinstance(profile.get("discrepancies"), list) else []
+
+    primary_zaw = signals.get("primary_zaw_station")
+    zaw_passes = signals.get("zaw_passes")
+    cp_mode = signals.get("cp_machine_mode")
+    shared = signals.get("shared_components") or []
+
+    pieces: list[str] = [f"{article} — {confidence}."]
+
+    if confidence == "DA_VERIFICARE":
+        pieces.append("Profilo non operativo: serve conferma TL prima di usarlo per strategia turno.")
+    elif confidence == "INFERITO":
+        pieces.append("Profilo inferito: usare con cautela, non come dato certo.")
+
+    if primary_zaw and isinstance(zaw_passes, int) and zaw_passes > 1:
+        pieces.append(f"Segnale ZAW: {primary_zaw} con {zaw_passes} passaggi; non dedurre ZAW2 automaticamente.")
+    elif primary_zaw:
+        pieces.append(f"Segnale ZAW: {primary_zaw}; non dedurre ZAW2 automaticamente.")
+
+    if signals.get("has_henn"):
+        pieces.append("HENN presente.")
+    elif signals.get("has_henn") is False:
+        pieces.append("HENN non indicato.")
+
+    if signals.get("has_pidmill"):
+        pieces.append("PIDMILL presente.")
+
+    if signals.get("cp_required"):
+        if cp_mode:
+            pieces.append(f"CP finale obbligatorio, modalità {cp_mode}.")
+        else:
+            pieces.append("CP finale obbligatorio.")
+
+    if shared:
+        pieces.append("Componenti condivisi da monitorare: " + ", ".join(str(x) for x in shared) + ".")
+
+    if review_reasons:
+        pieces.append("Motivi verifica: " + ", ".join(str(x) for x in review_reasons) + ".")
+
+    for item in discrepancies:
+        if not isinstance(item, dict):
+            continue
+        if item.get("status") == "DA_VERIFICARE":
+            code = item.get("code") or "discrepanza"
+            wrong = item.get("wrong_source") or ""
+            pieces.append(f"Discrepanza da verificare: {code}. {wrong}".strip())
+            break
+
+    return TLChatResponse(
+        ok=True,
+        answer=" ".join(pieces),
+        confidence=confidence,
+        risk=(
+            "Profilo preview da verificare: non usarlo per decisione operativa senza conferma TL."
+            if confidence == "DA_VERIFICARE"
+            else "Profilo preview inferito: usare con cautela."
+            if confidence == "INFERITO"
+            else "Profilo preview disponibile."
+        ),
+        recommended_action=(
+            "Conferma TL richiesta prima di usare questo articolo in strategia turno."
+            if confidence == "DA_VERIFICARE"
+            else "Usare come supporto provvisorio, poi consolidare con specifica/metadata."
+            if confidence == "INFERITO"
+            else "Seguire risposta operativa sintetica."
+        ),
+        requires_confirmation=confidence != "CERTO",
+        technical_details_hidden=True,
+    )
+
+
 def _response_from_article_summary(article: str) -> TLChatResponse | None:
     summary = build_article_tl_summary(article)
 
@@ -383,6 +490,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
         if lifecycle_payload:
             return _response_from_lifecycle(article, lifecycle_payload)
+
+        preview_response = _response_from_preview_profile(article)
+        if preview_response:
+            return preview_response
 
         return TLChatResponse(
             ok=True,

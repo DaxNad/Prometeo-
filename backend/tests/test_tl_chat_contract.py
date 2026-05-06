@@ -591,3 +591,106 @@ def test_tl_chat_answers_12102_double_zaw_pass_without_henn(monkeypatch, tmp_pat
     assert "468830" in data["answer"]
     assert "ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA" in data["answer"]
     assert data["technical_details_hidden"] is True
+
+def test_tl_chat_uses_preview_for_inferred_article_when_active_summary_missing(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    preview = tmp_path / "article_route_matrix.preview.json"
+    preview.write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "12056": {
+                        "article": "12056",
+                        "confidence": "INFERITO",
+                        "signals": {
+                            "has_henn": False,
+                            "has_zaw1": True,
+                            "has_zaw2": False,
+                            "primary_zaw_station": "ZAW1",
+                            "zaw_passes": 1,
+                            "has_pidmill": False,
+                            "cp_required": True,
+                            "cp_machine_mode": "VERTICALE_DUE_PIANI",
+                            "shared_components": [],
+                        },
+                        "review_reasons": [],
+                        "discrepancies": [],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12056?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "INFERITO"
+    assert "Profilo inferito" in data["answer"]
+    assert "ZAW1" in data["answer"]
+    assert "VERTICALE_DUE_PIANI" in data["answer"]
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+
+
+def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    preview = tmp_path / "article_route_matrix.preview.json"
+    preview.write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "99998": {
+                        "article": "99998",
+                        "confidence": "DA_VERIFICARE",
+                        "signals": {
+                            "has_henn": False,
+                            "has_zaw1": True,
+                            "has_zaw2": False,
+                            "primary_zaw_station": "ZAW1",
+                            "zaw_passes": 2,
+                            "has_pidmill": True,
+                            "cp_required": True,
+                            "cp_machine_mode": "VERTICALE_DUE_PIANI",
+                            "shared_components": ["468796"],
+                        },
+                        "review_reasons": ["discrepancies_to_verify"],
+                        "discrepancies": [
+                            {
+                                "code": "bom_family_process_mismatch",
+                                "wrong_source": "BOM_Specs.csv famiglia_processo=PIDMILL_ZAW2",
+                                "status": "DA_VERIFICARE",
+                            }
+                        ],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "99998?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert "Profilo non operativo" in data["answer"]
+    assert "discrepancies_to_verify" in data["answer"]
+    assert "PIDMILL_ZAW2" in data["answer"]
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
