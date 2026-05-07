@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domain.operational_class import build_operational_policy
 from app.domain.article_process_matrix import (
     get_article_profile,
     get_article_route,
@@ -26,10 +27,15 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     profile = get_article_profile(article_code)
 
     if not profile:
+        operational_policy = build_operational_policy(None)
         return {
             "ok": False,
             "article": article_code,
             "confidence": "DA_VERIFICARE",
+            "operational_class": operational_policy["operational_class"],
+            "planner_eligible": operational_policy["planner_eligible"],
+            "tl_confirmation_required": operational_policy["tl_confirmation_required"],
+            "operational_policy": operational_policy,
             "summary": f"Articolo {article_code}: profilo operativo non disponibile.",
             "route": [],
             "criticalities": ["Profilo articolo non presente in article_route_matrix."],
@@ -39,8 +45,15 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     route = get_article_route(article_code)
     signals = get_article_signals(article_code)
     discrepancies = profile.get("discrepancies") or []
+    operational_policy = build_operational_policy(profile)
 
     criticalities: list[str] = []
+
+    if not operational_policy["planner_eligible"]:
+        criticalities.append(
+            f"Classe operativa {operational_policy['operational_class']}: "
+            "non entra nel planner standard senza ordine esplicito o conferma TL."
+        )
 
     primary_zaw = signals.get("primary_zaw_station")
     if primary_zaw:
@@ -99,6 +112,10 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
         "ok": True,
         "article": str(profile.get("article") or article_code),
         "confidence": confidence,
+        "operational_class": operational_policy["operational_class"],
+        "planner_eligible": operational_policy["planner_eligible"],
+        "tl_confirmation_required": operational_policy["tl_confirmation_required"],
+        "operational_policy": operational_policy,
         "route": route,
         "signals": signals,
         "criticalities": criticalities,
