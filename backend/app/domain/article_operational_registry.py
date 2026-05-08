@@ -28,11 +28,8 @@ def _candidate_paths() -> list[Path]:
     if os.getenv("RAILWAY") or os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_STATIC_URL"):
         candidates.append(Path("/data/local_smf/finiture/article_operational_registry.json"))
 
-    candidates.extend(
-        [
-            _repo_root() / "data/local_smf/finiture/article_operational_registry.json",
-            Path.home() / "Documents/local_smf/finiture/article_operational_registry.json",
-        ]
+    candidates.append(
+        _repo_root() / "data/local_smf/finiture/article_operational_registry.json"
     )
 
     return candidates

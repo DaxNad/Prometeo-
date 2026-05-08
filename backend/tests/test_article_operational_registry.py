@@ -14,9 +14,9 @@ def test_operational_registry_entry_lookup(tmp_path, monkeypatch):
             {
                 "version": "test",
                 "articles": {
-                    "12191A": {
-                        "drawing": "A1675017304",
-                        "description": "P. 12191A DIS. A 167 501 7304",
+                    "REF001": {
+                        "drawing": "DRAWING_REF_001",
+                        "description": "P. REF001 DIS. A 167 501 7304",
                         "operational_class": "REFERENCE_ONLY",
                         "planner_eligible": False,
                         "tl_confirmation_required": True,
@@ -30,11 +30,11 @@ def test_operational_registry_entry_lookup(tmp_path, monkeypatch):
     monkeypatch.setenv("OPERATIONAL_REGISTRY_PATH", str(path))
     reset_article_operational_registry_cache()
 
-    entry = get_operational_registry_entry("12191a")
+    entry = get_operational_registry_entry("ref001")
 
     assert entry is not None
-    assert entry["article"] == "12191A"
-    assert entry["drawing"] == "A1675017304"
+    assert entry["article"] == "REF001"
+    assert entry["drawing"] == "DRAWING_REF_001"
     assert entry["operational_class"] == "REFERENCE_ONLY"
 
 
@@ -45,9 +45,9 @@ def test_tl_summary_uses_operational_registry_for_reference_only_code(tmp_path, 
             {
                 "version": "test",
                 "articles": {
-                    "12191A": {
-                        "drawing": "A1675017304",
-                        "description": "P. 12191A DIS. A 167 501 7304",
+                    "REF001": {
+                        "drawing": "DRAWING_REF_001",
+                        "description": "P. REF001 DIS. A 167 501 7304",
                         "operational_class": "REFERENCE_ONLY",
                         "planner_eligible": False,
                         "tl_confirmation_required": True,
@@ -61,7 +61,7 @@ def test_tl_summary_uses_operational_registry_for_reference_only_code(tmp_path, 
     monkeypatch.setenv("OPERATIONAL_REGISTRY_PATH", str(path))
     reset_article_operational_registry_cache()
 
-    summary = build_article_tl_summary("12191A")
+    summary = build_article_tl_summary("REF001")
 
     assert summary["ok"] is True
     assert summary["confidence"] == "CERTO"
