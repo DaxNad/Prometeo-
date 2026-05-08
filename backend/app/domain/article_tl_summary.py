@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.domain.article_operational_registry import get_operational_registry_entry
 from app.domain.operational_class import build_operational_policy
 from app.domain.article_process_matrix import (
     get_article_profile,
@@ -27,6 +28,35 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     profile = get_article_profile(article_code)
 
     if not profile:
+        registry_entry = get_operational_registry_entry(article_code)
+        operational_policy = build_operational_policy(registry_entry)
+
+        if registry_entry:
+            drawing = registry_entry.get("drawing") or "disegno non disponibile"
+            description = registry_entry.get("description") or "descrizione non disponibile"
+            return {
+                "ok": True,
+                "article": str(registry_entry.get("article") or article_code),
+                "confidence": "CERTO",
+                "operational_class": operational_policy["operational_class"],
+                "planner_eligible": operational_policy["planner_eligible"],
+                "tl_confirmation_required": operational_policy["tl_confirmation_required"],
+                "operational_policy": operational_policy,
+                "route": [],
+                "signals": {},
+                "criticalities": [
+                    f"Codice noto da registro operativo: {description}.",
+                    f"Disegno associato: {drawing}.",
+                    f"Classe operativa {operational_policy['operational_class']}: non entra nel planner standard senza ordine esplicito o conferma TL.",
+                ],
+                "tl_action": "Usare come riferimento/ricambio/one-shot; non pianificare automaticamente senza ordine esplicito o conferma TL.",
+                "summary": (
+                    f"Articolo {article_code} — noto in registro operativo "
+                    f"come {operational_policy['operational_class']}. "
+                    "Route produttiva non strutturata."
+                ),
+            }
+
         operational_policy = build_operational_policy(None)
         return {
             "ok": False,
@@ -45,7 +75,9 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     route = get_article_route(article_code)
     signals = get_article_signals(article_code)
     discrepancies = profile.get("discrepancies") or []
-    operational_policy = build_operational_policy(profile)
+    registry_entry = get_operational_registry_entry(article_code)
+    policy_source = {**(registry_entry or {}), **profile}
+    operational_policy = build_operational_policy(policy_source)
 
     criticalities: list[str] = []
 
