@@ -50,7 +50,9 @@ def _normalize_article(value: str | None) -> str:
 def _extract_article_from_question(question: str) -> str:
     import re
 
-    match = re.search(r"\b\d{5}\b", question or "")
+    # PROMETEO article codes can be numeric or numeric with a short alphabetic suffix.
+    # Examples: 12056, 12191A.
+    match = re.search(r"\b\d{5}[A-Z]{0,3}\b", str(question or "").upper())
     return match.group(0) if match else ""
 
 
