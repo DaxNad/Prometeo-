@@ -1,6 +1,7 @@
 import json
 import urllib.request
 
+from app.ai_adapters.output_sanitizer import sanitize_ai_output
 from app.atlas_engine.tl_memory.memory_retriever import (
     format_rules_for_prompt,
     retrieve_relevant_rules,
@@ -103,7 +104,8 @@ def run_local_llm(prompt: str) -> str:
         with urllib.request.urlopen(req, timeout=120) as res:
             data = json.loads(res.read().decode("utf-8"))
 
-        response = data.get("response", "").strip() or "Nessuna risposta dal modello."
+        raw_response = data.get("response", "").strip() or "Nessuna risposta dal modello."
+        response = sanitize_ai_output(raw_response)
         return _validate_ai_response(response)
 
     except Exception as e:

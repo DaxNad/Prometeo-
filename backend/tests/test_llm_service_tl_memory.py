@@ -45,3 +45,31 @@ def test_ai_fallback_calls_ollama_for_non_deterministic_prompt(monkeypatch):
 
     assert mocked.called
     assert "Verifica flusso postazioni" in response
+
+
+def test_ai_fallback_sanitizes_thinking_output(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return json.dumps({
+                "response": (
+                    "Thinking...\\n"
+                    "Thinking Process:\\n"
+                    "1. Analyze request.\\n"
+                    "...done thinking.\\n\\n"
+                    "1. Strategia operativa reale\\n"
+                    "- Non pianificare automaticamente REFERENCE_ONLY."
+                )
+            }).encode("utf-8")
+
+    with patch("urllib.request.urlopen", return_value=FakeResponse()):
+        response = run_local_llm("Spiega REFERENCE_ONLY in PROMETEO.")
+
+    assert "Thinking" not in response
+    assert "Thinking Process" not in response
+    assert "Non pianificare automaticamente REFERENCE_ONLY" in response
