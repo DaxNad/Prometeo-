@@ -1,4 +1,5 @@
 import json
+import os
 import urllib.request
 
 from app.ai_adapters.output_sanitizer import sanitize_ai_output
@@ -7,8 +8,8 @@ from app.atlas_engine.tl_memory.memory_retriever import (
     retrieve_relevant_rules,
 )
 
-MODEL = "mistral"
-OLLAMA_URL = "http://127.0.0.1:11434/api/generate"
+MODEL = os.getenv("LOCAL_LLM_MODEL", "mistral")
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 
 SYSTEM_PROMPT = """Sei il Team Leader esperto reparto assemblaggio automotive (PROMETEO).
 
@@ -76,6 +77,23 @@ def run_local_llm(prompt: str) -> str:
             "- Separare subito il problema: ZAW-1 o ZAW-2.\n"
             "- Verificare articolo, componente condiviso e operazione in corso.\n"
             "- Solo dopo decidere se ribilanciare operatori o sequenza."
+        )
+
+    if "reference_only" in q and (
+        "planner_eligible=false" in q
+        or "planner_eligible = false" in q
+        or "non pianificabile automaticamente" in q
+    ):
+        return (
+            "1. Strategia operativa reale\n"
+            "- Trattare l'articolo come codice noto di riferimento, non come lotto da pianificare.\n"
+            "- Usare disegno, storico o nota ricambio solo per riconoscimento e verifica.\n\n"
+            "2. Rischi reali\n"
+            "- Inserirlo nel planner standard può generare priorità false o produzione fuori programma.\n"
+            "- Route non strutturata significa: non dedurre sequenze operative automatiche.\n\n"
+            "3. Azione TL immediata\n"
+            "- Non produrre automaticamente.\n"
+            "- Procedere solo con ordine cliente esplicito o conferma TL."
         )
 
     relevant_rules = retrieve_relevant_rules(prompt)

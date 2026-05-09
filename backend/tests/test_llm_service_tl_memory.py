@@ -73,3 +73,16 @@ def test_ai_fallback_sanitizes_thinking_output(monkeypatch):
     assert "Thinking" not in response
     assert "Thinking Process" not in response
     assert "Non pianificare automaticamente REFERENCE_ONLY" in response
+
+
+def test_reference_only_returns_deterministic_non_planning_response():
+    response = run_local_llm(
+        "PROMETEO TL Chat. Articolo REFERENCE_ONLY: codice articolo noto, "
+        "route non strutturata, planner_eligible=false. Cosa deve fare il Team Leader?"
+    )
+
+    assert "Non produrre automaticamente" in response
+    assert "ordine cliente esplicito o conferma TL" in response
+    assert "produzione fuori programma" in response
+    assert "Fermare la produzione" not in response
+    assert "Thinking" not in response
