@@ -626,6 +626,7 @@ def test_tl_chat_uses_preview_for_inferred_article_when_active_summary_missing(m
     )
 
     monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "12056?"})
@@ -639,6 +640,54 @@ def test_tl_chat_uses_preview_for_inferred_article_when_active_summary_missing(m
     assert "VERTICALE_DUE_PIANI" in data["answer"]
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
+
+
+def test_tl_chat_uses_local_specs_metadata_when_present(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    specs_root = tmp_path / "specs_finitura"
+    article_dir = specs_root / "12056"
+    article_dir.mkdir(parents=True)
+
+    metadata = {
+        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+        "article": "12056",
+        "drawing": "A2145013001",
+        "rev": "10",
+        "operational_class": "STANDARD",
+        "planner_eligible": True,
+        "route_status": "DA_VERIFICARE",
+        "confidence": "CERTO",
+        "components": ["468791", "468948", "SAGOMA"],
+        "packaging": {
+            "sacchetto": "467660",
+            "imballo": "6429",
+            "quantita_per_imballo": 8,
+        },
+    }
+    (article_dir / "metadata.json").write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12056?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "Specifica locale presente" in data["answer"]
+    assert "Classe operativa STANDARD" in data["answer"]
+    assert "planner_eligible=true" in data["answer"]
+    assert "Componenti noti" in data["answer"]
+    assert "Packaging noto" in data["answer"]
+    assert "Route DA_VERIFICARE" in data["answer"]
 
 
 def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
@@ -681,6 +730,7 @@ def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
     )
 
     monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "99998?"})
