@@ -125,6 +125,32 @@ def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
     return data
 
 
+def _format_operational_answer(
+    *,
+    article: str,
+    confidence: str,
+    route: str,
+    constraints: list[str],
+    note: str,
+    action: str,
+) -> str:
+    parts = [f"{article} — {confidence}."]
+
+    if route:
+        parts.append(f"Route: {route}.")
+
+    if constraints:
+        parts.append("Vincoli: " + "; ".join(constraints) + ".")
+
+    if note:
+        parts.append(f"Nota: {note}.")
+
+    if action:
+        parts.append(f"Azione: {action}.")
+
+    return " ".join(parts)
+
+
 def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) -> TLChatResponse:
     confidence = str(metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE").upper()
     route_status = str(metadata.get("route_status") or "DA_VERIFICARE").upper()
@@ -136,19 +162,50 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
     components = metadata.get("components") if isinstance(metadata.get("components"), list) else []
     packaging = metadata.get("packaging") if isinstance(metadata.get("packaging"), dict) else {}
 
-    parts = [f"{article} — {confidence}."]
+    route_steps = metadata.get("route_steps") if isinstance(metadata.get("route_steps"), list) else []
+    route_stations = []
+    for step in route_steps:
+        if not isinstance(step, dict):
+            continue
+        station = _clean(step.get("station"))
+        if station:
+            route_stations.append(station)
 
+    route = " → ".join(route_stations)
+    constraints_text: list[str] = []
+
+    constraints = metadata.get("constraints") if isinstance(metadata.get("constraints"), dict) else {}
+
+    if constraints.get("has_henn") is True:
+        constraints_text.append("HENN presente")
+    elif constraints.get("has_henn") is False:
+        constraints_text.append("HENN assente sul singolo")
+
+    if constraints.get("has_guaina") is True:
+        constraints_text.append("GUAINA presente")
+
+    zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
+    if zaw_specificity == "DA_VERIFICARE":
+        constraints_text.append("specificità ZAW da verificare")
+
+    if constraints.get("cp_required"):
+        constraints_text.append("CP finale obbligatorio")
+
+    if route_status != "CERTO":
+        constraints_text.append(f"route {route_status}: non trattare la sequenza come definitiva senza conferma")
+
+    note_bits = []
     if drawing:
-        drawing_text = f"Specifica locale presente: disegno {drawing}"
+        drawing_text = f"disegno {drawing}"
         if rev:
             drawing_text += f" rev {rev}"
-        parts.append(drawing_text + ".")
+        note_bits.append(drawing_text)
 
-    parts.append(f"Classe operativa {operational_class}; planner_eligible={str(planner_eligible).lower()}.")
+    note_bits.append(f"classe {operational_class}, planner_eligible={str(planner_eligible).lower()}")
 
     if components:
         compact_components = ", ".join(str(item) for item in components[:8])
-        parts.append(f"Componenti noti: {compact_components}.")
+        note_bits.append(f"componenti noti {compact_components}")
 
     if packaging:
         packaging_bits = []
@@ -159,45 +216,25 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         if packaging.get("quantita_per_imballo"):
             packaging_bits.append(f"qta/imballo {packaging.get('quantita_per_imballo')}")
         if packaging_bits:
-            parts.append("Packaging noto: " + ", ".join(packaging_bits) + ".")
-
-    route_steps = metadata.get("route_steps") if isinstance(metadata.get("route_steps"), list) else []
-    route_stations = []
-    for step in route_steps:
-        if not isinstance(step, dict):
-            continue
-        station = _clean(step.get("station"))
-        if station:
-            route_stations.append(station)
-
-    if route_status != "CERTO":
-        parts.append(f"Route {route_status}: non trattare la sequenza come definitiva senza conferma TL.")
-    elif route_stations:
-        parts.append("Route confermata: " + " → ".join(route_stations) + ".")
-    else:
-        parts.append("Route marcata CERTO nel metadata locale.")
-
-    constraints = metadata.get("constraints") if isinstance(metadata.get("constraints"), dict) else {}
-    if constraints.get("has_henn") is True:
-        parts.append("HENN presente.")
-    elif constraints.get("has_henn") is False:
-        parts.append("HENN assente sul singolo.")
-
-    if constraints.get("has_guaina") is True:
-        parts.append("GUAINA presente.")
-
-    zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
-    if zaw_specificity == "DA_VERIFICARE":
-        parts.append("Specificità ZAW da verificare.")
-
-    if constraints.get("cp_required"):
-        parts.append("CP finale obbligatorio.")
+            note_bits.append("packaging " + ", ".join(packaging_bits))
 
     requires_confirmation = route_status != "CERTO"
+    action = (
+        "usare il metadata locale come base articolo; confermare route prima di pianificazione piena"
+        if requires_confirmation
+        else "usare route confermata"
+    )
 
     return TLChatResponse(
         ok=True,
-        answer=" ".join(parts),
+        answer=_format_operational_answer(
+            article=article,
+            confidence=confidence,
+            route=route or ("non strutturata" if route_status != "CERTO" else ""),
+            constraints=constraints_text,
+            note="; ".join(note_bits),
+            action=action,
+        ),
         confidence=confidence,
         risk=(
             "Metadata locale articolo presente; route ancora da verificare."
