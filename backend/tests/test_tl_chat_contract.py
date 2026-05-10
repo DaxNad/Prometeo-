@@ -658,8 +658,18 @@ def test_tl_chat_uses_local_specs_metadata_when_present(monkeypatch, tmp_path):
         "rev": "10",
         "operational_class": "STANDARD",
         "planner_eligible": True,
-        "route_status": "DA_VERIFICARE",
+        "route_status": "CERTO",
         "confidence": "CERTO",
+        "route_steps": [
+            {"seq": 1, "station": "ZAW1", "status": "CERTO"},
+            {"seq": 2, "station": "ZAW2", "status": "CERTO"},
+            {"seq": 3, "station": "PIDMILL", "status": "CERTO"},
+            {"seq": 4, "station": "CP", "status": "CERTO"},
+        ],
+        "constraints": {
+            "has_henn": False,
+            "cp_required": True,
+        },
         "components": ["468791", "468948", "SAGOMA"],
         "packaging": {
             "sacchetto": "467660",
@@ -681,13 +691,15 @@ def test_tl_chat_uses_local_specs_metadata_when_present(monkeypatch, tmp_path):
     assert res.status_code == 200
     assert data["ok"] is True
     assert data["confidence"] == "CERTO"
-    assert data["requires_confirmation"] is True
+    assert data["requires_confirmation"] is False
     assert "Specifica locale presente" in data["answer"]
     assert "Classe operativa STANDARD" in data["answer"]
     assert "planner_eligible=true" in data["answer"]
     assert "Componenti noti" in data["answer"]
     assert "Packaging noto" in data["answer"]
-    assert "Route DA_VERIFICARE" in data["answer"]
+    assert "Route confermata: ZAW1 → ZAW2 → PIDMILL → CP" in data["answer"]
+    assert "HENN assente sul singolo" in data["answer"]
+    assert "CP finale obbligatorio" in data["answer"]
 
 
 def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
