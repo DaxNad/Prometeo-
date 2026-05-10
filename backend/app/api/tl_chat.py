@@ -182,6 +182,14 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         parts.append("HENN presente.")
     elif constraints.get("has_henn") is False:
         parts.append("HENN assente sul singolo.")
+
+    if constraints.get("has_guaina") is True:
+        parts.append("GUAINA presente.")
+
+    zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
+    if zaw_specificity == "DA_VERIFICARE":
+        parts.append("Specificità ZAW da verificare.")
+
     if constraints.get("cp_required"):
         parts.append("CP finale obbligatorio.")
 

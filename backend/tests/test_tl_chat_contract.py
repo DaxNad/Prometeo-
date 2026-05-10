@@ -749,6 +749,58 @@ def test_tl_chat_local_specs_metadata_shows_henn_present(monkeypatch, tmp_path):
     assert "CP finale obbligatorio" in data["answer"]
 
 
+def test_tl_chat_local_specs_metadata_shows_guaina_and_zaw_specificity(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    specs_root = tmp_path / "specs_finitura"
+    article_dir = specs_root / "12058"
+    article_dir.mkdir(parents=True)
+
+    metadata = {
+        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+        "article": "12058",
+        "drawing": "A2145013001",
+        "operational_class": "STANDARD",
+        "planner_eligible": True,
+        "route_status": "CERTO",
+        "confidence": "CERTO",
+        "route_steps": [
+            {"seq": 1, "station": "GUAINA", "status": "CERTO"},
+            {"seq": 2, "station": "MARCATURA", "status": "CERTO"},
+            {"seq": 3, "station": "ZAW", "status": "CERTO"},
+            {"seq": 4, "station": "CP", "status": "CERTO"},
+        ],
+        "constraints": {
+            "has_henn": False,
+            "has_guaina": True,
+            "zaw_station_specificity": "DA_VERIFICARE",
+            "cp_required": True,
+        },
+    }
+    (article_dir / "metadata.json").write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12058?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "Route confermata: GUAINA → MARCATURA → ZAW → CP" in data["answer"]
+    assert "HENN assente sul singolo" in data["answer"]
+    assert "GUAINA presente" in data["answer"]
+    assert "Specificità ZAW da verificare" in data["answer"]
+    assert "CP finale obbligatorio" in data["answer"]
+
+
 def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
     import json
 
