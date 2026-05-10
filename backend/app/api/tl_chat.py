@@ -125,6 +125,11 @@ def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
     return data
 
 
+def _sentence(value: str) -> str:
+    text = _clean(value).rstrip(". ")
+    return f"{text}." if text else ""
+
+
 def _format_operational_answer(
     *,
     article: str,
@@ -137,16 +142,16 @@ def _format_operational_answer(
     parts = [f"{article} — {confidence}."]
 
     if route:
-        parts.append(f"Route: {route}.")
+        parts.append(_sentence(f"Route: {route}"))
 
     if constraints:
-        parts.append("Vincoli: " + "; ".join(constraints) + ".")
+        parts.append(_sentence("Vincoli: " + "; ".join(constraints)))
 
     if note:
-        parts.append(f"Nota: {note}.")
+        parts.append(_sentence(f"Nota: {note}"))
 
     if action:
-        parts.append(f"Azione: {action}.")
+        parts.append(_sentence(f"Azione: {action}"))
 
     return " ".join(parts)
 
@@ -589,47 +594,62 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     signals = summary.get("signals") if isinstance(summary.get("signals"), dict) else {}
     criticalities = summary.get("criticalities") if isinstance(summary.get("criticalities"), list) else []
 
-    compact: list[str] = []
-    compact.append(f"{article} — {summary.get('confidence', 'DA_VERIFICARE')}.")
-
-    primary_zaw = signals.get("primary_zaw_station")
+    confidence = str(summary.get("confidence") or "DA_VERIFICARE")
+    primary_zaw = _clean(signals.get("primary_zaw_station"))
     zaw_passes = signals.get("zaw_passes")
 
-    if primary_zaw and isinstance(zaw_passes, int) and zaw_passes > 1:
-        compact.append(
-            f"Usa {primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2."
-        )
-    elif primary_zaw:
-        compact.append(f"Usa {primary_zaw}; non trattare ZAW2 come alternativa automatica.")
+    route_parts: list[str] = []
+    constraints: list[str] = []
+    note_parts: list[str] = []
 
     if signals.get("has_henn"):
-        compact.append("HENN prima di innesto rapido/ZAW.")
+        route_parts.append("HENN")
+        constraints.append("HENN prima di innesto rapido/ZAW")
     elif signals.get("has_henn") is False:
-        compact.append("Nessun HENN indicato nel profilo operativo.")
+        constraints.append("HENN assente/non indicato")
+
+    if primary_zaw:
+        route_parts.append(primary_zaw)
+        if isinstance(zaw_passes, int) and zaw_passes > 1:
+            constraints.append(f"{primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2")
+        else:
+            constraints.append(f"{primary_zaw} obbligatorio; non usare ZAW2 come alternativa automatica")
 
     if signals.get("has_pidmill"):
-        compact.append("PIDMILL presente.")
+        route_parts.append("PIDMILL")
+        constraints.append("PIDMILL presente")
 
-    cp_mode = signals.get("cp_machine_mode")
-    if signals.get("cp_required") and cp_mode:
-        compact.append(f"CP finale obbligatorio, modalità {cp_mode}.")
-    elif signals.get("cp_required"):
-        compact.append("CP finale obbligatorio.")
+    cp_mode = _clean(signals.get("cp_machine_mode"))
+    if signals.get("cp_required"):
+        route_parts.append("CP")
+        if cp_mode:
+            constraints.append(f"CP finale obbligatorio, modalità {cp_mode}")
+        else:
+            constraints.append("CP finale obbligatorio")
 
     shared = signals.get("shared_components") or []
     if shared:
-        compact.append("Componenti condivisi da monitorare: " + ", ".join(str(x) for x in shared) + ".")
+        constraints.append("componenti condivisi " + ", ".join(str(x) for x in shared))
 
     for item in criticalities:
         text = str(item)
         if "Discrepanza" in text or "discrepanza" in text:
-            compact.append(text)
+            note_parts.append(text)
             break
+
+    action = str(summary.get("tl_action") or "seguire route confermata")
 
     return TLChatResponse(
         ok=True,
-        answer=" ".join(compact),
-        confidence=str(summary.get("confidence") or "DA_VERIFICARE"),
+        answer=_format_operational_answer(
+            article=article,
+            confidence=confidence,
+            route=" → ".join(route_parts),
+            constraints=constraints,
+            note="; ".join(note_parts),
+            action=action,
+        ),
+        confidence=confidence,
         risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
         recommended_action=str(summary.get("tl_action") or "Seguire risposta operativa sintetica."),
         requires_confirmation=False,
