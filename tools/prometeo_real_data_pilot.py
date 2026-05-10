@@ -85,18 +85,20 @@ def validate_safe_text(label: str, value: str | None, *, required: bool = False)
     return text
 
 
-def build_metadata(args: argparse.Namespace) -> dict[str, Any]:
+def build_metadata(args: argparse.Namespace, existing: dict[str, Any] | None = None) -> dict[str, Any]:
+    existing = existing or {}
+
     article = normalize_article(args.article)
     operational_class = normalize_class(args.operational_class)
 
-    drawing = validate_safe_text("disegno", args.drawing)
+    drawing = validate_safe_text("disegno", args.drawing or existing.get("drawing", ""))
     if drawing and not DRAWING_PATTERN.match(drawing):
         fail("disegno contiene caratteri non ammessi. Usa lettere/numeri/underscore/punto/trattino.")
 
-    rev = validate_safe_text("rev", args.rev)
-    source = validate_safe_text("source", args.source or "TL", required=True)
-    route_status = validate_safe_text("route_status", args.route_status or "DA_VERIFICARE", required=True)
-    notes = validate_safe_text("notes", args.notes)
+    rev = validate_safe_text("rev", args.rev or existing.get("rev") or existing.get("revision", ""))
+    source = validate_safe_text("source", args.source or existing.get("source") or "TL", required=True)
+    route_status = validate_safe_text("route_status", args.route_status or existing.get("route_status") or existing.get("classification") or "DA_VERIFICARE", required=True)
+    notes = validate_safe_text("notes", args.notes or existing.get("notes") or existing.get("note") or "")
 
     planner_default = operational_class == "STANDARD"
     planner_eligible = normalize_bool(args.planner_eligible, default=planner_default)
@@ -106,41 +108,64 @@ def build_metadata(args: argparse.Namespace) -> dict[str, Any]:
 
     now = datetime.now(timezone.utc).isoformat()
 
-    return {
-        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
-        "article": article,
-        "drawing": drawing,
-        "rev": rev,
-        "operational_class": operational_class,
-        "planner_eligible": planner_eligible,
-        "route_status": route_status,
-        "source": source,
-        "confidence": "DA_VERIFICARE",
-        "created_at": now,
-        "updated_at": now,
-        "assets": {
-            "spec_image_expected": bool(drawing),
-            "spec_image_filename": f"{article}_{drawing}_rev{rev}.png" if drawing and rev else "",
-        },
-        "notes": notes,
-        "rules": [
-            "metadata reale locale: non pushare se contiene dati sensibili",
-            "immagini/specifiche reali non devono essere versionate",
-            "TL resta fonte di conferma operativa",
-            "planner_eligible dipende da operational_class e conferma TL",
-        ],
-    }
+    metadata = dict(existing)
+    metadata.update(
+        {
+            "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+            "article": article,
+            "drawing": drawing,
+            "rev": rev,
+            "operational_class": operational_class,
+            "planner_eligible": planner_eligible,
+            "route_status": route_status,
+            "source": source,
+            "confidence": existing.get("confidence") or existing.get("classification") or "DA_VERIFICARE",
+            "updated_at": now,
+            "assets": {
+                **(existing.get("assets") if isinstance(existing.get("assets"), dict) else {}),
+                "spec_image_expected": bool(drawing),
+                "spec_image_filename": f"{article}_{drawing}_rev{rev}.png" if drawing and rev else "",
+            },
+            "notes": notes,
+            "rules": [
+                "metadata reale locale: non pushare se contiene dati sensibili",
+                "immagini/specifiche reali non devono essere versionate",
+                "TL resta fonte di conferma operativa",
+                "planner_eligible dipende da operational_class e conferma TL",
+            ],
+        }
+    )
+
+    metadata.setdefault("created_at", existing.get("created_at") or now)
+
+    return metadata
 
 
-def write_metadata(metadata: dict[str, Any], *, overwrite: bool) -> Path:
+def read_existing_metadata(article: str) -> dict[str, Any]:
+    metadata_path = SPECS_ROOT / article / "metadata.json"
+    if not metadata_path.exists():
+        return {}
+
+    try:
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        fail(f"metadata esistente non leggibile: {metadata_path} ({exc})")
+
+    if not isinstance(data, dict):
+        fail(f"metadata esistente non valido: {metadata_path}")
+
+    return data
+
+
+def write_metadata(metadata: dict[str, Any], *, overwrite: bool, merge_existing: bool) -> Path:
     article = metadata["article"]
     article_dir = SPECS_ROOT / article
     metadata_path = article_dir / "metadata.json"
 
     article_dir.mkdir(parents=True, exist_ok=True)
 
-    if metadata_path.exists() and not overwrite:
-        fail(f"metadata già presente: {metadata_path}. Usa --overwrite solo dopo verifica diff.")
+    if metadata_path.exists() and not overwrite and not merge_existing:
+        fail(f"metadata già presente: {metadata_path}. Usa --merge-existing per preservare e normalizzare, oppure --overwrite solo dopo verifica diff.")
 
     metadata_path.write_text(
         json.dumps(metadata, ensure_ascii=False, indent=2) + "\n",
@@ -158,14 +183,22 @@ def main() -> int:
     parser.add_argument("--drawing", default="", help="Disegno sanificato, opzionale")
     parser.add_argument("--rev", default="", help="Revisione, opzionale")
     parser.add_argument("--planner-eligible", default=None, help="true/false. Default true solo per STANDARD")
-    parser.add_argument("--route-status", default="DA_VERIFICARE", help="CERTO / INFERITO / DA_VERIFICARE")
-    parser.add_argument("--source", default="TL", help="Fonte sanificata, es. TL")
+    parser.add_argument("--route-status", default=None, help="CERTO / INFERITO / DA_VERIFICARE")
+    parser.add_argument("--source", default=None, help="Fonte sanificata, es. TL")
     parser.add_argument("--notes", default="", help="Note sanificate")
     parser.add_argument("--overwrite", action="store_true", help="Sovrascrive metadata esistente solo se esplicito")
+    parser.add_argument("--merge-existing", action="store_true", help="Preserva metadata esistente e aggiunge/normalizza i campi pilota V1")
 
     args = parser.parse_args()
-    metadata = build_metadata(args)
-    metadata_path = write_metadata(metadata, overwrite=args.overwrite)
+
+    article = normalize_article(args.article)
+    existing = read_existing_metadata(article) if args.merge_existing else {}
+
+    if args.overwrite and args.merge_existing:
+        fail("usa --overwrite oppure --merge-existing, non entrambi.")
+
+    metadata = build_metadata(args, existing=existing)
+    metadata_path = write_metadata(metadata, overwrite=args.overwrite, merge_existing=args.merge_existing)
 
     print("PROMETEO_REAL_DATA_PILOT_OK")
     print(f"metadata: {metadata_path.relative_to(ROOT)}")
