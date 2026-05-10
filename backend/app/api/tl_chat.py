@@ -161,10 +161,27 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         if packaging_bits:
             parts.append("Packaging noto: " + ", ".join(packaging_bits) + ".")
 
+    route_steps = metadata.get("route_steps") if isinstance(metadata.get("route_steps"), list) else []
+    route_stations = []
+    for step in route_steps:
+        if not isinstance(step, dict):
+            continue
+        station = _clean(step.get("station"))
+        if station:
+            route_stations.append(station)
+
     if route_status != "CERTO":
         parts.append(f"Route {route_status}: non trattare la sequenza come definitiva senza conferma TL.")
+    elif route_stations:
+        parts.append("Route confermata: " + " → ".join(route_stations) + ".")
     else:
         parts.append("Route marcata CERTO nel metadata locale.")
+
+    constraints = metadata.get("constraints") if isinstance(metadata.get("constraints"), dict) else {}
+    if constraints.get("has_henn") is False:
+        parts.append("HENN assente sul singolo.")
+    if constraints.get("cp_required"):
+        parts.append("CP finale obbligatorio.")
 
     requires_confirmation = route_status != "CERTO"
 
