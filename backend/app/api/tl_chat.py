@@ -178,7 +178,9 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         parts.append("Route marcata CERTO nel metadata locale.")
 
     constraints = metadata.get("constraints") if isinstance(metadata.get("constraints"), dict) else {}
-    if constraints.get("has_henn") is False:
+    if constraints.get("has_henn") is True:
+        parts.append("HENN presente.")
+    elif constraints.get("has_henn") is False:
         parts.append("HENN assente sul singolo.")
     if constraints.get("cp_required"):
         parts.append("CP finale obbligatorio.")
