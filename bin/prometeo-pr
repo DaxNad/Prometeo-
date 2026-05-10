@@ -1,0 +1,4 @@
+#!/bin/zsh
+SCRIPT_DIR="${0:A:h}"
+REPO_ROOT="${SCRIPT_DIR:h}"
+python3 "$REPO_ROOT/tools/prometeo_release_console.py"
