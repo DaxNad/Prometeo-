@@ -134,7 +134,7 @@ def run_tests_and_guards() -> None:
             print(f"SKIP: {cmd[-1]} non trovato.")
 
 
-def commit_changes() -> None:
+def commit_changes(*, preconfirmed: bool = False, default_message: str | None = None) -> None:
     current = branch()
     if current == MAIN_BRANCH:
         raise SystemExit("BLOCCO: commit operativo su main non consentito da questa console.")
@@ -143,14 +143,15 @@ def commit_changes() -> None:
         print("Nessuna modifica da committare.")
         return
 
-    print("\nDiff/status obbligatorio prima del commit:")
-    show_diff()
-    confirm = input("\nHai verificato diff e file non tracciati? Scrivi COMMIT per procedere: ").strip()
-    if confirm != "COMMIT":
-        print("Commit annullato.")
-        return
+    if not preconfirmed:
+        print("\nDiff/status obbligatorio prima del commit:")
+        show_diff()
+        confirm = input("\nHai verificato diff e file non tracciati? Scrivi COMMIT per procedere: ").strip()
+        if confirm != "COMMIT":
+            print("Commit annullato.")
+            return
 
-    msg = input("Messaggio commit inline: ").strip()
+    msg = default_message or input("Messaggio commit inline: ").strip()
     if not msg:
         print("Commit annullato: messaggio vuoto.")
         return
@@ -193,6 +194,75 @@ def create_pr() -> None:
         ],
         check=True,
     )
+
+
+def full_pr_flow() -> None:
+    """
+    Guided protected PR flow.
+
+    This function does not bypass PROMETEO rules:
+    - no direct main push
+    - diff/status must be shown
+    - tests and guards must pass
+    - commit requires explicit COMMIT confirmation
+    - PR creation requires explicit user input
+    """
+    print("\n== PROMETEO FULL PR FLOW ==")
+
+    current = branch()
+    if current == MAIN_BRANCH:
+        print("\nSei su main: serve branch dedicato.")
+        create_branch()
+        current = branch()
+
+    if current == MAIN_BRANCH:
+        raise SystemExit("BLOCCO: impossibile procedere su main.")
+
+    print(f"\nBranch operativo: {current}")
+
+    print("\n== STEP 1: STATUS + DIFF ==")
+    show_diff()
+
+    if not status_short():
+        print("\nNessuna modifica presente. Flusso PR completo annullato.")
+        return
+
+    proceed = input("\nProcedere con test e guard? Scrivi TEST: ").strip()
+    if proceed != "TEST":
+        print("Flusso annullato prima dei test.")
+        return
+
+    print("\n== STEP 2: TEST + GUARD ==")
+    run_tests_and_guards()
+
+    print("\n== STEP 3: COMMIT ==")
+    msg = input("Messaggio commit inline: ").strip()
+    if not msg:
+        print("Flusso annullato: messaggio commit vuoto.")
+        return
+
+    proceed = input("\nConfermi commit dopo diff/test/guard verdi? Scrivi COMMIT: ").strip()
+    if proceed != "COMMIT":
+        print("Flusso annullato prima del commit.")
+        return
+
+    commit_changes(preconfirmed=True, default_message=msg)
+
+    print("\n== STEP 4: PUSH BRANCH ==")
+    push_branch()
+
+    proceed = input("\nProcedere con creazione PR? Scrivi PR: ").strip()
+    if proceed != "PR":
+        print("Branch pushato. PR non creata.")
+        return
+
+    print("\n== STEP 5: CREATE PR ==")
+    create_pr()
+
+    proceed = input("\nVuoi monitorare subito i check? Scrivi CHECK: ").strip()
+    if proceed == "CHECK":
+        print("\n== STEP 6: WATCH CHECKS ==")
+        watch_checks()
 
 
 def watch_checks() -> None:
@@ -238,6 +308,7 @@ PROMETEO RELEASE CONSOLE
 7  Crea Pull Request
 8  Guarda check PR
 9  Merge PR + riallinea main
+10 PR completa guidata
 0  Esci
 
 Regola: mai push diretto su main. Sempre branch → PR → check verdi → merge.
@@ -264,6 +335,8 @@ Regola: mai push diretto su main. Sempre branch → PR → check verdi → merge
                 watch_checks()
             elif choice == "9":
                 merge_pr_and_sync()
+            elif choice == "10":
+                full_pr_flow()
             elif choice == "0":
                 return
             else:
