@@ -15,6 +15,7 @@ ROOT = Path(__file__).resolve().parents[3]
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
 ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "article_route_matrix.preview.json"
+SPECS_ROOT = ROOT / "specs_finitura"
 
 
 class TLChatContext(BaseModel):
@@ -87,6 +88,103 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
             output[str(code).strip().upper()] = payload
 
     return output
+
+
+def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
+    """
+    Read-only local specs metadata loader.
+
+    Contract:
+    - reads specs_finitura/<article>/metadata.json if present
+    - does not write files
+    - does not expose image/path internals
+    - accepts only pilot schema metadata
+    """
+    safe_article = _normalize_article(article)
+    if not safe_article:
+        return None
+
+    metadata_path = SPECS_ROOT / safe_article / "metadata.json"
+    if not metadata_path.exists():
+        return None
+
+    try:
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    if data.get("schema") != "PROMETEO_REAL_DATA_PILOT_V1":
+        return None
+
+    if _normalize_article(data.get("article")) != safe_article:
+        return None
+
+    return data
+
+
+def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) -> TLChatResponse:
+    confidence = str(metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE").upper()
+    route_status = str(metadata.get("route_status") or "DA_VERIFICARE").upper()
+    operational_class = str(metadata.get("operational_class") or "DA_VERIFICARE").upper()
+    planner_eligible = bool(metadata.get("planner_eligible"))
+
+    drawing = _clean(metadata.get("drawing"))
+    rev = _clean(metadata.get("rev") or metadata.get("revision"))
+    components = metadata.get("components") if isinstance(metadata.get("components"), list) else []
+    packaging = metadata.get("packaging") if isinstance(metadata.get("packaging"), dict) else {}
+
+    parts = [f"{article} — {confidence}."]
+
+    if drawing:
+        drawing_text = f"Specifica locale presente: disegno {drawing}"
+        if rev:
+            drawing_text += f" rev {rev}"
+        parts.append(drawing_text + ".")
+
+    parts.append(f"Classe operativa {operational_class}; planner_eligible={str(planner_eligible).lower()}.")
+
+    if components:
+        compact_components = ", ".join(str(item) for item in components[:8])
+        parts.append(f"Componenti noti: {compact_components}.")
+
+    if packaging:
+        packaging_bits = []
+        if packaging.get("sacchetto"):
+            packaging_bits.append(f"sacchetto {packaging.get('sacchetto')}")
+        if packaging.get("imballo"):
+            packaging_bits.append(f"imballo {packaging.get('imballo')}")
+        if packaging.get("quantita_per_imballo"):
+            packaging_bits.append(f"qta/imballo {packaging.get('quantita_per_imballo')}")
+        if packaging_bits:
+            parts.append("Packaging noto: " + ", ".join(packaging_bits) + ".")
+
+    if route_status != "CERTO":
+        parts.append(f"Route {route_status}: non trattare la sequenza come definitiva senza conferma TL.")
+    else:
+        parts.append("Route marcata CERTO nel metadata locale.")
+
+    requires_confirmation = route_status != "CERTO"
+
+    return TLChatResponse(
+        ok=True,
+        answer=" ".join(parts),
+        confidence=confidence,
+        risk=(
+            "Metadata locale articolo presente; route ancora da verificare."
+            if requires_confirmation
+            else "Metadata locale articolo presente."
+        ),
+        recommended_action=(
+            "Usare il metadata locale come base articolo; confermare route prima di pianificazione piena."
+            if requires_confirmation
+            else "Usare il metadata locale come riferimento operativo confermato."
+        ),
+        requires_confirmation=requires_confirmation,
+        technical_details_hidden=True,
+    )
 
 
 def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatResponse:
@@ -492,6 +590,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         article_summary_response = _response_from_article_summary(article)
         if article_summary_response:
             return article_summary_response
+
+        local_specs_metadata = _load_local_specs_metadata(article)
+        if local_specs_metadata:
+            return _response_from_local_specs_metadata(article, local_specs_metadata)
 
         lifecycle_payload = lifecycle.get(article)
 
