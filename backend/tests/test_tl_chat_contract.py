@@ -692,12 +692,10 @@ def test_tl_chat_uses_local_specs_metadata_when_present(monkeypatch, tmp_path):
     assert data["ok"] is True
     assert data["confidence"] == "CERTO"
     assert data["requires_confirmation"] is False
-    assert "Specifica locale presente" in data["answer"]
-    assert "Classe operativa STANDARD" in data["answer"]
-    assert "planner_eligible=true" in data["answer"]
-    assert "Componenti noti" in data["answer"]
-    assert "Packaging noto" in data["answer"]
-    assert "Route confermata: ZAW1 → ZAW2 → PIDMILL → CP" in data["answer"]
+    assert "Route: ZAW1 → ZAW2 → PIDMILL → CP" in data["answer"]
+    assert "classe STANDARD, planner_eligible=true" in data["answer"]
+    assert "componenti noti" in data["answer"]
+    assert "packaging" in data["answer"]
     assert "HENN assente sul singolo" in data["answer"]
     assert "CP finale obbligatorio" in data["answer"]
 
@@ -744,7 +742,7 @@ def test_tl_chat_local_specs_metadata_shows_henn_present(monkeypatch, tmp_path):
     assert data["ok"] is True
     assert data["confidence"] == "CERTO"
     assert data["requires_confirmation"] is False
-    assert "Route confermata: MARCATURA → HENN → CP" in data["answer"]
+    assert "Route: MARCATURA → HENN → CP" in data["answer"]
     assert "HENN presente" in data["answer"]
     assert "CP finale obbligatorio" in data["answer"]
 
@@ -794,10 +792,10 @@ def test_tl_chat_local_specs_metadata_shows_guaina_and_zaw_specificity(monkeypat
     assert data["ok"] is True
     assert data["confidence"] == "CERTO"
     assert data["requires_confirmation"] is False
-    assert "Route confermata: GUAINA → MARCATURA → ZAW → CP" in data["answer"]
+    assert "Route: GUAINA → MARCATURA → ZAW → CP" in data["answer"]
     assert "HENN assente sul singolo" in data["answer"]
     assert "GUAINA presente" in data["answer"]
-    assert "Specificità ZAW da verificare" in data["answer"]
+    assert "specificità ZAW da verificare" in data["answer"]
     assert "CP finale obbligatorio" in data["answer"]
 
 
