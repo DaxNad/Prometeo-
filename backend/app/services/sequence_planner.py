@@ -14,6 +14,7 @@ from ..station_normalizer import normalize_station
 from app.agent_runtime.service import AgentRuntimeService
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact, get_component_conflicts
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact
+from app.domain.article_group_registry import get_article_group
 from app.domain.article_profile_resolver import resolve_article_profile
 from app.domain.operational_class import build_planner_admission_gate
 from app.domain.drawing_registry_service import override_postazioni_from_registry
@@ -138,6 +139,15 @@ class SequencePlannerService:
                 }
             )
             admission = build_planner_admission_gate(admission_profile)
+            article_group = get_article_group(article_code)
+            group_dependency = article_group is not None
+            diagnostic_reasons: list[str] = []
+            if (
+                group_dependency
+                and article_group
+                and article_group.get("status") == "DA_MODELLARE"
+            ):
+                diagnostic_reasons.append("group_dependency_not_structured")
 
             items.append(
                 {
@@ -165,6 +175,12 @@ class SequencePlannerService:
                     "admission_reasons": admission["reasons"],
                     "human_override_allowed": admission["human_override_allowed"],
                     "planner_admission_rule": admission["rule"],
+                    "article_group_id": article_group.get("group_id", "") if article_group else "",
+                    "group_dependency": group_dependency,
+                    "group_planner_policy": article_group.get("planner_policy", "") if article_group else "",
+                    "group_status": article_group.get("status", "") if article_group else "",
+                    "diagnostic_reasons": diagnostic_reasons,
+                    "planner_enforcement": False,
                     "signals": signals,
                 }
             )
@@ -259,6 +275,12 @@ class SequencePlannerService:
                         "admission_reasons": item.get("admission_reasons", []),
                         "human_override_allowed": item.get("human_override_allowed", True),
                         "planner_admission_rule": item.get("planner_admission_rule", ""),
+                        "article_group_id": item.get("article_group_id", ""),
+                        "group_dependency": item.get("group_dependency", False),
+                        "group_planner_policy": item.get("group_planner_policy", ""),
+                        "group_status": item.get("group_status", ""),
+                        "diagnostic_reasons": item.get("diagnostic_reasons", []),
+                        "planner_enforcement": item.get("planner_enforcement", False),
                     }
                 )
 
