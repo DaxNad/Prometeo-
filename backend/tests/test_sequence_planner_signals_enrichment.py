@@ -36,14 +36,18 @@ def test_build_global_sequence_enriches_signals_from_article_profile(monkeypatch
             },
         ]
 
-    def fake_get_article_profile(article_code: str):
+    def fake_resolve_article_profile(article_code: str):
         if article_code == "ART-WITH-PROFILE":
-            return {"signals": {"fragile": True, "family": "verniciato"}}
+            return {
+                "source": "TEST_PROFILE",
+                "authoritative": True,
+                "signals": {"fragile": True, "family": "verniciato"},
+            }
         return None
 
     monkeypatch.setattr(sp.sequence_planner_service, "fetch_station_board", fake_fetch_station_board)
     monkeypatch.setattr(sp, "_get_open_events_by_station", lambda _db: {})
-    monkeypatch.setattr(sp, "get_article_profile", fake_get_article_profile)
+    monkeypatch.setattr(sp, "resolve_article_profile", fake_resolve_article_profile)
     monkeypatch.setattr(sp.sequence_planner_service, "_save", lambda *args, **kwargs: None)
     monkeypatch.setattr(sp.sequence_planner_service, "_agent_monitor", lambda *args, **kwargs: None)
 
