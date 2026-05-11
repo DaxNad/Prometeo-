@@ -90,3 +90,71 @@ def build_operational_policy(profile: dict[str, Any] | None) -> dict[str, Any]:
             else "REFERENCE_ONLY_UNTIL_ORDER_OR_TL_CONFIRMATION"
         ),
     }
+
+def build_planner_admission_gate(profile: dict[str, Any] | None) -> dict[str, Any]:
+    """
+    PROMETEO planner gate.
+
+    planner_eligible=true does not mean automatic production priority.
+    It only means the article can be considered by the planner if runtime
+    admission prerequisites are also satisfied.
+    """
+    profile = profile or {}
+    policy = build_operational_policy(profile)
+
+    operational_class = policy["operational_class"]
+    planner_eligible = bool(policy["planner_eligible"])
+    route_status = str(profile.get("route_status") or "").strip().upper()
+    confidence = str(profile.get("confidence") or "").strip().upper()
+
+    has_active_demand = _as_bool(
+        profile.get("active_customer_order")
+        or profile.get("ordine_cliente_attivo")
+        or profile.get("customer_order_active")
+        or profile.get("active_lot")
+        or profile.get("lotto_attivo")
+        or profile.get("explicit_operational_request")
+        or profile.get("richiesta_operativa_esplicita")
+    )
+
+    has_blocking_constraint = _as_bool(
+        profile.get("has_blocking_constraint")
+        or profile.get("vincolo_bloccante_aperto")
+        or profile.get("open_blocking_constraint")
+    )
+
+    reasons: list[str] = []
+
+    if operational_class != "STANDARD":
+        reasons.append("operational_class_not_standard")
+
+    if not planner_eligible:
+        reasons.append("planner_eligible_false")
+
+    if route_status != "CERTO":
+        reasons.append("route_status_not_certo")
+
+    if confidence != "CERTO":
+        reasons.append("confidence_not_certo")
+
+    if has_blocking_constraint:
+        reasons.append("blocking_constraint_open")
+
+    if not has_active_demand:
+        reasons.append("no_active_customer_order_lot_or_explicit_request")
+
+    admitted = not reasons
+
+    return {
+        "planner_admitted": admitted,
+        "planner_eligible": planner_eligible,
+        "operational_class": operational_class,
+        "route_status": route_status or "DA_VERIFICARE",
+        "confidence": confidence or "DA_VERIFICARE",
+        "has_active_demand": has_active_demand,
+        "has_blocking_constraint": has_blocking_constraint,
+        "human_override_allowed": True,
+        "reasons": reasons,
+        "rule": "STANDARD_CERTAIN_ROUTE_CERTAIN_CONFIDENCE_NO_BLOCKERS_ACTIVE_DEMAND_HUMAN_OVERRIDE",
+    }
+
