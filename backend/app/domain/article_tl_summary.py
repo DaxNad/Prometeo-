@@ -4,11 +4,7 @@ from typing import Any
 
 from app.domain.article_operational_registry import get_operational_registry_entry
 from app.domain.operational_class import build_operational_policy
-from app.domain.article_process_matrix import (
-    get_article_profile,
-    get_article_route,
-    get_article_signals,
-)
+from app.domain.article_profile_resolver import resolve_article_profile
 
 
 def _as_bool(value: Any) -> bool:
@@ -23,9 +19,9 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     - read-only
     - no planner mutation
     - no SMF/database write
-    - uses article_process_matrix as source
+    - uses authoritative article profile resolver
     """
-    profile = get_article_profile(article_code)
+    profile = resolve_article_profile(article_code)
 
     if not profile:
         registry_entry = get_operational_registry_entry(article_code)
@@ -72,8 +68,8 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
             "tl_action": "Verificare specifica, BOM e route prima di pianificare.",
         }
 
-    route = get_article_route(article_code)
-    signals = get_article_signals(article_code)
+    route = profile.get("route") if isinstance(profile.get("route"), list) else []
+    signals = profile.get("signals") if isinstance(profile.get("signals"), dict) else {}
     discrepancies = profile.get("discrepancies") or []
     registry_entry = get_operational_registry_entry(article_code)
     policy_source = {**(registry_entry or {}), **profile}
