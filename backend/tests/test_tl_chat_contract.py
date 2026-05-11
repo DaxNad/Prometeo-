@@ -387,6 +387,7 @@ def test_tl_chat_answers_12066_from_article_summary_before_lifecycle(monkeypatch
     import json
 
     import app.domain.article_process_matrix as apm
+    import app.domain.article_profile_resolver as apr
     import app.domain.article_tl_summary as ats
     from app.api import tl_chat as tl_chat_api
 
@@ -429,8 +430,11 @@ def test_tl_chat_answers_12066_from_article_summary_before_lifecycle(monkeypatch
 
     monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
     importlib.reload(apm)
+    importlib.reload(apr)
     importlib.reload(ats)
     importlib.reload(tl_chat_api)
+    monkeypatch.setattr(apr, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "12066?"})
@@ -627,6 +631,7 @@ def test_tl_chat_uses_preview_for_inferred_article_when_active_summary_missing(m
 
     monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
     monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "12056?"})
@@ -893,6 +898,7 @@ def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
 
     monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
     monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "99998?"})

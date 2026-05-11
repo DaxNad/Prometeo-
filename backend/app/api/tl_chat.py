@@ -598,30 +598,36 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     primary_zaw = _clean(signals.get("primary_zaw_station"))
     zaw_passes = signals.get("zaw_passes")
 
-    route_parts: list[str] = []
+    summary_route = summary.get("route") if isinstance(summary.get("route"), list) else []
+    route_parts: list[str] = [str(item).strip() for item in summary_route if str(item).strip()]
+    route_from_summary = bool(route_parts)
     constraints: list[str] = []
     note_parts: list[str] = []
 
     if signals.get("has_henn"):
-        route_parts.append("HENN")
+        if not route_from_summary:
+            route_parts.append("HENN")
         constraints.append("HENN prima di innesto rapido/ZAW")
     elif signals.get("has_henn") is False:
         constraints.append("HENN assente/non indicato")
 
     if primary_zaw:
-        route_parts.append(primary_zaw)
+        if not route_from_summary:
+            route_parts.append(primary_zaw)
         if isinstance(zaw_passes, int) and zaw_passes > 1:
             constraints.append(f"{primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2")
         else:
             constraints.append(f"{primary_zaw} obbligatorio; non usare ZAW2 come alternativa automatica")
 
     if signals.get("has_pidmill"):
-        route_parts.append("PIDMILL")
+        if not route_from_summary:
+            route_parts.append("PIDMILL")
         constraints.append("PIDMILL presente")
 
     cp_mode = _clean(signals.get("cp_machine_mode"))
     if signals.get("cp_required"):
-        route_parts.append("CP")
+        if not route_from_summary:
+            route_parts.append("CP")
         if cp_mode:
             constraints.append(f"CP finale obbligatorio, modalità {cp_mode}")
         else:
@@ -671,13 +677,13 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         return _response_for_lifecycle_status_list(lifecycle, requested_status)
 
     if article:
-        article_summary_response = _response_from_article_summary(article)
-        if article_summary_response:
-            return article_summary_response
-
         local_specs_metadata = _load_local_specs_metadata(article)
         if local_specs_metadata:
             return _response_from_local_specs_metadata(article, local_specs_metadata)
+
+        article_summary_response = _response_from_article_summary(article)
+        if article_summary_response:
+            return article_summary_response
 
         lifecycle_payload = lifecycle.get(article)
 
