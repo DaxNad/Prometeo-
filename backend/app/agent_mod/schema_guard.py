@@ -22,6 +22,17 @@ def _build_client() -> TestClient:
     return TestClient(app)
 
 
+def _auth_headers() -> dict[str, str]:
+    try:
+        from app.config import settings
+
+        key = getattr(settings, "prometeo_api_key", "") or os.getenv("PROMETEO_API_KEY", "")
+    except Exception:
+        key = os.getenv("PROMETEO_API_KEY", "")
+
+    return {"X-API-Key": key} if key else {}
+
+
 def _check_health_schema(client: TestClient) -> bool:
     r = client.get("/health")
     if r.status_code != 200:
@@ -33,7 +44,7 @@ def _check_health_schema(client: TestClient) -> bool:
 
 
 def _check_smf_status_schema(client: TestClient) -> bool:
-    r = client.get("/smf/status")
+    r = client.get("/smf/status", headers=_auth_headers())
     if r.status_code != 200:
         return False
     data = r.json()
@@ -49,7 +60,7 @@ def _check_parse_single_schema(client: TestClient) -> bool:
         "station": "ZAW-1",
         "customer_due_date": "2026-04-15",
     }
-    r = client.post("/smf/parse-extracted-order", json=payload)
+    r = client.post("/smf/parse-extracted-order", json=payload, headers=_auth_headers())
     if r.status_code != 200:
         return False
     body = r.json()
@@ -80,7 +91,7 @@ def _check_parse_batch_schema(client: TestClient) -> bool:
             "customer_due_date": "2026-04-15",
         },
     ]
-    r = client.post("/smf/parse-extracted-orders", json=payload)
+    r = client.post("/smf/parse-extracted-orders", json=payload, headers=_auth_headers())
     if r.status_code != 200:
         return False
     body = r.json()
