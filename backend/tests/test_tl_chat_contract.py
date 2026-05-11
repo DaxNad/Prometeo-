@@ -747,6 +747,59 @@ def test_tl_chat_local_specs_metadata_shows_henn_present(monkeypatch, tmp_path):
     assert "CP finale obbligatorio" in data["answer"]
 
 
+def test_tl_chat_operational_v2_contract_for_local_metadata(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    specs_root = tmp_path / "specs_finitura"
+    article_dir = specs_root / "12999"
+    article_dir.mkdir(parents=True)
+
+    metadata = {
+        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+        "article": "12999",
+        "drawing": "MOCKDRAWING",
+        "operational_class": "STANDARD",
+        "planner_eligible": True,
+        "route_status": "CERTO",
+        "confidence": "CERTO",
+        "route_steps": [
+            {"seq": 1, "station": "HENN", "status": "CERTO"},
+            {"seq": 2, "station": "ZAW1", "status": "CERTO"},
+            {"seq": 3, "station": "CP", "status": "CERTO"},
+        ],
+        "constraints": {
+            "has_henn": True,
+            "cp_required": True,
+        },
+    }
+    (article_dir / "metadata.json").write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12999?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+
+    answer = data["answer"]
+    assert answer.startswith("12999 — CERTO.")
+    assert "Route:" in answer
+    assert "Vincoli:" in answer
+    assert "Nota:" in answer
+    assert "Azione:" in answer
+    assert "Route: HENN → ZAW1 → CP." in answer
+    assert "Azione: usare route confermata." in answer
+
+
 def test_tl_chat_local_specs_metadata_shows_guaina_and_zaw_specificity(monkeypatch, tmp_path):
     import json
 
