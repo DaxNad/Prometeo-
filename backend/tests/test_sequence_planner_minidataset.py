@@ -76,5 +76,16 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
         match = [i for i in items if i.get("critical_station") == "ZAW-1"]
         assert match, "planner items for ZAW-1 missing"
         assert any(i.get("event_impact") is True for i in match), "event impact not propagated"
+
+        diagnostic_item = match[0]
+        assert "planner_eligible" in diagnostic_item
+        assert "planner_admitted" in diagnostic_item
+        assert "admission_reasons" in diagnostic_item
+        assert "human_override_allowed" in diagnostic_item
+        assert "planner_admission_rule" in diagnostic_item
+
+        assert diagnostic_item["human_override_allowed"] is True
+        assert diagnostic_item["planner_admitted"] is False
+        assert "blocking_constraint_open" in diagnostic_item["admission_reasons"]
     finally:
         db.close()

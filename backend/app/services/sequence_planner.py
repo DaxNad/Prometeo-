@@ -15,6 +15,7 @@ from app.agent_runtime.service import AgentRuntimeService
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact, get_component_conflicts
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact
 from app.domain.article_process_matrix import get_article_profile
+from app.domain.operational_class import build_planner_admission_gate
 from app.domain.drawing_registry_service import override_postazioni_from_registry
 
 
@@ -127,6 +128,17 @@ class SequencePlannerService:
             if open_events_total > 0:
                 tl_action = "VERIFICA_SEGNALAZIONE_OPERATIVA"
 
+            admission_profile = dict(profile or {})
+            admission_profile.update(
+                {
+                    "article": article_code,
+                    "active_lot": int(r["quantita"] or 0) > 0,
+                    "explicit_operational_request": True,
+                    "has_blocking_constraint": open_events_total > 0,
+                }
+            )
+            admission = build_planner_admission_gate(admission_profile)
+
             items.append(
                 {
                     "article": article_code,
@@ -148,6 +160,11 @@ class SequencePlannerService:
                     "open_events_total": open_events_total,
                     "event_titles": event_titles,
                     "event_impact": open_events_total > 0,
+                    "planner_eligible": admission["planner_eligible"],
+                    "planner_admitted": admission["planner_admitted"],
+                    "admission_reasons": admission["reasons"],
+                    "human_override_allowed": admission["human_override_allowed"],
+                    "planner_admission_rule": admission["rule"],
                     "signals": signals,
                 }
             )
@@ -237,6 +254,11 @@ class SequencePlannerService:
                         "open_events_total": item.get("open_events_total", 0),
                         "event_titles": item.get("event_titles", ""),
                         "event_impact": item.get("event_impact", False),
+                        "planner_eligible": item.get("planner_eligible", False),
+                        "planner_admitted": item.get("planner_admitted", False),
+                        "admission_reasons": item.get("admission_reasons", []),
+                        "human_override_allowed": item.get("human_override_allowed", True),
+                        "planner_admission_rule": item.get("planner_admission_rule", ""),
                     }
                 )
 
