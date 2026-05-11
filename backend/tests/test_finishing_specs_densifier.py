@@ -148,3 +148,81 @@ def test_densifier_keeps_authoritative_records_untouched(monkeypatch):
 
     assert result["classification"] == ALREADY_AUTHORITATIVE
     assert result["proposed_patch"] == {}
+
+def test_densifier_turns_poor_metadata_with_support_into_ask_tl(monkeypatch):
+    from app.domain import finishing_specs_densifier as d
+
+    fake_index = {
+        "records": [
+            {
+                "article": "12097",
+                "authoritative": False,
+                "confidence": "DA_VERIFICARE",
+                "issues": ["unsupported_or_missing_schema"],
+            }
+        ]
+    }
+
+    metadata = {
+        "drawing": "A 236 501 81 00",
+        "revision": "14",
+        "stations_expected": [
+            "LAVAGGIO",
+            "CONTROLLO_VISIVO",
+            "INSERIMENTO_GUAINA",
+            "MARCATURA",
+            "ZAW1",
+            "COLLAUDO_PRESSIONE",
+        ],
+        "linked_bom": [
+            {"component": "468922"},
+            {"component": "468728"},
+        ],
+    }
+
+    monkeypatch.setattr(d, "build_finishing_specs_index", lambda _root=None: fake_index)
+
+    preview = build_densification_preview(metadata_loader=lambda _record: metadata)
+    result = preview["results"][0]
+
+    assert result["classification"] == ASK_TL
+    assert result["proposed_patch"] == {}
+    assert "metadata_poor_but_support_available" in result["reasons"]
+    assert result["support_summary"]["drawing"] == "A 236 501 81 00"
+    assert result["support_summary"]["has_zaw1_hint"] is True
+    assert result["support_summary"]["has_cp_hint"] is True
+    assert result["suggested_questions"]
+    assert any("Confermi" in q for q in result["suggested_questions"])
+
+
+def test_densifier_does_not_create_patch_from_support_only(monkeypatch):
+    from app.domain import finishing_specs_densifier as d
+
+    fake_index = {
+        "records": [
+            {
+                "article": "12402",
+                "authoritative": False,
+                "confidence": "DA_VERIFICARE",
+                "issues": ["unsupported_or_missing_schema"],
+            }
+        ]
+    }
+
+    metadata = {
+        "drawing": "A 167 500 7203",
+        "stations_expected": ["ZAW2", "PIDMILL", "COLLAUDO_PRESSIONE"],
+        "linked_bom": [{"component": "468728"}],
+    }
+
+    monkeypatch.setattr(d, "build_finishing_specs_index", lambda _root=None: fake_index)
+
+    preview = build_densification_preview(metadata_loader=lambda _record: metadata)
+    result = preview["results"][0]
+
+    assert result["classification"] == ASK_TL
+    assert result["proposed_patch"] == {}
+    assert "tl_confirmation_required" in result["reasons"]
+    assert any("ZAW2" in q for q in result["suggested_questions"])
+    assert any("PIDMILL" in q for q in result["suggested_questions"])
+

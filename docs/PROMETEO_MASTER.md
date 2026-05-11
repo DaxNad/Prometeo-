@@ -273,6 +273,30 @@ Contratti vincolanti:
 - anomalie e failure devono produrre segnale osservabile (errore esplicito o stato diagnostico), mai silenzio operativo.
 - prima dei dati reali: test sintetici contrattuali su sicurezza, osservabilità e failure mode.
 
+## 9. Spec Densification Orchestrator / Capo Guardia Specifiche
+
+Scopo:
+- coordinare densificazione specifiche/documenti reali in modo sistematico, non solo articolo-per-articolo.
+- mantenere `SPECIFICA DI FINITURA + TL` come unica autorità operativa.
+
+Pipeline (fase iniziale):
+1. ingest read-only di foto/documenti/specifiche
+2. smistamento verso guardie specializzate (route, componenti, stazioni, packaging, CP/ZAW)
+3. produzione preview/diff/report con classificazione `CERTO / DA_VERIFICARE / BLOCCATO / ASK_TL`
+4. generazione domande TL mirate solo su punti delicati/non deducibili
+5. eventuale fase apply separata (fuori scope) con conferma esplicita
+
+Guardrail:
+- modalità iniziale **preview-only**.
+- nessuna scrittura diretta su SMF, database, planner o metadata reali.
+- nessuna promozione automatica a `CERTO` da fonti derivate/cache/preview.
+- nessuna versionatura di immagini/PDF/foto o dati sensibili in Git.
+
+Relazioni architetturali:
+- resolver resta il punto di verità runtime (authoritative-first).
+- TL Chat consuma output orchestratore come supporto subordinato, non come autorità autonoma.
+- planner diagnostic può osservare i risultati, ma enforcement resta fuori scope finché non esiste PR dedicata.
+
 ### Lifecycle articolo
 
 Un articolo presente in `BOM_Specs` non è automaticamente articolo attivo.

@@ -497,10 +497,15 @@ def test_tl_chat_answers_12055_from_article_summary(monkeypatch, tmp_path):
         encoding="utf-8",
     )
 
+    import app.domain.article_profile_resolver as resolver
+
+    monkeypatch.setattr(resolver, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
     monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
     importlib.reload(apm)
     importlib.reload(ats)
     importlib.reload(tl_chat_api)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "12055?"})
@@ -575,10 +580,15 @@ def test_tl_chat_answers_12102_double_zaw_pass_without_henn(monkeypatch, tmp_pat
         encoding="utf-8",
     )
 
+    import app.domain.article_profile_resolver as resolver
+
+    monkeypatch.setattr(resolver, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
     monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
     importlib.reload(apm)
     importlib.reload(ats)
     importlib.reload(tl_chat_api)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
 
     client = TestClient(app)
     res = client.post("/tl/chat", json={"question": "12102?"})

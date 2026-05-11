@@ -57,6 +57,9 @@ def test_production_article_summary_endpoint_returns_12066_tl_summary(monkeypatc
         encoding="utf-8",
     )
 
+    import app.domain.article_profile_resolver as resolver
+
+    monkeypatch.setattr(resolver, "SPECS_ROOT", tmp_path / "missing_specs_finitura")
     monkeypatch.setenv("SMF_BASE_PATH", str(env_base))
     importlib.reload(apm)
     importlib.reload(ats)

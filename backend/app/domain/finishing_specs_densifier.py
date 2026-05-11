@@ -96,6 +96,84 @@ def _constraints_from_metadata(
     }
 
 
+def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    stations = _upper_list(metadata.get("stations_expected"))
+    components = _component_codes(metadata)
+
+    return {
+        "drawing": str(metadata.get("drawing") or metadata.get("disegno") or "").strip(),
+        "revision": str(metadata.get("revision") or metadata.get("rev") or "").strip(),
+        "stations_expected": stations,
+        "components": components,
+        "has_henn_hint": "HENN" in stations or "469122" in components or "469124" in components,
+        "has_guaina_hint": "INSERIMENTO_GUAINA" in stations or "GUAINA" in stations or "468922" in components,
+        "has_zaw1_hint": "ZAW1" in stations or "ZAW1_2" in stations,
+        "has_zaw2_hint": "ZAW2" in stations,
+        "has_pidmill_hint": "PIDMILL" in stations,
+        "has_cp_hint": "COLLAUDO_PRESSIONE" in stations or "CP" in stations or "COLLAUDO_VERTICALE" in stations,
+    }
+
+
+def _suggest_questions(article: Any, support_summary: dict[str, Any]) -> list[str]:
+    code = str(article or "").strip()
+    stations = support_summary.get("stations_expected") or []
+    questions: list[str] = []
+
+    if stations:
+        questions.append(
+            f"Confermi per {code} la route operativa reale partendo da: {' → '.join(stations)}?"
+        )
+    else:
+        questions.append(f"Confermi la route operativa reale del {code}?")
+
+    if support_summary.get("has_henn_hint"):
+        questions.append(f"Confermi che per {code} HENN è presente e va prima di ZAW/innesto rapido?")
+    else:
+        questions.append(f"Confermi se per {code} HENN è assente?")
+
+    if support_summary.get("has_zaw2_hint"):
+        questions.append(f"Per {code}, ZAW2 è postazione reale oppure è un secondo passaggio ZAW1?")
+    elif support_summary.get("has_zaw1_hint"):
+        questions.append(f"Confermi che per {code} la postazione ZAW corretta è ZAW1?")
+
+    if support_summary.get("has_pidmill_hint"):
+        questions.append(f"Confermi che per {code} PIDMILL è realmente presente nella route?")
+
+    if support_summary.get("has_cp_hint"):
+        questions.append(f"Confermi che per {code} CP è finale obbligatorio e COLLAUDO_VERTICALE è solo modalità macchina se presente?")
+
+    return questions
+
+
+def _support_result(
+    record: dict[str, Any],
+    metadata: dict[str, Any],
+    base_reasons: list[str],
+) -> dict[str, Any] | None:
+    support_summary = _support_summary_from_metadata(metadata)
+
+    has_support = any(
+        [
+            support_summary.get("drawing"),
+            support_summary.get("revision"),
+            support_summary.get("stations_expected"),
+            support_summary.get("components"),
+        ]
+    )
+
+    if not has_support:
+        return None
+
+    return {
+        "article": record.get("article"),
+        "classification": ASK_TL,
+        "reasons": ["metadata_poor_but_support_available", "tl_confirmation_required"] + base_reasons,
+        "support_summary": support_summary,
+        "suggested_questions": _suggest_questions(record.get("article"), support_summary),
+        "proposed_patch": {},
+    }
+
+
 def _classify_record(record: dict[str, Any], raw_metadata: dict[str, Any] | None = None) -> dict[str, Any]:
     issues = list(record.get("issues") or [])
 
@@ -104,6 +182,8 @@ def _classify_record(record: dict[str, Any], raw_metadata: dict[str, Any] | None
             "article": record.get("article"),
             "classification": ALREADY_AUTHORITATIVE,
             "reasons": ["metadata_already_authoritative"],
+            "support_summary": {},
+            "suggested_questions": [],
             "proposed_patch": {},
         }
 
@@ -133,18 +213,27 @@ def _classify_record(record: dict[str, Any], raw_metadata: dict[str, Any] | None
         ask_tl.append("cp_vertical_without_explicit_pressure_check")
 
     if blockers:
+        support = _support_result(record, metadata, blockers + issues)
+        if support:
+            return support
+
         return {
             "article": record.get("article"),
             "classification": BLOCKED,
             "reasons": blockers + issues,
+            "support_summary": {},
+            "suggested_questions": [],
             "proposed_patch": {},
         }
 
     if ask_tl:
+        support_summary = _support_summary_from_metadata(metadata)
         return {
             "article": record.get("article"),
             "classification": ASK_TL,
             "reasons": ask_tl + issues,
+            "support_summary": support_summary,
+            "suggested_questions": _suggest_questions(record.get("article"), support_summary),
             "proposed_patch": {},
         }
 
@@ -152,10 +241,16 @@ def _classify_record(record: dict[str, Any], raw_metadata: dict[str, Any] | None
     constraints = _constraints_from_metadata(metadata, stations, components)
 
     if not route_steps:
+        support = _support_result(record, metadata, ["route_steps_not_inferable"] + issues)
+        if support:
+            return support
+
         return {
             "article": record.get("article"),
             "classification": BLOCKED,
             "reasons": ["route_steps_not_inferable"] + issues,
+            "support_summary": {},
+            "suggested_questions": [],
             "proposed_patch": {},
         }
 
@@ -163,6 +258,8 @@ def _classify_record(record: dict[str, Any], raw_metadata: dict[str, Any] | None
         "article": record.get("article"),
         "classification": AUTO_NORMALIZABLE,
         "reasons": ["metadata_structured_from_spec", "safe_normalization_rules_available"] + issues,
+        "support_summary": _support_summary_from_metadata(metadata),
+        "suggested_questions": [],
         "proposed_patch": {
             "schema": "PROMETEO_REAL_DATA_PILOT_V1",
             "route_status": "CERTO",
