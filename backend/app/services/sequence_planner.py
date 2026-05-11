@@ -14,7 +14,7 @@ from ..station_normalizer import normalize_station
 from app.agent_runtime.service import AgentRuntimeService
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact, get_component_conflicts
 from app.services.component_usage_service import build_component_usage_from_db, apply_component_impact
-from app.domain.article_process_matrix import get_article_profile
+from app.domain.article_profile_resolver import resolve_article_profile
 from app.domain.operational_class import build_planner_admission_gate
 from app.domain.drawing_registry_service import override_postazioni_from_registry
 
@@ -101,7 +101,7 @@ class SequencePlannerService:
         for r in rows:
             article_code = str(r["articolo"])
             drawing = str(r.get("disegno") or "").strip()
-            profile = get_article_profile(article_code)
+            profile = resolve_article_profile(article_code)
             signals: dict[str, Any] = {}
             if profile:
                 profile_signals = profile.get("signals", {})
