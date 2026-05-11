@@ -89,3 +89,42 @@ def test_sequence_planner_minidataset_with_open_event(monkeypatch):
         assert "blocking_constraint_open" in diagnostic_item["admission_reasons"]
     finally:
         db.close()
+
+def test_sequence_planner_marks_ragnetto_group_dependency(monkeypatch):
+    db: Session = SessionLocal()
+    try:
+        def fake_fetch_station_board(db_sess, view_name: str):
+            return [
+                {
+                    "priorita_operativa": 1,
+                    "articolo": "12074",
+                    "componenti_condivisi": "",
+                    "quantita": 5,
+                    "data_spedizione": None,
+                    "priorita_cliente": "MEDIA",
+                    "complessivo_articolo": "12074",
+                    "postazione_critica": "ZAW-2",
+                    "azione_tl": "AVVIO_IMMEDIATO",
+                    "origine_logica": view_name,
+                }
+            ]
+
+        monkeypatch.setattr(sequence_planner_service, "fetch_station_board", fake_fetch_station_board)
+        monkeypatch.setattr(sequence_planner_module, "build_component_usage_from_db", lambda _db: {})
+        monkeypatch.setattr(sequence_planner_module, "_get_open_events_by_station", lambda _db: {})
+
+        payload = sequence_planner_service.build_global_sequence(db)
+        items = payload.get("items", [])
+        item = [i for i in items if i.get("article") == "12074"][0]
+
+        assert item["article_group_id"] == "ragnetto_12074_12078"
+        assert item["group_dependency"] is True
+        assert item["group_planner_policy"] == "GROUP_DEPENDENCY_NOT_INDEPENDENT"
+        assert item["group_status"] == "DA_MODELLARE"
+        assert "group_dependency_not_structured" in item["diagnostic_reasons"]
+        assert item["planner_enforcement"] is False
+
+        assert "group_dependency_not_structured" not in item["admission_reasons"]
+    finally:
+        db.close()
+
