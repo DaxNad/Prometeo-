@@ -105,3 +105,71 @@ def test_planner_gate_blocks_when_blocking_constraint_is_open():
     assert gate["planner_admitted"] is False
     assert "blocking_constraint_open" in gate["reasons"]
 
+def test_planner_gate_blocks_12066_without_active_demand():
+    gate = build_planner_admission_gate(
+        {
+            "article": "12066",
+            "operational_class": "STANDARD",
+            "planner_eligible": True,
+            "route_status": "CERTO",
+            "confidence": "CERTO",
+            "has_blocking_constraint": False,
+        }
+    )
+
+    assert gate["planner_admitted"] is False
+    assert "no_active_customer_order_lot_or_explicit_request" in gate["reasons"]
+
+
+def test_planner_gate_admits_12066_with_active_order_and_no_blockers():
+    gate = build_planner_admission_gate(
+        {
+            "article": "12066",
+            "operational_class": "STANDARD",
+            "planner_eligible": True,
+            "route_status": "CERTO",
+            "confidence": "CERTO",
+            "active_customer_order": True,
+            "has_blocking_constraint": False,
+        }
+    )
+
+    assert gate["planner_admitted"] is True
+    assert gate["reasons"] == []
+
+
+def test_planner_gate_does_not_block_12058_for_zaw_specificity_note_alone():
+    gate = build_planner_admission_gate(
+        {
+            "article": "12058",
+            "operational_class": "STANDARD",
+            "planner_eligible": True,
+            "route_status": "CERTO",
+            "confidence": "CERTO",
+            "active_customer_order": True,
+            "zaw_station_specificity": "DA_VERIFICARE",
+            "has_blocking_constraint": False,
+        }
+    )
+
+    assert gate["planner_admitted"] is True
+    assert gate["reasons"] == []
+
+
+def test_planner_gate_blocks_12058_when_zaw_specificity_is_marked_blocking():
+    gate = build_planner_admission_gate(
+        {
+            "article": "12058",
+            "operational_class": "STANDARD",
+            "planner_eligible": True,
+            "route_status": "CERTO",
+            "confidence": "CERTO",
+            "active_customer_order": True,
+            "zaw_station_specificity": "DA_VERIFICARE",
+            "has_blocking_constraint": True,
+        }
+    )
+
+    assert gate["planner_admitted"] is False
+    assert "blocking_constraint_open" in gate["reasons"]
+
