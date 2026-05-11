@@ -258,6 +258,21 @@ PROMETEO deve funzionare come:
 - guardiano della coerenza
 - supporto alla decisione TL
 
+---
+
+## 8. SECURITY / OBSERVABILITY / FAILURE GUARD
+
+Contratti vincolanti:
+- no API bypass: gli endpoint protetti devono rifiutare richieste senza autenticazione valida.
+- no data leak: nessun dato reale di specifiche/articoli/cache operativa deve finire in Git o nei test.
+- no false CERTO: fonti derivate/cache/preview non possono promuovere profili a CERTO senza fonte autorevole (SPECIFICA + TL).
+- AI/Executor read-only o gated:
+  - adapter AI read-only;
+  - executor ammesso solo con decision context esplicito;
+  - no decision context => executor bloccato.
+- anomalie e failure devono produrre segnale osservabile (errore esplicito o stato diagnostico), mai silenzio operativo.
+- prima dei dati reali: test sintetici contrattuali su sicurezza, osservabilità e failure mode.
+
 ### Lifecycle articolo
 
 Un articolo presente in `BOM_Specs` non è automaticamente articolo attivo.
@@ -550,4 +565,3 @@ Guard rail:
 - no override planner
 
 Stato: ATTIVO IN PRODUZIONE (adapter isolato)
-
