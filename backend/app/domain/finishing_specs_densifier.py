@@ -99,18 +99,33 @@ def _constraints_from_metadata(
 def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     stations = _upper_list(metadata.get("stations_expected"))
     components = _component_codes(metadata)
+    has_henn_hint = any("HENN" in station for station in stations) or "469122" in components or "469124" in components
+    has_pidmill_hint = any("PIDMILL" in station for station in stations)
+    has_cp_hint = any(
+        (
+            "COLLAUDO_PRESSIONE" in station
+            or "COLLAUDO_A_PRESSIONE" in station
+            or "PRESSIONE" in station
+            or station == "CP"
+            or "COLLAUDO_VERTICALE" in station
+        )
+        for station in stations
+    )
 
     return {
         "drawing": str(metadata.get("drawing") or metadata.get("disegno") or "").strip(),
         "revision": str(metadata.get("revision") or metadata.get("rev") or "").strip(),
         "stations_expected": stations,
         "components": components,
-        "has_henn_hint": any("HENN" in station for station in stations) or "469122" in components or "469124" in components,
+        "has_henn_hint": has_henn_hint,
         "has_guaina_hint": "INSERIMENTO_GUAINA" in stations or "GUAINA" in stations or "468922" in components,
         "has_zaw1_hint": "ZAW1" in stations or "ZAW1_2" in stations,
         "has_zaw2_hint": "ZAW2" in stations,
-        "has_pidmill_hint": any("PIDMILL" in station for station in stations),
-        "has_cp_hint": any(("COLLAUDO_PRESSIONE" in station or "COLLAUDO_A_PRESSIONE" in station or "PRESSIONE" in station or station == "CP" or "COLLAUDO_VERTICALE" in station) for station in stations),
+        "has_pidmill_hint": has_pidmill_hint,
+        "has_cp_hint": has_cp_hint,
+        "henn_status": "PRESENTE" if has_henn_hint else "NON_INDICATO",
+        "pidmill_status": "PRESENTE" if has_pidmill_hint else "NON_INDICATO",
+        "cp_status": "PRESENTE" if has_cp_hint else "NON_INDICATO",
     }
 
 
@@ -128,8 +143,6 @@ def _suggest_questions(article: Any, support_summary: dict[str, Any]) -> list[st
 
     if support_summary.get("has_henn_hint"):
         questions.append(f"Confermi che per {code} HENN è presente e va prima di ZAW/innesto rapido?")
-    else:
-        questions.append(f"Confermi se per {code} HENN è assente?")
 
     if support_summary.get("has_zaw2_hint"):
         questions.append(f"Per {code}, ZAW2 è postazione reale oppure è un secondo passaggio ZAW1?")
