@@ -3,6 +3,8 @@ from app.domain.finishing_specs_densifier import (
     ASK_TL,
     AUTO_NORMALIZABLE,
     BLOCKED,
+    _suggest_questions,
+    _support_summary_from_metadata,
     build_densification_preview,
 )
 
@@ -226,3 +228,51 @@ def test_densifier_does_not_create_patch_from_support_only(monkeypatch):
     assert any("ZAW2" in q for q in result["suggested_questions"])
     assert any("PIDMILL" in q for q in result["suggested_questions"])
 
+
+def test_support_without_henn_does_not_generate_henn_absence_question():
+    summary = _support_summary_from_metadata(
+        {
+            "stations_expected": ["LAVAGGIO", "ZAW1", "COLLAUDO_PRESSIONE"],
+            "linked_bom": [{"component": "468922"}],
+        }
+    )
+    questions = _suggest_questions("12073", summary)
+
+    assert summary["henn_status"] == "NON_INDICATO"
+    assert not any("HENN è assente" in q for q in questions)
+
+
+def test_support_with_henn_generates_henn_presence_question():
+    summary = _support_summary_from_metadata(
+        {
+            "stations_expected": ["ASSEMBLAGGIO_HENN", "ZAW1", "COLLAUDO_PRESSIONE"],
+        }
+    )
+    questions = _suggest_questions("12073", summary)
+
+    assert summary["henn_status"] == "PRESENTE"
+    assert any("HENN è presente" in q for q in questions)
+
+
+def test_support_with_pidmill_generates_pidmill_question():
+    summary = _support_summary_from_metadata(
+        {
+            "stations_expected": ["LAVAGGIO", "PIDMILL_CLIP", "COLLAUDO_PRESSIONE"],
+        }
+    )
+    questions = _suggest_questions("12091", summary)
+
+    assert summary["pidmill_status"] == "PRESENTE"
+    assert any("PIDMILL è realmente presente" in q for q in questions)
+
+
+def test_support_without_pidmill_does_not_generate_pidmill_absence_question():
+    summary = _support_summary_from_metadata(
+        {
+            "stations_expected": ["LAVAGGIO", "ZAW1", "COLLAUDO_PRESSIONE"],
+        }
+    )
+    questions = _suggest_questions("12091", summary)
+
+    assert summary["pidmill_status"] == "NON_INDICATO"
+    assert not any("PIDMILL è assente" in q for q in questions)
