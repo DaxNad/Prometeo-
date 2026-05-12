@@ -297,6 +297,53 @@ Relazioni architetturali:
 - TL Chat consuma output orchestratore come supporto subordinato, non come autorità autonoma.
 - planner diagnostic può osservare i risultati, ma enforcement resta fuori scope finché non esiste PR dedicata.
 
+## 10. TL Override Confirmation / Conferma forte modifiche operative
+
+Scopo:
+- consentire correzioni operative via TL Chat senza apply diretto impulsivo o ambiguo.
+- mantenere `SPECIFICA DI FINITURA + TL` come autorità, con guardrail su modifiche ad alto impatto.
+
+Pipeline obbligatoria:
+1. estrazione comando
+2. classificazione rischio
+3. preview/diff
+4. conferma esplicita
+5. apply guarded
+6. audit log
+7. rollback_id
+
+Risk tier:
+- LOW: note descrittive, typo, alias testuali, commenti non operativi.
+- MEDIUM: componenti non bloccanti, packaging operativo, classificazioni non planner.
+- HIGH: route CERTO, ZAW/HENN/PIDMILL/CP, planner_eligible, operational_class, STANDARD/REFERENCE_ONLY, override specifica, regole ATLAS.
+
+Conferma forte:
+- per modifiche HIGH non bastano "ok", "sì", "vai", "fai tu".
+- serve challenge contestuale esatta, ad esempio:
+  - `CONFERMO MODIFICA 12097`
+  - `CONFERMO ROUTE 12097`
+  - `CONFERMO REFERENCE ONLY 12402`
+- per casi critici è ammessa doppia conferma / maker-checker / 4-eyes.
+
+Audit log minimo obbligatorio:
+- event_type
+- article
+- field
+- before
+- after
+- risk
+- source
+- confirmed_by
+- confirmation_phrase
+- reason
+- timestamp
+- rollback_id
+
+Vincoli:
+- nessun apply diretto da chat senza preview/diff.
+- nessuna mutazione runtime planner in questa fase.
+- il TL resta autorità finale, ma l’orchestrazione deve bloccare conferme deboli o ambigue.
+
 ### Lifecycle articolo
 
 Un articolo presente in `BOM_Specs` non è automaticamente articolo attivo.
