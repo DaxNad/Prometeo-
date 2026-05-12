@@ -97,10 +97,13 @@ def _constraints_from_metadata(
 
 
 def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
-    stations = _upper_list(metadata.get("stations_expected"))
+    raw_stations = _upper_list(metadata.get("stations_expected"))
+    stations = [station for station in raw_stations if station != "COLLAUDO_VERTICALE"]
     components = _component_codes(metadata)
-    has_henn_hint = any("HENN" in station for station in stations) or "469122" in components or "469124" in components
-    has_pidmill_hint = any("PIDMILL" in station for station in stations)
+
+    has_cp_vertical_mode = "COLLAUDO_VERTICALE" in raw_stations
+    has_henn_hint = any("HENN" in station for station in raw_stations) or "469122" in components or "469124" in components
+    has_pidmill_hint = any("PIDMILL" in station for station in raw_stations)
     has_cp_hint = any(
         (
             "COLLAUDO_PRESSIONE" in station
@@ -109,7 +112,7 @@ def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
             or station == "CP"
             or "COLLAUDO_VERTICALE" in station
         )
-        for station in stations
+        for station in raw_stations
     )
 
     return {
@@ -118,11 +121,12 @@ def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "stations_expected": stations,
         "components": components,
         "has_henn_hint": has_henn_hint,
-        "has_guaina_hint": "INSERIMENTO_GUAINA" in stations or "GUAINA" in stations or "468922" in components,
-        "has_zaw1_hint": "ZAW1" in stations or "ZAW1_2" in stations,
-        "has_zaw2_hint": "ZAW2" in stations,
+        "has_guaina_hint": "INSERIMENTO_GUAINA" in raw_stations or "GUAINA" in raw_stations or "468922" in components,
+        "has_zaw1_hint": "ZAW1" in raw_stations or "ZAW1_2" in raw_stations,
+        "has_zaw2_hint": "ZAW2" in raw_stations,
         "has_pidmill_hint": has_pidmill_hint,
         "has_cp_hint": has_cp_hint,
+        "cp_machine_mode": "VERTICALE_DUE_PIANI" if has_cp_vertical_mode else "",
         "henn_status": "PRESENTE" if has_henn_hint else "NON_INDICATO",
         "pidmill_status": "PRESENTE" if has_pidmill_hint else "NON_INDICATO",
         "cp_status": "PRESENTE" if has_cp_hint else "NON_INDICATO",

@@ -276,3 +276,22 @@ def test_support_without_pidmill_does_not_generate_pidmill_absence_question():
 
     assert summary["pidmill_status"] == "NON_INDICATO"
     assert not any("PIDMILL è assente" in q for q in questions)
+
+def test_support_summary_keeps_cp_vertical_as_machine_mode_not_station():
+    summary = _support_summary_from_metadata(
+        {
+            "stations_expected": [
+                "LAVAGGIO",
+                "COLLAUDO_PRESSIONE",
+                "COLLAUDO_VERTICALE",
+                "SACCHETTO",
+            ],
+        }
+    )
+    questions = _suggest_questions("12097", summary)
+
+    assert "COLLAUDO_VERTICALE" not in summary["stations_expected"]
+    assert summary["cp_machine_mode"] == "VERTICALE_DUE_PIANI"
+    assert summary["has_cp_hint"] is True
+    assert any("COLLAUDO_VERTICALE è solo modalità macchina" in q for q in questions)
+    assert not any("COLLAUDO_PRESSIONE → COLLAUDO_VERTICALE" in q for q in questions)
