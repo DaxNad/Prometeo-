@@ -2,7 +2,8 @@ from pathlib import Path
 
 
 def test_master_contains_tl_override_confirmation_contract():
-    master = Path("docs/PROMETEO_MASTER.md")
+    repo_root = Path(__file__).resolve().parents[2]
+    master = repo_root / "docs" / "PROMETEO_MASTER.md"
     text = master.read_text(encoding="utf-8")
     normalized = text.lower()
 
