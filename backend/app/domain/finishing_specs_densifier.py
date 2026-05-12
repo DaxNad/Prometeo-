@@ -105,12 +105,12 @@ def _support_summary_from_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
         "revision": str(metadata.get("revision") or metadata.get("rev") or "").strip(),
         "stations_expected": stations,
         "components": components,
-        "has_henn_hint": "HENN" in stations or "469122" in components or "469124" in components,
+        "has_henn_hint": any("HENN" in station for station in stations) or "469122" in components or "469124" in components,
         "has_guaina_hint": "INSERIMENTO_GUAINA" in stations or "GUAINA" in stations or "468922" in components,
         "has_zaw1_hint": "ZAW1" in stations or "ZAW1_2" in stations,
         "has_zaw2_hint": "ZAW2" in stations,
-        "has_pidmill_hint": "PIDMILL" in stations,
-        "has_cp_hint": "COLLAUDO_PRESSIONE" in stations or "CP" in stations or "COLLAUDO_VERTICALE" in stations,
+        "has_pidmill_hint": any("PIDMILL" in station for station in stations),
+        "has_cp_hint": any(("COLLAUDO_PRESSIONE" in station or "COLLAUDO_A_PRESSIONE" in station or "PRESSIONE" in station or station == "CP" or "COLLAUDO_VERTICALE" in station) for station in stations),
     }
 
 
