@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.repositories.factory import get_events_repository
-from app.services.llm_service import get_local_llm_model, run_local_llm
+from app.services.llm_service import get_local_llm_model, run_local_llm, run_local_llm_with_metadata
 from app.services.sequence_planner import sequence_planner_service
 from app.ai_adapters.mimo_adapter import MiMoAdapter, MiMoAdapterError
 
@@ -128,9 +128,12 @@ def ai_local_health():
 
 @router.post("/ai/local")
 def ai_local(req: AIRequest):
+    result = run_local_llm_with_metadata(req.text)
     return {
-        "model": get_local_llm_model(),
-        "response": run_local_llm(req.text),
+        "model": result.model,
+        "configured_model": get_local_llm_model(),
+        "fallback_used": result.fallback_used,
+        "response": result.response,
         "warning": "Suggerimento AI locale — da validare TL",
     }
 
@@ -171,11 +174,15 @@ def ai_sequence(db: Session = Depends(get_db)):
     prompt += f"\n- high_risk={high_risk}"
     prompt += f"\n- zaw_blocked={list(zaw_blocked)}"
 
+    result = run_local_llm_with_metadata(prompt)
+
     return {
-        "model": get_local_llm_model(),
+        "model": result.model,
+        "configured_model": get_local_llm_model(),
+        "fallback_used": result.fallback_used,
         "source": "sequence_planner",
         "prompt_preview": prompt,
-        "response": run_local_llm(prompt),
+        "response": result.response,
         "sequence": sequence_payload,
         "warning": "Suggerimento AI locale su sequenza reale — da validare TL",
     }
