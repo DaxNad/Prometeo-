@@ -2,6 +2,8 @@ import json
 import os
 import urllib.request
 
+from dataclasses import dataclass
+
 from app.ai_adapters.output_sanitizer import sanitize_ai_output
 from app.atlas_engine.tl_memory.memory_retriever import (
     format_rules_for_prompt,
@@ -62,6 +64,13 @@ def _validate_ai_response(response: str) -> str:
     return response
 
 
+@dataclass(frozen=True)
+class LocalLLMResult:
+    response: str
+    model: str
+    fallback_used: bool = False
+
+
 def get_local_llm_model() -> str:
     return MODEL
 
@@ -94,13 +103,13 @@ def _call_ollama(model: str, prompt_with_memory: str) -> str:
     return data.get("response", "").strip() or "Nessuna risposta dal modello."
 
 
-def run_local_llm(prompt: str) -> str:
+def run_local_llm_with_metadata(prompt: str) -> LocalLLMResult:
     if not prompt.strip():
-        return "Nessun testo ricevuto."
+        return LocalLLMResult(response="Nessun testo ricevuto.", model=MODEL)
 
     q = prompt.lower()
     if "zaw-1" in q and "zaw-2" in q and "intercambi" in q:
-        return (
+        return LocalLLMResult(response=(
             "1. Strategia operativa reale\n"
             "- ZAW-1 e ZAW-2 NON sono intercambiabili.\n"
             "- Trattale come postazioni/funzioni produttive distinte.\n"
@@ -112,14 +121,14 @@ def run_local_llm(prompt: str) -> str:
             "- Separare subito il problema: ZAW-1 o ZAW-2.\n"
             "- Verificare articolo, componente condiviso e operazione in corso.\n"
             "- Solo dopo decidere se ribilanciare operatori o sequenza."
-        )
+        ), model=MODEL)
 
     if "reference_only" in q and (
         "planner_eligible=false" in q
         or "planner_eligible = false" in q
         or "non pianificabile automaticamente" in q
     ):
-        return (
+        return LocalLLMResult(response=(
             "1. Strategia operativa reale\n"
             "- Trattare l'articolo come codice noto di riferimento, non come lotto da pianificare.\n"
             "- Usare disegno, storico o nota ricambio solo per riconoscimento e verifica.\n\n"
@@ -129,7 +138,7 @@ def run_local_llm(prompt: str) -> str:
             "3. Azione TL immediata\n"
             "- Non produrre automaticamente.\n"
             "- Procedere solo con ordine cliente esplicito o conferma TL."
-        )
+        ), model=MODEL)
 
     relevant_rules = retrieve_relevant_rules(prompt)
     prompt_with_memory = (
@@ -142,14 +151,30 @@ def run_local_llm(prompt: str) -> str:
 
     try:
         raw_response = _call_ollama(MODEL, prompt_with_memory)
+        actual_model = MODEL
+        fallback_used = False
     except Exception as primary_error:
         try:
             raw_response = _call_ollama(FALLBACK_MODEL, prompt_with_memory)
+            actual_model = FALLBACK_MODEL
+            fallback_used = True
         except Exception as fallback_error:
-            return (
-                f"OLLAMA_ERROR: primary={MODEL}: {str(primary_error)}; "
-                f"fallback={FALLBACK_MODEL}: {str(fallback_error)}"
+            return LocalLLMResult(
+                response=(
+                    f"OLLAMA_ERROR: primary={MODEL}: {str(primary_error)}; "
+                    f"fallback={FALLBACK_MODEL}: {str(fallback_error)}"
+                ),
+                model=MODEL,
+                fallback_used=False,
             )
 
     response = sanitize_ai_output(raw_response)
-    return _validate_ai_response(response)
+    return LocalLLMResult(
+        response=_validate_ai_response(response),
+        model=actual_model,
+        fallback_used=fallback_used,
+    )
+
+
+def run_local_llm(prompt: str) -> str:
+    return run_local_llm_with_metadata(prompt).response

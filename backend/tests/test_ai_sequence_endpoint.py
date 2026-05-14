@@ -57,7 +57,12 @@ def test_ai_sequence_endpoint_uses_planner_and_llm(monkeypatch):
             }
 
     monkeypatch.setattr(ai_module, "sequence_planner_service", FakePlanner())
-    monkeypatch.setattr(ai_module, "run_local_llm", lambda prompt: "RISPOSTA TL MOCK")
+    class FakeLLMResult:
+        response = "RISPOSTA TL MOCK"
+        model = "gemma4:e2b"
+        fallback_used = False
+
+    monkeypatch.setattr(ai_module, "run_local_llm_with_metadata", lambda prompt: FakeLLMResult())
 
     client = TestClient(app)
     response = client.post("/ai/sequence", headers={"X-API-Key": "prometeo-local-key"})
@@ -66,6 +71,8 @@ def test_ai_sequence_endpoint_uses_planner_and_llm(monkeypatch):
     data = response.json()
 
     assert data["model"] == "gemma4:e2b"
+    assert data["configured_model"] == "gemma4:e2b"
+    assert data["fallback_used"] is False
     assert data["source"] == "sequence_planner"
     assert data["response"] == "RISPOSTA TL MOCK"
     assert data["sequence"]["decision"]["status"] == "ALLOW"
