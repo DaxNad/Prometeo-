@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.repositories.factory import get_events_repository
-from app.services.llm_service import run_local_llm
+from app.services.llm_service import get_local_llm_model, run_local_llm
 from app.services.sequence_planner import sequence_planner_service
 from app.ai_adapters.mimo_adapter import MiMoAdapter, MiMoAdapterError
 
@@ -129,7 +129,7 @@ def ai_local_health():
 @router.post("/ai/local")
 def ai_local(req: AIRequest):
     return {
-        "model": "mistral",
+        "model": get_local_llm_model(),
         "response": run_local_llm(req.text),
         "warning": "Suggerimento AI locale — da validare TL",
     }
@@ -172,7 +172,7 @@ def ai_sequence(db: Session = Depends(get_db)):
     prompt += f"\n- zaw_blocked={list(zaw_blocked)}"
 
     return {
-        "model": "mistral",
+        "model": get_local_llm_model(),
         "source": "sequence_planner",
         "prompt_preview": prompt,
         "response": run_local_llm(prompt),

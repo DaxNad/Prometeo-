@@ -65,7 +65,7 @@ def test_ai_sequence_endpoint_uses_planner_and_llm(monkeypatch):
     assert response.status_code == 200
     data = response.json()
 
-    assert data["model"] == "mistral"
+    assert data["model"] == "gemma4:e2b"
     assert data["source"] == "sequence_planner"
     assert data["response"] == "RISPOSTA TL MOCK"
     assert data["sequence"]["decision"]["status"] == "ALLOW"
