@@ -184,17 +184,46 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
     if constraints.get("has_henn") is True:
         constraints_text.append("HENN presente")
     elif constraints.get("has_henn") is False:
-        constraints_text.append("HENN assente sul singolo")
+        constraints_text.append("HENN assente sul singolo / HENN assente/non indicato")
 
     if constraints.get("has_guaina") is True:
         constraints_text.append("GUAINA presente")
+
+    shared_components = constraints.get("shared_components") or []
+    if shared_components:
+        constraints_text.append("componenti condivisi " + ", ".join(str(x) for x in shared_components))
+
+    if constraints.get("has_pidmill") is True:
+        constraints_text.append("PIDMILL presente")
+    elif constraints.get("has_pidmill") is False:
+        constraints_text.append("PIDMILL assente")
+
+    primary_zaw = _clean(constraints.get("primary_zaw_station"))
+    zaw_passes = constraints.get("zaw_passes")
+    has_zaw2 = constraints.get("has_zaw2")
+
+    if primary_zaw:
+        if isinstance(zaw_passes, int) and zaw_passes > 1:
+            constraints_text.append(f"{primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2; non dedurre ZAW2 automaticamente")
+        else:
+            constraints_text.append(f"{primary_zaw} obbligatorio; non usare ZAW2 come alternativa automatica")
+
+    if has_zaw2 is False:
+        constraints_text.append("ZAW2 esclusa")
 
     zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
     if zaw_specificity == "DA_VERIFICARE":
         constraints_text.append("specificità ZAW da verificare")
 
     if constraints.get("cp_required"):
-        constraints_text.append("CP finale obbligatorio")
+        cp_mode = _clean(constraints.get("cp_mode"))
+        cp_pieces_per_plane = constraints.get("cp_pieces_per_plane")
+        if cp_mode.upper() == "VERTICALE" and cp_pieces_per_plane == 2:
+            constraints_text.append("CP finale obbligatorio, modalità VERTICALE_DUE_PIANI")
+        elif cp_mode:
+            constraints_text.append(f"CP finale obbligatorio, modalità {cp_mode}")
+        else:
+            constraints_text.append("CP finale obbligatorio")
 
     if route_status != "CERTO":
         constraints_text.append(f"route {route_status}: non trattare la sequenza come definitiva senza conferma")
@@ -207,6 +236,19 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         note_bits.append(drawing_text)
 
     note_bits.append(f"classe {operational_class}, planner_eligible={str(planner_eligible).lower()}")
+
+    discrepancies = metadata.get("spec_discrepancies") if isinstance(metadata.get("spec_discrepancies"), list) else []
+    for item in discrepancies:
+        if not isinstance(item, dict):
+            continue
+        correct_value = _clean(item.get("correct_value"))
+        status = _clean(item.get("status"))
+        if correct_value:
+            if status:
+                note_bits.append(f"discrepanza corretta {correct_value}, stato {status}")
+            else:
+                note_bits.append(f"discrepanza corretta {correct_value}")
+            break
 
     if components:
         compact_components = ", ".join(str(item) for item in components[:8])

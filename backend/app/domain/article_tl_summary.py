@@ -84,8 +84,14 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
         )
 
     primary_zaw = signals.get("primary_zaw_station")
+    zaw_passes = signals.get("zaw_passes")
     if primary_zaw:
-        criticalities.append(f"Postazione ZAW primaria confermata: {primary_zaw}.")
+        if isinstance(zaw_passes, int) and zaw_passes > 1:
+            criticalities.append(
+                f"Segnale ZAW: {primary_zaw} con {zaw_passes} passaggi; non dedurre ZAW2 automaticamente."
+            )
+        else:
+            criticalities.append(f"Postazione ZAW primaria confermata: {primary_zaw}.")
 
     if _as_bool(signals.get("has_zaw1")) and not _as_bool(signals.get("has_zaw2")):
         criticalities.append("Usare ZAW1; non trattare ZAW2 come alternativa automatica.")
