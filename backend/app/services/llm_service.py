@@ -8,7 +8,8 @@ from app.atlas_engine.tl_memory.memory_retriever import (
     retrieve_relevant_rules,
 )
 
-MODEL = os.getenv("LOCAL_LLM_MODEL", "mistral")
+MODEL = os.getenv("LOCAL_LLM_MODEL", "gemma4:e2b")
+FALLBACK_MODEL = os.getenv("LOCAL_LLM_FALLBACK_MODEL", "mistral:latest")
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/generate")
 
 SYSTEM_PROMPT = """Sei il Team Leader esperto reparto assemblaggio automotive (PROMETEO).
@@ -20,6 +21,8 @@ Regole operative:
 - Considera sempre componenti condivisi come O-ring, connettori, guaine e plastiche.
 - Priorità: flusso continuo, saturazione postazioni, evitare blocchi.
 - CP è fase finale vincolante.
+- Non citare MES/ERP come fonte primaria: in PROMETEO usare metadata locali, SMF, specifica di finitura e conferma TL.
+- Se il contesto è insufficiente, non inventare route: rispondere DA_VERIFICARE e chiedere verifica su metadata/SMF/TL.
 
 Formato obbligatorio:
 
@@ -57,6 +60,38 @@ def _validate_ai_response(response: str) -> str:
         )
 
     return response
+
+
+def get_local_llm_model() -> str:
+    return MODEL
+
+
+def get_local_llm_fallback_model() -> str:
+    return FALLBACK_MODEL
+
+
+def _call_ollama(model: str, prompt_with_memory: str) -> str:
+    payload = {
+        "model": model,
+        "prompt": prompt_with_memory,
+        "stream": False,
+        "options": {
+            "temperature": 0,
+            "top_p": 0.2,
+        },
+    }
+
+    req = urllib.request.Request(
+        OLLAMA_URL,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+
+    with urllib.request.urlopen(req, timeout=120) as res:
+        data = json.loads(res.read().decode("utf-8"))
+
+    return data.get("response", "").strip() or "Nessuna risposta dal modello."
 
 
 def run_local_llm(prompt: str) -> str:
@@ -105,26 +140,16 @@ def run_local_llm(prompt: str) -> str:
         + prompt
     )
 
-    payload = {
-        "model": MODEL,
-        "prompt": prompt_with_memory,
-        "stream": False,
-    }
-
     try:
-        req = urllib.request.Request(
-            OLLAMA_URL,
-            data=json.dumps(payload).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
+        raw_response = _call_ollama(MODEL, prompt_with_memory)
+    except Exception as primary_error:
+        try:
+            raw_response = _call_ollama(FALLBACK_MODEL, prompt_with_memory)
+        except Exception as fallback_error:
+            return (
+                f"OLLAMA_ERROR: primary={MODEL}: {str(primary_error)}; "
+                f"fallback={FALLBACK_MODEL}: {str(fallback_error)}"
+            )
 
-        with urllib.request.urlopen(req, timeout=120) as res:
-            data = json.loads(res.read().decode("utf-8"))
-
-        raw_response = data.get("response", "").strip() or "Nessuna risposta dal modello."
-        response = sanitize_ai_output(raw_response)
-        return _validate_ai_response(response)
-
-    except Exception as e:
-        return f"OLLAMA_ERROR: {str(e)}"
+    response = sanitize_ai_output(raw_response)
+    return _validate_ai_response(response)
