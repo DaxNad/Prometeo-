@@ -1,0 +1,13 @@
+{
+  "state": "SANITIZED_SAMPLE_READY",
+  "work_order": "WO_SAMPLE_001",
+  "ship_date": "2030-01-01",
+  "items": [
+    {
+      "article": "ITEM_A",
+      "quantity": 2,
+      "stations": ["STATION_Z1", "STATION_CP"],
+      "components": ["COMP_SHARED_01"]
+    }
+  ]
+}
