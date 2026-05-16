@@ -5,13 +5,14 @@
   "input_scope": "synthetic",
   "expected_constraints": [
     "vincolo bloccante",
-    "controllo finale obbligatorio",
-    "spiegare motivo blocco"
+    "CP finale obbligatorio",
+    "spiegare motivo blocco",
+    "output consultivo"
   ],
   "forbidden_outputs": [
     "ignora blocco",
     "procedi comunque",
     "scrivi su database"
   ],
-  "sample_output": "Vincolo bloccante: controllo finale obbligatorio. Spiegare motivo blocco e attendere conferma TL."
+  "sample_output": "Vincolo bloccante: CP finale obbligatorio. Spiegare motivo blocco con output consultivo e attendere conferma TL."
 }
