@@ -13,6 +13,7 @@ from app.semantic_registry import (
     resolve_confidence,
     resolve_semantic_confidence,
     resolve_semantic_gate,
+    semantic_accessor_audit_as_dict,
     semantic_accessor_boundaries,
 )
 
@@ -205,3 +206,59 @@ def test_semantic_accessor_diagnostics_boundaries_block_runtime_authority():
     assert boundaries["no_runtime_mutation"] is True
     assert boundaries["no_planner_behavior_change"] is True
     assert boundaries["no_execution_authority"] is True
+
+
+def test_semantic_accessor_audit_reports_read_only_boundaries():
+    audit = semantic_accessor_audit_as_dict()
+
+    assert audit["read_only"] is True
+    assert audit["no_runtime_mutation"] is True
+    assert audit["no_planner_behavior_change"] is True
+    assert audit["no_execution_authority"] is True
+    assert audit["boundaries"]["read_only"] is True
+    assert audit["boundaries"]["no_runtime_mutation"] is True
+    assert audit["boundaries"]["no_planner_behavior_change"] is True
+    assert audit["boundaries"]["no_execution_authority"] is True
+
+
+def test_semantic_accessor_audit_covers_canonical_states_and_gates():
+    audit = semantic_accessor_audit_as_dict()
+
+    assert set(audit["confidence_states"]) == {
+        "CERTO",
+        "INFERITO",
+        "DA_VERIFICARE",
+        "BLOCCATO",
+        "STANDARD",
+        "REFERENCE_ONLY",
+    }
+    assert set(audit["semantic_gates"]) == {
+        "PLANNER_ADMISSION_GATE",
+        "TL_CONFIRMATION_GATE",
+    }
+
+    for key, result in audit["confidence_states"].items():
+        assert result["normalized_key"] == key
+        assert result["read_only"] is True
+        assert result["no_runtime_mutation"] is True
+
+    for key, result in audit["semantic_gates"].items():
+        assert result["normalized_key"] == key
+        assert result["read_only"] is True
+        assert result["no_runtime_mutation"] is True
+
+
+def test_semantic_accessor_audit_reports_conservative_unknown_fallbacks():
+    audit = semantic_accessor_audit_as_dict()
+
+    assert audit["unknown_confidence_fallback"] == {
+        "input": "UNKNOWN_CONFIDENCE",
+        "normalized_key": "DA_VERIFICARE",
+        "fallback_applied": True,
+    }
+    assert audit["unknown_gate_fallback"] == {
+        "input": "UNKNOWN_GATE",
+        "normalized_key": "UNKNOWN_GATE",
+        "fallback_applied": True,
+        "admitted": False,
+    }

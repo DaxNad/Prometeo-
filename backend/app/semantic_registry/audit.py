@@ -2,10 +2,16 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 
+from .accessor import (
+    resolve_semantic_confidence,
+    resolve_semantic_gate,
+    semantic_accessor_boundaries,
+)
 from .contracts import RegistryClassification
 
 
 SEMANTIC_AUDIT_VERSION = "A1.5"
+SEMANTIC_ACCESSOR_AUDIT_VERSION = "A5.2"
 
 
 @dataclass(frozen=True)
@@ -113,3 +119,55 @@ RUNTIME_SEMANTIC_AUDIT: tuple[RuntimeSemanticFinding, ...] = (
 
 def runtime_semantic_audit_as_dict() -> list[dict]:
     return [finding.to_dict() for finding in RUNTIME_SEMANTIC_AUDIT]
+
+
+def semantic_accessor_audit_as_dict() -> dict:
+    confidence_states = (
+        "CERTO",
+        "INFERITO",
+        "DA_VERIFICARE",
+        "BLOCCATO",
+        "STANDARD",
+        "REFERENCE_ONLY",
+    )
+    semantic_gates = (
+        "PLANNER_ADMISSION_GATE",
+        "TL_CONFIRMATION_GATE",
+    )
+
+    confidence_results = {
+        key: resolve_semantic_confidence(key) for key in confidence_states
+    }
+    gate_results = {
+        key: resolve_semantic_gate(key) for key in semantic_gates
+    }
+    unknown_confidence = resolve_semantic_confidence("UNKNOWN_CONFIDENCE")
+    unknown_gate = resolve_semantic_gate("UNKNOWN_GATE")
+    boundaries = semantic_accessor_boundaries()
+
+    return {
+        "version": SEMANTIC_ACCESSOR_AUDIT_VERSION,
+        "read_only": True,
+        "no_runtime_mutation": True,
+        "no_planner_behavior_change": True,
+        "no_execution_authority": True,
+        "confidence_states": confidence_results,
+        "semantic_gates": gate_results,
+        "unknown_confidence_fallback": {
+            "input": "UNKNOWN_CONFIDENCE",
+            "normalized_key": unknown_confidence["normalized_key"],
+            "fallback_applied": unknown_confidence["fallback_applied"],
+        },
+        "unknown_gate_fallback": {
+            "input": "UNKNOWN_GATE",
+            "normalized_key": unknown_gate["normalized_key"],
+            "fallback_applied": unknown_gate["fallback_applied"],
+            "admitted": unknown_gate["admitted"],
+        },
+        "boundaries": {
+            "read_only": boundaries["read_only"],
+            "no_runtime_mutation": boundaries["no_runtime_mutation"],
+            "no_planner_behavior_change": boundaries["no_planner_behavior_change"],
+            "no_execution_authority": boundaries["no_execution_authority"],
+        },
+    }
