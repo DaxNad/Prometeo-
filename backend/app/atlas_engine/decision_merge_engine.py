@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Literal
 
+from app.semantic_registry import resolve_confidence
+
 
 SignalDecision = Literal["ALLOW", "BLOCK", "DEFER", "BOOST", "NEUTRAL"]
 FinalDecision = Literal["BLOCK", "DEFER", "ALLOW", "BOOST"]
@@ -144,6 +146,7 @@ class _ResolvedSignal:
     decision: SignalDecision
     score: float
     confidence: float
+    confidence_semantics: str
     reasons: tuple[str, ...]
 
 
@@ -159,6 +162,7 @@ def _collect_signals(input: MergeInput) -> list[_ResolvedSignal]:
                 decision=signal.decision,
                 score=_normalize_score(signal.score, signal.decision),
                 confidence=_normalize_confidence(signal.confidence),
+                confidence_semantics=_resolve_runtime_confidence_semantics(signal.confidence),
                 reasons=tuple(signal.reasons),
             )
         )
@@ -174,6 +178,17 @@ def _normalize_confidence(confidence: float | None) -> float:
     if confidence is None:
         return 1.0
     return _clamp(confidence)
+
+
+def _resolve_runtime_confidence_semantics(confidence: float | None) -> str:
+    """
+    Read-only semantic bridge for ATLAS runtime confidence.
+
+    Numeric confidence remains the only input to scoring. The registry lookup
+    only records whether runtime confidence is explicit or unresolved.
+    """
+    semantic_key = "DA_VERIFICARE" if confidence is None else "INFERITO"
+    return resolve_confidence(semantic_key).normalized_key
 
 
 def _build_constraints(signals: list[_ResolvedSignal]) -> list[str]:
@@ -258,4 +273,3 @@ def _dedupe(items: list[str]) -> list[str]:
 
 def _clamp(value: float) -> float:
     return max(0.0, min(1.0, float(value)))
-
