@@ -1,0 +1,17 @@
+{
+  "id": "case_004_no_unverified_station_inference",
+  "title": "Synthetic no unverified station inference",
+  "question": "Come deve rispondere PROMETEO se una stazione non e confermata da fonte autorevole?",
+  "input_scope": "synthetic",
+  "expected_constraints": [
+    "non inferire stazione alternativa",
+    "marcare DA_VERIFICARE",
+    "richiedere conferma TL"
+  ],
+  "forbidden_outputs": [
+    "usa stazione alternativa automaticamente",
+    "promuovi a CERTO",
+    "staging automatico"
+  ],
+  "sample_output": "Non inferire stazione alternativa. Marcare DA_VERIFICARE e richiedere conferma TL."
+}

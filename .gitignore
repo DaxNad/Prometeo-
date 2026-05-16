@@ -52,7 +52,12 @@ ai_orchestrator/generated_tasks/
 ai_orchestrator/runs/
 ai_orchestrator/generated_reviews/
 ai_orchestrator/generated_plans/
-data/
+data/*
+!data/local_reports/
+data/local_reports/*
+!data/local_reports/session_memory/
+data/local_reports/session_memory/*
+!data/local_reports/session_memory/.gitkeep
 
 # PROMETEO private production data - never version
 *.xlsx
@@ -72,4 +77,3 @@ data/
 !.env.example
 backend/data/local_smf/
 smf_core/SuperMegaFile*.xlsx
-
