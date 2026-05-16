@@ -5,7 +5,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .api.agent_runtime import router as agent_runtime_router
@@ -133,6 +133,11 @@ def ping():
 @app.head("/ping")
 def ping_head():
     return Response(status_code=200)
+
+
+@app.get("/robots.txt", response_class=PlainTextResponse)
+def robots_txt():
+    return "User-agent: *\nDisallow:\n"
 
 
 @app.get("/mobile")

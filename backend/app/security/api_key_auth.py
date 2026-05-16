@@ -7,6 +7,7 @@ from app.config import settings
 
 PUBLIC_PATHS = {
     "/", "/health", "/ping",
+    "/robots.txt",
     "/db/ping", "/postgres/ping",
     "/docs", "/openapi.json", "/redoc",
     "/version", "/auth/verify"
