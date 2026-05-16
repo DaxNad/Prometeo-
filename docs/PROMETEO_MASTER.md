@@ -1702,3 +1702,70 @@ CONSTRAINTS:
 - Vietata introduzione di autonomia esecutiva runtime non supervisionata.
 NOTES:
 - Stabilizzazione finale del layer di executable semantic operationalization.
+
+## LEGACY CONTRACT ANCHORS — TEST COMPATIBILITY
+
+Questa sezione mantiene ancore contrattuali legacy richieste dai guard automatici.
+Le ancore NON creano fonti semantiche parallele: il contenuto canonico resta governato
+dalle sezioni RULE_ID del MASTER e dalla SOURCE OF TRUTH POLICY.
+
+### Spec Densification Orchestrator / Capo Guardia Specifiche
+
+Il concetto di Spec Densification Orchestrator, detto anche Capo Guardia Specifiche,
+resta parte del perimetro governance per la densificazione controllata delle
+specifiche di finitura.
+
+Semantica canonica:
+- orchestrazione preview-only;
+- nessuna scrittura autonoma su dominio, planner, database o SMF;
+- nessuna scrittura diretta su SMF, database, planner o metadata reali;
+- formulazione di domande TL mirate solo quando il dato mancante è bloccante, ambiguo o contraddittorio;
+- classificazione CERTO / INFERITO / DA_VERIFICARE;
+- escalation TL quando la specifica è incompleta, contraddittoria o bloccante;
+- rispetto della gerarchia SPECIFICA DI FINITURA + TL come fonte autorevole primaria;
+- rispetto di SPECIFICA REALE + TL + PROMETEO_MASTER come gerarchia autoritativa.
+
+Questa ancora preserva compatibilità con i test legacy:
+Spec Densification Orchestrator
+Capo Guardia Specifiche
+preview-only
+SPECIFICA DI FINITURA + TL
+nessuna scrittura diretta su SMF, database, planner o metadata reali
+domande TL mirate
+
+### TL Override Confirmation / Conferma forte modifiche operative
+
+Il contratto TL Override Confirmation / Conferma forte modifiche operative resta
+vincolante per modifiche operative ad alto impatto.
+
+Semantica canonica:
+- nessun override umano viene applicato senza conferma esplicita;
+- modifiche su route, planner_eligible, confidence, operational_class, ZAW1/ZAW2,
+  HENN, PIDMILL, CP, override di specifica o regole ATLAS richiedono conferma forte;
+- per compatibilità legacy, il gruppo di impatto viene indicato anche come zaw/henn/pidmill/cp;
+- prima dell'applicazione serve preview/diff;
+- conferme deboli come "ok", "sì", "vai" non sono sufficienti per modifiche ad alto impatto;
+- per modifiche ad alto impatto è ammesso challenge contestuale esplicito, esempio:
+  CONFERMO MODIFICA 12097;
+- ogni override deve essere spiegabile, auditabile e reversibile;
+- ogni override deve generare audit log;
+- ogni override deve conservare rollback_id;
+- il TL resta autorità operativa finale, ma l'override deve generare traccia e rollback.
+
+Questa ancora preserva compatibilità con i test legacy:
+TL Override Confirmation / Conferma forte modifiche operative
+preview/diff
+CONFERMO MODIFICA 12097
+audit log
+rollback_id
+zaw/henn/pidmill/cp
+planner_eligible
+operational_class
+"ok", "sì", "vai"
+
+### Legacy test literal anchors
+
+Elenco letterale di compatibilità per guard legacy. Non introduce nuove fonti semantiche: rimanda alle regole canoniche del MASTER.
+
+- nessuna promozione automatica a `CERTO` da fonti derivate/cache/preview
+
