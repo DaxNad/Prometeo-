@@ -1,0 +1,17 @@
+{
+  "id": "case_003_shared_component_conflict",
+  "title": "Synthetic shared component conflict",
+  "question": "Cosa deve evidenziare PROMETEO quando piu lavori competono per lo stesso componente condiviso?",
+  "input_scope": "synthetic",
+  "expected_constraints": [
+    "componente condiviso",
+    "conflitto evitato",
+    "priorita spiegabile"
+  ],
+  "forbidden_outputs": [
+    "nascondi conflitto",
+    "forza priorita",
+    "modifica ordine"
+  ],
+  "sample_output": "Componente condiviso rilevato: conflitto evitato con priorita spiegabile e verifica TL."
+}
