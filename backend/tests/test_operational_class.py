@@ -1,4 +1,5 @@
 from app.domain.operational_class import (
+    _resolve_planner_admission_gate_metadata,
     build_operational_policy,
     build_planner_admission_gate,
     normalize_operational_class,
@@ -75,6 +76,7 @@ def test_planner_gate_admits_standard_certain_route_with_active_customer_order()
     assert gate["planner_admitted"] is True
     assert gate["reasons"] == []
     assert gate["human_override_allowed"] is True
+    assert gate["semantic_gate"]["key"] == "PLANNER_ADMISSION_GATE"
 
 
 def test_planner_gate_blocks_uncertain_route_even_with_active_demand():
@@ -173,3 +175,31 @@ def test_planner_gate_blocks_12058_when_zaw_specificity_is_marked_blocking():
     assert gate["planner_admitted"] is False
     assert "blocking_constraint_open" in gate["reasons"]
 
+
+def test_planner_admission_gate_metadata_is_registry_backed():
+    metadata = _resolve_planner_admission_gate_metadata()
+
+    assert metadata["key"] == "PLANNER_ADMISSION_GATE"
+    assert metadata["authority"] == "PROMETEO_MASTER"
+    assert "PLANNER-BOUNDARY-001" in metadata["master_refs"]
+    assert "operational_class" in metadata["inputs"]
+    assert metadata["pass_rule"]
+    assert metadata["fail_rule"]
+
+
+def test_semantic_gate_metadata_does_not_change_admission_result():
+    profile = {
+        "operational_class": "REFERENCE_ONLY",
+        "route_status": "CERTO",
+        "confidence": "CERTO",
+        "active_customer_order": True,
+        "has_blocking_constraint": False,
+    }
+
+    gate = build_planner_admission_gate(profile)
+
+    assert gate["planner_eligible"] is True
+    assert gate["planner_admitted"] is False
+    assert gate["reasons"] == ["operational_class_not_standard"]
+    assert gate["rule"] == "STANDARD_CERTAIN_ROUTE_CERTAIN_CONFIDENCE_NO_BLOCKERS_ACTIVE_DEMAND_HUMAN_OVERRIDE"
+    assert gate["semantic_gate"]["key"] == "PLANNER_ADMISSION_GATE"
