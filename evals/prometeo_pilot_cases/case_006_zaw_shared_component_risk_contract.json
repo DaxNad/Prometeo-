@@ -18,5 +18,25 @@
     "decisione autonoma",
     "modifica ordine"
   ],
+  "sanitized_sample": {
+    "path": "evals/sanitized_samples/zaw_shared_component_operational_risk_sample.json",
+    "expected_terms": [
+      "ARTICLE_A",
+      "ARTICLE_B",
+      "COMPONENT_X",
+      "ZAW-1",
+      "CP",
+      "rischio saturazione ZAW-1",
+      "non inferire ZAW-2 senza conferma",
+      "TL decide"
+    ],
+    "forbidden_terms": [
+      "DATABASE_URL",
+      "API key",
+      "email",
+      "specs_finitura",
+      "data/local_smf"
+    ]
+  },
   "sample_output": "Rischio saturazione ZAW con componente condiviso. Non inferire ZAW2 senza conferma. CP finale obbligatorio. Output consultivo: TL decide."
 }

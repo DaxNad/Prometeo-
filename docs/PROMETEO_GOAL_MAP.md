@@ -26,6 +26,7 @@ Una capacita avanza di stato solo se esiste almeno una prova ripetibile:
 
 - test unitario o contract test,
 - caso eval sintetico,
+- micro-campione sanificato non reale,
 - report locale sanificato,
 - conferma TL documentata fuori dai dati privati.
 
@@ -40,4 +41,4 @@ PROMETEO non deve diventare:
 
 ## Prossimo Passo Misurabile
 
-Portare le capacita chiave da `STRUCTURAL_READY` a `TESTED_SYNTHETIC` con il primo harness in `evals/prometeo_pilot_cases/`.
+Portare la capability ZAW/componenti condivisi da `TESTED_SYNTHETIC` a `SANITIZED_SAMPLE_READY` con micro-campione non reale, senza promuovere a `TESTED_REAL_SAMPLE` finche manca conferma TL documentata.
