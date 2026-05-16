@@ -440,7 +440,7 @@ STATUS: ACTIVE
 SOURCE: TL + MASTER
 DESCRIPTION: Il TL e autorita finale sulla decisione operativa.
 CONSTRAINTS: Nessun apply automatico ad alto impatto senza conferma forte.
-NOTES: Conferma forte definita in sezione 18.
+NOTES: Conferma forte definita in sezione 19.
 
 ## 06. PLANNER RULES
 RULE_ID: PLANNER-BOUNDARY-001
@@ -536,7 +536,57 @@ NOTES: Modellazione tramite cluster/graph derivato da BOM, subordinato a fonte a
 SPECIFICA DI FINITURA e fonte primaria tecnica articolo.
 Assenza in supporto non equivale ad assenza operativa.
 
-## 17. TL CHAT CONTRACT
+## 17. DENSIFICAZIONE DOMINIO REALE
+
+RULE_ID: DOMAIN-DENSIFICATION-001
+CATEGORY: DOMAIN_POLICY
+STATUS: ACTIVE
+SOURCE: MASTER
+DESCRIPTION: La densificazione del dominio reale deve integrare articoli, route, stazioni, componenti e regole operative solo da fonti autorevoli.
+CONSTRAINTS: SPECIFICA DI FINITURA reale + conferma TL prevalgono su BOM, preview, cache, inferenze e mapping derivati.
+NOTES: Le fonti derivate possono generare segnali, mismatch o richieste TL, ma non promuovono automaticamente dati a CERTO.
+
+RULE_ID: DOMAIN-SOURCE-AUTHORITY-001
+CATEGORY: DOMAIN_POLICY
+STATUS: ACTIVE
+SOURCE: MASTER
+DESCRIPTION: Le uniche fonti autorevoli operative per gli articoli sono SPECIFICA DI FINITURA reale e conferma TL.
+CONSTRAINTS: Dati da BOM, metadata, registry, preview, export, cache o AI sono subordinati e vanno classificati come supporto, mismatch o DA_VERIFICARE.
+NOTES: Ogni promozione a CERTO richiede evidenza esplicita e tracciabile.
+
+RULE_ID: DOMAIN-ABSENCE-SENSITIVE-001
+CATEGORY: DOMAIN_POLICY
+STATUS: ACTIVE
+SOURCE: MASTER
+DESCRIPTION: Assenza di un dato in specifica o supporto non equivale automaticamente ad assenza operativa.
+CONSTRAINTS: Chiedere conferma TL solo quando il dato mancante è bloccante per route, planner, sicurezza o genera conflitto tra fonti.
+NOTES: Evita domande inutili e protegge da inferenze negative errate.
+
+RULE_ID: STATION-ZAW-NON-INTERCHANGEABLE-001
+CATEGORY: STATION_POLICY
+STATUS: ACTIVE
+SOURCE: TL + MASTER
+DESCRIPTION: ZAW1 e ZAW2 sono stazioni distinte e non intercambiabili.
+CONSTRAINTS: Non inferire ZAW2 da doppio rapido, doppio passaggio ZAW, O-ring, crimp ring o diciture ambigue senza conferma TL o specifica reale.
+NOTES: Molti articoli possono usare ZAW1 + ZAW1; ZAW2 è ammessa solo con evidenza esplicita.
+
+RULE_ID: STATION-CP-FINAL-001
+CATEGORY: STATION_POLICY
+STATUS: ACTIVE
+SOURCE: TL + MASTER
+DESCRIPTION: CP è collaudo pressione finale obbligatorio.
+CONSTRAINTS: Il collaudo verticale è modalità/configurazione macchina CP, non postazione autonoma ordinaria.
+NOTES: Un lotto non è chiuso senza CP finale.
+
+RULE_ID: DOMAIN-RAGNO-001
+CATEGORY: DOMAIN_POLICY
+STATUS: ACTIVE
+SOURCE: TL
+DESCRIPTION: Per il complessivo RAGNO e i suoi parziali non esiste HENN nel processo produttivo o di assemblaggio reale.
+CONSTRAINTS: Qualunque BOM, metadata, famiglia_processo, cache o inferenza che associ HENN al RAGNO va trattata come mismatch/falso da correggere.
+NOTES: Fonte conferma TL; usare per bloccare propagazioni errate nei mapping derivati.
+
+## 18. TL CHAT CONTRACT
 RULE_ID: TL-CONTRACT-001
 CATEGORY: TL_CHAT_POLICY
 STATUS: ACTIVE
@@ -545,7 +595,7 @@ DESCRIPTION: Pipeline minima obbligatoria per modifiche operative via chat.
 CONSTRAINTS: estrazione comando -> rischio -> preview/diff -> conferma esplicita -> apply guarded -> audit log -> rollback_id.
 NOTES: Nessun apply diretto senza preview/diff.
 
-## 18. OVERRIDE UMANO
+## 19. OVERRIDE UMANO
 RULE_ID: TL-OVERRIDE-001
 CATEGORY: OVERRIDE_POLICY
 STATUS: ACTIVE
@@ -554,7 +604,7 @@ DESCRIPTION: Override HIGH richiede challenge contestuale esplicita.
 CONSTRAINTS: "ok", "si", "vai" non sono conferme valide; TL resta autorita finale.
 NOTES: Maker-checker/4-eyes ammesso per casi critici.
 
-## 19. SECURITY & PRIVACY
+## 20. SECURITY & PRIVACY
 RULE_ID: SECURITY-PRIVACY-001
 CATEGORY: SECURITY_POLICY
 STATUS: ACTIVE
@@ -563,7 +613,7 @@ DESCRIPTION: Nessun dato reale sensibile in Git.
 CONSTRAINTS: No versionamento di immagini/PDF/spec private; test e guard solo sintetici.
 NOTES: Policy valida per AI, planner, exporter e tooling.
 
-## 20. GIT/GITHUB WORKFLOW
+## 21. GIT/GITHUB WORKFLOW
 RULE_ID: MASTER-ANTIFRAG-001
 CATEGORY: GOVERNANCE_POLICY
 STATUS: ACTIVE
@@ -572,17 +622,17 @@ DESCRIPTION: Nessuna PR puo introdurre semantica dominio stabile fuori dal MASTE
 CONSTRAINTS: Vietato definire fuori MASTER nuove policy planner/AI, tassonomie station/process/event, regole permanenti di governance.
 NOTES: I documenti esterni restano supporto implementativo o archivio.
 
-## 21. DEPLOYMENT MODEL
+## 22. DEPLOYMENT MODEL
 Stack target: FastAPI + PostgreSQL su Railway.
 Compatibilita locale con fallback SQLite solo per test/dev controllato.
 
-## 22. FUTURE ROADMAP
+## 23. FUTURE ROADMAP
 Evoluzione prevista:
 - stati decisionali BLOCCATO/DEFER/ALLOW/BOOST
 - integrazione severita evento nel decision layer
 - vincoli shared_component espliciti e spiegabili
 
-## 23. GLOSSARIO
+## 24. GLOSSARIO
 - CERTO: informazione confermata da fonte autorevole.
 - INFERITO: deduzione plausibile non ancora confermata.
 - DA_VERIFICARE: informazione incompleta, ambigua o conflittuale.
@@ -591,7 +641,7 @@ Evoluzione prevista:
 - REFERENCE_ONLY: classe non idonea a uso planner operativo.
 - ASK_TL: richiesta mirata al Team Leader.
 
-## 24. APPENDICI TECNICHE MINIME
+## 25. APPENDICI TECNICHE MINIME
 Appendici ammesse solo per riferimenti tecnici stabili e non semantici.
 Vietato inserire:
 - log CI/pytest
@@ -600,7 +650,7 @@ Vietato inserire:
 - note debug temporanee
 - dump dati/cache
 
-## 25. STATION CAUSALITY MODEL
+## 26. STATION CAUSALITY MODEL
 RULE_ID: STATION-CAUSALITY-001
 CATEGORY: WORLD_MODEL_STATIONS
 STATUS: ACTIVE
@@ -617,7 +667,7 @@ NOTES:
 - Impatti upstream: saturazione a valle retroagisce su rilascio ordini a monte.
 - Impatti downstream: un collo di bottiglia anticipato altera priorita di sequenza.
 
-## 26. EVENT CAUSALITY MODEL
+## 27. EVENT CAUSALITY MODEL
 RULE_ID: EVENT-CAUSALITY-001
 CATEGORY: WORLD_MODEL_EVENTS
 STATUS: ACTIVE
@@ -633,7 +683,7 @@ CONSTRAINTS:
 NOTES:
 - Propagazione inter-ordine: shortage condivisi e conflitti route estendono impatto oltre singolo ordine.
 
-## 27. SHARED COMPONENT GRAPH
+## 28. SHARED COMPONENT GRAPH
 RULE_ID: COMPONENT-GRAPH-001
 CATEGORY: WORLD_MODEL_COMPONENTS
 STATUS: ACTIVE
@@ -648,7 +698,7 @@ CONSTRAINTS:
 NOTES:
 - Il modello resta TL-centrico: priorita e azione finale dipendono dalla decisione TL.
 
-## 28. TL DECISION SEMANTICS
+## 29. TL DECISION SEMANTICS
 RULE_ID: TL-COGNITION-001
 CATEGORY: WORLD_MODEL_TL
 STATUS: ACTIVE
@@ -665,7 +715,7 @@ CONSTRAINTS:
 NOTES:
 - Intuizione operativa TL e parte del world model, non rumore eccezionale.
 
-## 29. CONFIDENCE MODEL
+## 30. CONFIDENCE MODEL
 RULE_ID: CONFIDENCE-SEMANTICS-001
 CATEGORY: WORLD_MODEL_CONFIDENCE
 STATUS: ACTIVE
@@ -681,7 +731,7 @@ CONSTRAINTS:
 NOTES:
 - Boundaries automazione: nessun passaggio a CERTO da sola inferenza AI.
 
-## 30. PLANNER EXPLAINABILITY FOUNDATION
+## 31. PLANNER EXPLAINABILITY FOUNDATION
 RULE_ID: PLANNER-EXPLAINABILITY-001
 CATEGORY: WORLD_MODEL_EXPLAINABILITY
 STATUS: ACTIVE
@@ -695,7 +745,7 @@ CONSTRAINTS:
 NOTES:
 - Explainability e requisito operativo, non output opzionale.
 
-## 31. ATLAS WORLD MODEL SUBSTRATE
+## 32. ATLAS WORLD MODEL SUBSTRATE
 RULE_ID: ATLAS-WORLDMODEL-001
 CATEGORY: WORLD_MODEL_ATLAS
 STATUS: ACTIVE
@@ -708,7 +758,7 @@ CONSTRAINTS:
 NOTES:
 - Sezione fondativa; implementazioni runtime restano fuori da questo documento.
 
-## 32. OPERATIONAL GRAPH SEMANTICS
+## 33. OPERATIONAL GRAPH SEMANTICS
 RULE_ID: OPGRAPH-SEMANTICS-001
 CATEGORY: WORLD_MODEL_GRAPH
 STATUS: ACTIVE
@@ -721,7 +771,7 @@ CONSTRAINTS:
 NOTES:
 - Il grafo semantico e base di explainability e allineamento TL.
 
-## 33. CONSTRAINT PROPAGATION MODEL
+## 34. CONSTRAINT PROPAGATION MODEL
 RULE_ID: CONSTRAINT-PROPAGATION-001
 CATEGORY: WORLD_MODEL_PROPAGATION
 STATUS: ACTIVE
@@ -736,7 +786,7 @@ CONSTRAINTS:
 NOTES:
 - La propagazione non e solo ordine-locale: deve modellare effetti inter-ordine.
 
-## 34. MULTI-ORDER INTERACTION MODEL
+## 35. MULTI-ORDER INTERACTION MODEL
 RULE_ID: MULTIORDER-INTERACTION-001
 CATEGORY: WORLD_MODEL_MULTIORDER
 STATUS: ACTIVE
@@ -751,7 +801,7 @@ CONSTRAINTS:
 NOTES:
 - Il modello e TL-centrico: decisione finale resta umana e contestuale.
 
-## 35. TEMPORAL OPERATIONAL SEMANTICS
+## 36. TEMPORAL OPERATIONAL SEMANTICS
 RULE_ID: TEMPORAL-OPERATIONS-001
 CATEGORY: WORLD_MODEL_TEMPORAL
 STATUS: ACTIVE
@@ -768,7 +818,7 @@ CONSTRAINTS:
 NOTES:
 - Distinzione obbligatoria tra condizioni transitorie e persistenti.
 
-## 36. REASONING BOUNDARIES
+## 37. REASONING BOUNDARIES
 RULE_ID: REASONING-BOUNDARY-001
 CATEGORY: WORLD_MODEL_REASONING_GUARD
 STATUS: ACTIVE
@@ -781,7 +831,7 @@ CONSTRAINTS:
 NOTES:
 - Questi limiti sono vincoli di governance, non opzioni configurabili locali.
 
-## 37. EXPLAINABLE REASONING CONTRACT
+## 38. EXPLAINABLE REASONING CONTRACT
 RULE_ID: EXPLAINABLE-REASONING-001
 CATEGORY: WORLD_MODEL_EXPLAINABILITY_CONTRACT
 STATUS: ACTIVE
@@ -795,7 +845,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto minimo valido per explain planner, ATLAS reasoning e verifica umana.
 
-## 38. WORLD MODEL STABILIZATION
+## 39. WORLD MODEL STABILIZATION
 RULE_ID: WORLDMODEL-STABILIZATION-001
 CATEGORY: GOVERNANCE_WORLD_MODEL
 STATUS: ACTIVE
@@ -808,7 +858,7 @@ CONSTRAINTS:
 NOTES:
 - Stabilizzazione anti-frammentazione per il futuro sistema cognitivo ATLAS.
 
-## 39. OPERATIONAL COGNITION MODEL
+## 40. OPERATIONAL COGNITION MODEL
 RULE_ID: COGNITION-MODEL-001
 CATEGORY: WORLD_MODEL_COGNITION
 STATUS: ACTIVE
@@ -826,7 +876,7 @@ CONSTRAINTS:
 NOTES:
 - Cognizione TL e route-aware, station-aware, saturation-aware e constraint-aware.
 
-## 40. SIMULATION SEMANTICS
+## 41. SIMULATION SEMANTICS
 RULE_ID: SIMULATION-SEMANTICS-001
 CATEGORY: WORLD_MODEL_SIMULATION
 STATUS: ACTIVE
@@ -845,7 +895,7 @@ CONSTRAINTS:
 NOTES:
 - Simulazione semantica supporta TL; non sostituisce decisione finale.
 
-## 41. OPERATIONAL RISK SEMANTICS
+## 42. OPERATIONAL RISK SEMANTICS
 RULE_ID: OPERATIONAL-RISK-001
 CATEGORY: WORLD_MODEL_RISK
 STATUS: ACTIVE
@@ -860,7 +910,7 @@ CONSTRAINTS:
 NOTES:
 - La classificazione rischio e input di explainability, non verdetto automatico.
 
-## 42. RECOVERY & STABILIZATION MODEL
+## 43. RECOVERY & STABILIZATION MODEL
 RULE_ID: RECOVERY-STABILIZATION-001
 CATEGORY: WORLD_MODEL_RECOVERY
 STATUS: ACTIVE
@@ -878,7 +928,7 @@ CONSTRAINTS:
 NOTES:
 - Evento CLOSED e necessario ma non sufficiente a dichiarare stabilizzazione completa.
 
-## 43. OPERATIONAL MEMORY SEMANTICS
+## 44. OPERATIONAL MEMORY SEMANTICS
 RULE_ID: OPERATIONAL-MEMORY-001
 CATEGORY: WORLD_MODEL_MEMORY
 STATUS: ACTIVE
@@ -894,7 +944,7 @@ CONSTRAINTS:
 NOTES:
 - Memoria operativa e parte della cognizione industriale, non archivio passivo.
 
-## 44. HUMAN-IN-THE-LOOP COGNITION
+## 45. HUMAN-IN-THE-LOOP COGNITION
 RULE_ID: HITL-COGNITION-001
 CATEGORY: WORLD_MODEL_HITL
 STATUS: ACTIVE
@@ -910,7 +960,7 @@ CONSTRAINTS:
 NOTES:
 - Il sistema privilegia robustezza operativa rispetto ad automazione cieca.
 
-## 45. SIMULATION EXPLAINABILITY CONTRACT
+## 46. SIMULATION EXPLAINABILITY CONTRACT
 RULE_ID: SIMULATION-EXPLAINABILITY-001
 CATEGORY: WORLD_MODEL_SIMULATION_EXPLAINABILITY
 STATUS: ACTIVE
@@ -924,7 +974,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto valido per simulazione diagnostica e forecasting semantico spiegabile.
 
-## 46. OPERATIONAL COGNITION STABILIZATION INDEX
+## 47. OPERATIONAL COGNITION STABILIZATION INDEX
 RULE_ID: COGNITION-INDEX-STABILITY-001
 CATEGORY: GOVERNANCE_COGNITION_INDEX
 STATUS: ACTIVE
@@ -937,7 +987,7 @@ CONSTRAINTS:
 NOTES:
 - Garantisce discoverability coerente per ATLAS operational intelligence.
 
-## 47. WORLD MODEL COGNITIVE STABILIZATION
+## 48. WORLD MODEL COGNITIVE STABILIZATION
 RULE_ID: COGNITIVE-STABILIZATION-001
 CATEGORY: GOVERNANCE_COGNITIVE_WORLD_MODEL
 STATUS: ACTIVE
@@ -951,7 +1001,7 @@ CONSTRAINTS:
 NOTES:
 - Stabilizzazione finale del substrato di operational cognition e simulation semantics.
 
-## 48. STRATEGIC SEQUENCING SEMANTICS
+## 49. STRATEGIC SEQUENCING SEMANTICS
 RULE_ID: STRATEGIC-SEQUENCING-001
 CATEGORY: STRATEGIC_OPERATIONS
 STATUS: ACTIVE
@@ -969,7 +1019,7 @@ CONSTRAINTS:
 NOTES:
 - Sequencing non e ottimizzazione statica; e ragionamento adattivo vincolato.
 
-## 49. OPERATIONAL RESILIENCE SEMANTICS
+## 50. OPERATIONAL RESILIENCE SEMANTICS
 RULE_ID: RESILIENCE-SEMANTICS-001
 CATEGORY: STRATEGIC_RESILIENCE
 STATUS: ACTIVE
@@ -987,7 +1037,7 @@ CONSTRAINTS:
 NOTES:
 - Resilienza e comportamento sistemico, non singolo fix locale.
 
-## 50. OPERATIONAL EQUILIBRIUM MODEL
+## 51. OPERATIONAL EQUILIBRIUM MODEL
 RULE_ID: EQUILIBRIUM-MODEL-001
 CATEGORY: STRATEGIC_EQUILIBRIUM
 STATUS: ACTIVE
@@ -1005,7 +1055,7 @@ CONSTRAINTS:
 NOTES:
 - Equilibrio non implica assenza di rischio, ma controllo adattivo del rischio.
 
-## 51. STRATEGIC PLANNER COGNITION
+## 52. STRATEGIC PLANNER COGNITION
 RULE_ID: STRATEGIC-PLANNER-001
 CATEGORY: STRATEGIC_PLANNER_INTELLIGENCE
 STATUS: ACTIVE
@@ -1022,7 +1072,7 @@ CONSTRAINTS:
 NOTES:
 - L'intelligenza planner non puo bypassare confini di governance e TL authority.
 
-## 52. UNCERTAINTY & TRUST SEMANTICS
+## 53. UNCERTAINTY & TRUST SEMANTICS
 RULE_ID: UNCERTAINTY-TRUST-001
 CATEGORY: STRATEGIC_UNCERTAINTY
 STATUS: ACTIVE
@@ -1040,7 +1090,7 @@ CONSTRAINTS:
 NOTES:
 - Non tutta conoscenza operativa ha lo stesso peso semantico.
 
-## 53. META-REASONING SEMANTICS
+## 54. META-REASONING SEMANTICS
 RULE_ID: META-REASONING-001
 CATEGORY: STRATEGIC_META_REASONING
 STATUS: ACTIVE
@@ -1057,7 +1107,7 @@ CONSTRAINTS:
 NOTES:
 - Meta-reasoning e guardrail cognitivo, non livello autonomo decisionale.
 
-## 54. STRATEGIC HUMAN-IN-THE-LOOP INTELLIGENCE
+## 55. STRATEGIC HUMAN-IN-THE-LOOP INTELLIGENCE
 RULE_ID: STRATEGIC-HITL-001
 CATEGORY: STRATEGIC_HITL
 STATUS: ACTIVE
@@ -1071,7 +1121,7 @@ CONSTRAINTS:
 NOTES:
 - HITL strategico e requisito permanente di governance industriale.
 
-## 55. STRATEGIC EXPLAINABILITY CONTRACT
+## 56. STRATEGIC EXPLAINABILITY CONTRACT
 RULE_ID: STRATEGIC-EXPLAINABILITY-001
 CATEGORY: STRATEGIC_EXPLAINABILITY
 STATUS: ACTIVE
@@ -1084,7 +1134,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto strategico estende explainability operativa senza sostituirla.
 
-## 56. STRATEGIC COGNITION INDEX STABILITY
+## 57. STRATEGIC COGNITION INDEX STABILITY
 RULE_ID: STRATEGIC-INDEX-STABILITY-001
 CATEGORY: GOVERNANCE_STRATEGIC_INDEX
 STATUS: ACTIVE
@@ -1097,7 +1147,7 @@ CONSTRAINTS:
 NOTES:
 - Stabilizza recupero semantico per ATLAS strategic cognition.
 
-## 57. STRATEGIC STABILIZATION
+## 58. STRATEGIC STABILIZATION
 RULE_ID: STRATEGIC-STABILIZATION-001
 CATEGORY: GOVERNANCE_STRATEGIC_WORLD_MODEL
 STATUS: ACTIVE
@@ -1111,7 +1161,7 @@ CONSTRAINTS:
 NOTES:
 - Consolidamento finale del layer strategico di operational intelligence.
 
-## 58. AUTONOMIC GOVERNANCE SEMANTICS
+## 59. AUTONOMIC GOVERNANCE SEMANTICS
 RULE_ID: AUTONOMIC-GOVERNANCE-001
 CATEGORY: AUTONOMIC_GOVERNANCE
 STATUS: ACTIVE
@@ -1129,7 +1179,7 @@ CONSTRAINTS:
 NOTES:
 - Adattamento governance sempre subordinato a verita confermata e autorita TL.
 
-## 59. COGNITIVE INTEGRITY SEMANTICS
+## 60. COGNITIVE INTEGRITY SEMANTICS
 RULE_ID: COGNITIVE-INTEGRITY-001
 CATEGORY: AUTONOMIC_COGNITIVE_INTEGRITY
 STATUS: ACTIVE
@@ -1147,7 +1197,7 @@ CONSTRAINTS:
 NOTES:
 - Integrita cognitiva e prerequisito per fiducia operativa.
 
-## 60. AUTONOMIC SUPERVISION MODEL
+## 61. AUTONOMIC SUPERVISION MODEL
 RULE_ID: AUTONOMIC-SUPERVISION-001
 CATEGORY: AUTONOMIC_SUPERVISION
 STATUS: ACTIVE
@@ -1165,7 +1215,7 @@ CONSTRAINTS:
 NOTES:
 - Supervisione autonoma resta governance-oriented e non esecutiva.
 
-## 61. STRATEGIC CONTAINMENT SEMANTICS
+## 62. STRATEGIC CONTAINMENT SEMANTICS
 RULE_ID: STRATEGIC-CONTAINMENT-001
 CATEGORY: AUTONOMIC_CONTAINMENT
 STATUS: ACTIVE
@@ -1183,7 +1233,7 @@ CONSTRAINTS:
 NOTES:
 - Stabilita globale puo prevalere su performance locale di breve periodo.
 
-## 62. GOVERNANCE MEMORY SEMANTICS
+## 63. GOVERNANCE MEMORY SEMANTICS
 RULE_ID: GOVERNANCE-MEMORY-001
 CATEGORY: AUTONOMIC_GOVERNANCE_MEMORY
 STATUS: ACTIVE
@@ -1200,7 +1250,7 @@ CONSTRAINTS:
 NOTES:
 - La memoria guida prevenzione, non sostituisce conferma TL su casi critici.
 
-## 63. AUTONOMIC TRUST & SAFETY BOUNDARIES
+## 64. AUTONOMIC TRUST & SAFETY BOUNDARIES
 RULE_ID: AUTONOMIC-TRUST-SAFETY-001
 CATEGORY: AUTONOMIC_SAFETY
 STATUS: ACTIVE
@@ -1218,7 +1268,7 @@ CONSTRAINTS:
 NOTES:
 - Safety boundaries sono parte del modello causale di governance.
 
-## 64. AUTONOMIC EXPLAINABILITY CONTRACT
+## 65. AUTONOMIC EXPLAINABILITY CONTRACT
 RULE_ID: AUTONOMIC-EXPLAINABILITY-001
 CATEGORY: AUTONOMIC_EXPLAINABILITY
 STATUS: ACTIVE
@@ -1232,7 +1282,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto di explainability autonomica estende i contratti operativi/strategici.
 
-## 65. AUTONOMIC GOVERNANCE INDEX STABILITY
+## 66. AUTONOMIC GOVERNANCE INDEX STABILITY
 RULE_ID: AUTONOMIC-INDEX-STABILITY-001
 CATEGORY: GOVERNANCE_AUTONOMIC_INDEX
 STATUS: ACTIVE
@@ -1245,7 +1295,7 @@ CONSTRAINTS:
 NOTES:
 - Garantisce recupero semantico consistente per ATLAS bounded governance.
 
-## 66. GOVERNANCE STABILIZATION
+## 67. GOVERNANCE STABILIZATION
 RULE_ID: AUTONOMIC-STABILIZATION-001
 CATEGORY: GOVERNANCE_AUTONOMIC_WORLD_MODEL
 STATUS: ACTIVE
@@ -1259,7 +1309,7 @@ CONSTRAINTS:
 NOTES:
 - Stabilizzazione finale del layer di autonomic governance bounded e controllata.
 
-## 67. INSTITUTIONAL REASONING SEMANTICS
+## 68. INSTITUTIONAL REASONING SEMANTICS
 RULE_ID: INSTITUTIONAL-REASONING-001
 CATEGORY: INSTITUTIONAL_OPERATIONS
 STATUS: ACTIVE
@@ -1277,7 +1327,7 @@ CONSTRAINTS:
 NOTES:
 - Questo layer e cumulativo e non dipende dal singolo evento isolato.
 
-## 68. ORGANIZATIONAL INTELLIGENCE SEMANTICS
+## 69. ORGANIZATIONAL INTELLIGENCE SEMANTICS
 RULE_ID: ORGANIZATIONAL-INTELLIGENCE-001
 CATEGORY: INSTITUTIONAL_ORGANIZATIONAL_INTELLIGENCE
 STATUS: ACTIVE
@@ -1295,7 +1345,7 @@ CONSTRAINTS:
 NOTES:
 - L'intelligenza organizzativa non abilita autonomia AI istituzionale.
 
-## 69. LONG-HORIZON OPERATIONAL SEMANTICS
+## 70. LONG-HORIZON OPERATIONAL SEMANTICS
 RULE_ID: LONGHORIZON-OPERATIONS-001
 CATEGORY: INSTITUTIONAL_LONGHORIZON
 STATUS: ACTIVE
@@ -1313,7 +1363,7 @@ CONSTRAINTS:
 NOTES:
 - Instabilita long-horizon puo essere latente prima di diventare BLOCCATO esplicito.
 
-## 70. INSTITUTIONAL TRUST SEMANTICS
+## 71. INSTITUTIONAL TRUST SEMANTICS
 RULE_ID: INSTITUTIONAL-TRUST-001
 CATEGORY: INSTITUTIONAL_TRUST
 STATUS: ACTIVE
@@ -1331,7 +1381,7 @@ CONSTRAINTS:
 NOTES:
 - Trust non e istantaneo: cresce/decresce con storia verificabile.
 
-## 71. CROSS-CONTEXT COGNITION SEMANTICS
+## 72. CROSS-CONTEXT COGNITION SEMANTICS
 RULE_ID: CROSSCONTEXT-COGNITION-001
 CATEGORY: INSTITUTIONAL_CROSSCONTEXT
 STATUS: ACTIVE
@@ -1349,7 +1399,7 @@ CONSTRAINTS:
 NOTES:
 - Cross-context non autorizza generalizzazioni non spiegabili.
 
-## 72. INSTITUTIONAL MEMORY SEMANTICS
+## 73. INSTITUTIONAL MEMORY SEMANTICS
 RULE_ID: INSTITUTIONAL-MEMORY-001
 CATEGORY: INSTITUTIONAL_MEMORY
 STATUS: ACTIVE
@@ -1367,7 +1417,7 @@ CONSTRAINTS:
 NOTES:
 - Memoria istituzionale orienta escalation, non sostituisce conferma TL.
 
-## 73. INSTITUTIONAL HUMAN-IN-THE-LOOP SEMANTICS
+## 74. INSTITUTIONAL HUMAN-IN-THE-LOOP SEMANTICS
 RULE_ID: INSTITUTIONAL-HITL-001
 CATEGORY: INSTITUTIONAL_HITL
 STATUS: ACTIVE
@@ -1381,7 +1431,7 @@ CONSTRAINTS:
 NOTES:
 - HITL istituzionale e vincolo permanente di continuita operativa.
 
-## 74. INSTITUTIONAL EXPLAINABILITY CONTRACT
+## 75. INSTITUTIONAL EXPLAINABILITY CONTRACT
 RULE_ID: INSTITUTIONAL-EXPLAINABILITY-001
 CATEGORY: INSTITUTIONAL_EXPLAINABILITY
 STATUS: ACTIVE
@@ -1394,7 +1444,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto istituzionale estende explainability strategica e autonomica.
 
-## 75. INSTITUTIONAL INTELLIGENCE INDEX STABILITY
+## 76. INSTITUTIONAL INTELLIGENCE INDEX STABILITY
 RULE_ID: INSTITUTIONAL-INDEX-STABILITY-001
 CATEGORY: GOVERNANCE_INSTITUTIONAL_INDEX
 STATUS: ACTIVE
@@ -1407,7 +1457,7 @@ CONSTRAINTS:
 NOTES:
 - Mantiene interrogabilita AI coerente su orizzonte lungo.
 
-## 76. INSTITUTIONAL STABILIZATION
+## 77. INSTITUTIONAL STABILIZATION
 RULE_ID: INSTITUTIONAL-STABILIZATION-001
 CATEGORY: GOVERNANCE_INSTITUTIONAL_WORLD_MODEL
 STATUS: ACTIVE
@@ -1422,7 +1472,7 @@ CONSTRAINTS:
 NOTES:
 - Consolidamento finale del layer istituzionale di operational intelligence bounded.
 
-## 77. ECOSYSTEM OPERATIONAL SEMANTICS
+## 78. ECOSYSTEM OPERATIONAL SEMANTICS
 RULE_ID: ECOSYSTEM-OPERATIONS-001
 CATEGORY: ECOSYSTEM_OPERATIONS
 STATUS: ACTIVE
@@ -1440,7 +1490,7 @@ CONSTRAINTS:
 NOTES:
 - Ecosystem reasoning resta bounded, explainable e governance-constrained.
 
-## 78. FEDERATED OPERATIONAL COGNITION
+## 79. FEDERATED OPERATIONAL COGNITION
 RULE_ID: FEDERATED-COGNITION-001
 CATEGORY: ECOSYSTEM_FEDERATION
 STATUS: ACTIVE
@@ -1458,7 +1508,7 @@ CONSTRAINTS:
 NOTES:
 - Federazione non implica merger autonomico di governance.
 
-## 79. ECOSYSTEM RESILIENCE SEMANTICS
+## 80. ECOSYSTEM RESILIENCE SEMANTICS
 RULE_ID: ECOSYSTEM-RESILIENCE-001
 CATEGORY: ECOSYSTEM_RESILIENCE
 STATUS: ACTIVE
@@ -1476,7 +1526,7 @@ CONSTRAINTS:
 NOTES:
 - Resilienza ecosistemica resta cooperativa, bounded e explainable.
 
-## 80. CIVILIZATION-SCALE OPERATIONAL MEMORY
+## 81. CIVILIZATION-SCALE OPERATIONAL MEMORY
 RULE_ID: CIVSCALE-MEMORY-001
 CATEGORY: ECOSYSTEM_MEMORY
 STATUS: ACTIVE
@@ -1494,7 +1544,7 @@ CONSTRAINTS:
 NOTES:
 - Memoria resta bounded, contestuale, explainable e governance-constrained.
 
-## 81. CROSS-INSTITUTIONAL TRUST SEMANTICS
+## 82. CROSS-INSTITUTIONAL TRUST SEMANTICS
 RULE_ID: CROSSINSTITUTIONAL-TRUST-001
 CATEGORY: ECOSYSTEM_TRUST
 STATUS: ACTIVE
@@ -1512,7 +1562,7 @@ CONSTRAINTS:
 NOTES:
 - Propagazione trust deve restare bounded, explainable, reversible e auditable.
 
-## 82. ECOSYSTEM HITL GOVERNANCE
+## 83. ECOSYSTEM HITL GOVERNANCE
 RULE_ID: ECOSYSTEM-HITL-001
 CATEGORY: ECOSYSTEM_HITL
 STATUS: ACTIVE
@@ -1526,7 +1576,7 @@ CONSTRAINTS:
 NOTES:
 - HITL ecosistemico preserva authority locali e coordinamento cooperativo.
 
-## 83. ECOSYSTEM EXPLAINABILITY CONTRACT
+## 84. ECOSYSTEM EXPLAINABILITY CONTRACT
 RULE_ID: ECOSYSTEM-EXPLAINABILITY-001
 CATEGORY: ECOSYSTEM_EXPLAINABILITY
 STATUS: ACTIVE
@@ -1539,7 +1589,7 @@ CONSTRAINTS:
 NOTES:
 - Contratto ecosistemico estende explainability istituzionale senza autonomia sistemica.
 
-## 84. ECOSYSTEM INDEX STABILITY
+## 85. ECOSYSTEM INDEX STABILITY
 RULE_ID: ECOSYSTEM-INDEX-STABILITY-001
 CATEGORY: GOVERNANCE_ECOSYSTEM_INDEX
 STATUS: ACTIVE
@@ -1552,7 +1602,7 @@ CONSTRAINTS:
 NOTES:
 - Mantiene recupero semantico robusto per federated cognition ATLAS.
 
-## 85. ECOSYSTEM GOVERNANCE STABILIZATION
+## 86. ECOSYSTEM GOVERNANCE STABILIZATION
 RULE_ID: ECOSYSTEM-STABILIZATION-001
 CATEGORY: GOVERNANCE_ECOSYSTEM_WORLD_MODEL
 STATUS: ACTIVE
@@ -1567,7 +1617,7 @@ CONSTRAINTS:
 NOTES:
 - Consolidamento finale del layer ecosistemico di institutional coordination bounded.
 
-## 86. EXECUTABLE SEMANTIC CONTRACTS
+## 87. EXECUTABLE SEMANTIC CONTRACTS
 RULE_ID: EXECUTABLE-CONTRACTS-001
 CATEGORY: EXECUTABLE_GOVERNANCE
 STATUS: ACTIVE
@@ -1580,7 +1630,7 @@ CONSTRAINTS:
 NOTES:
 - I contratti definiscono controlli semantici, non motori di esecuzione.
 
-## 87. MACHINE-QUERYABLE SEMANTIC MAPS
+## 88. MACHINE-QUERYABLE SEMANTIC MAPS
 RULE_ID: MACHINE-QUERYABLE-001
 CATEGORY: EXECUTABLE_QUERYABILITY
 STATUS: ACTIVE
@@ -1593,7 +1643,7 @@ CONSTRAINTS:
 NOTES:
 - Queryability semantica prepara enforcement e auditing futuri.
 
-## 88. GOVERNANCE ENFORCEMENT SEMANTICS
+## 89. GOVERNANCE ENFORCEMENT SEMANTICS
 RULE_ID: GOVERNANCE-ENFORCEMENT-001
 CATEGORY: EXECUTABLE_ENFORCEMENT
 STATUS: ACTIVE
@@ -1606,7 +1656,7 @@ CONSTRAINTS:
 NOTES:
 - Enforcement semantico e controllo di ammissibilita, non esecuzione autonoma.
 
-## 89. EXECUTABLE EXPLAINABILITY MODEL
+## 90. EXECUTABLE EXPLAINABILITY MODEL
 RULE_ID: EXECUTABLE-EXPLAINABILITY-001
 CATEGORY: EXECUTABLE_EXPLAINABILITY
 STATUS: ACTIVE
@@ -1619,7 +1669,7 @@ CONSTRAINTS:
 NOTES:
 - Questo modello rende verificabile la qualita della spiegazione.
 
-## 90. OPERATIONAL VALIDATION SEMANTICS
+## 91. OPERATIONAL VALIDATION SEMANTICS
 RULE_ID: OPERATIONAL-VALIDATION-001
 CATEGORY: EXECUTABLE_VALIDATION
 STATUS: ACTIVE
@@ -1632,7 +1682,7 @@ CONSTRAINTS:
 NOTES:
 - Validazione semantica e prerequisito di readiness.
 
-## 91. SEMANTIC EXECUTION READINESS
+## 92. SEMANTIC EXECUTION READINESS
 RULE_ID: EXECUTION-READINESS-001
 CATEGORY: EXECUTABLE_READINESS
 STATUS: ACTIVE
@@ -1645,7 +1695,7 @@ CONSTRAINTS:
 NOTES:
 - Readiness e un gate semantico, non permesso automatico all'azione.
 
-## 92. SEMANTIC COMPRESSION & NORMALIZATION
+## 93. SEMANTIC COMPRESSION & NORMALIZATION
 RULE_ID: SEMANTIC-COMPRESSION-001
 CATEGORY: EXECUTABLE_NORMALIZATION
 STATUS: ACTIVE
@@ -1659,7 +1709,7 @@ CONSTRAINTS:
 NOTES:
 - Obiettivo: piu chiarezza e queryability, non crescita volumetrica.
 
-## 93. EXECUTABLE GOVERNANCE INDEX LAYER
+## 94. EXECUTABLE GOVERNANCE INDEX LAYER
 RULE_ID: EXECUTABLE-INDEX-001
 CATEGORY: EXECUTABLE_INDEX
 STATUS: ACTIVE
@@ -1672,7 +1722,7 @@ CONSTRAINTS:
 NOTES:
 - Layer ponte tra semantica e futuri controlli operativi.
 
-## 94. GOVERNANCE LEGACY FOR TL
+## 95. GOVERNANCE LEGACY FOR TL
 RULE_ID: TL-GOVERNANCE-LEGACY-001
 CATEGORY: EXECUTABLE_TL_LEGACY
 STATUS: ACTIVE
@@ -1688,7 +1738,7 @@ CONSTRAINTS:
 NOTES:
 - Il sistema operationalizza conoscenza umana, non la rimpiazza.
 
-## 95. EXECUTABLE GOVERNANCE STABILIZATION
+## 96. EXECUTABLE GOVERNANCE STABILIZATION
 RULE_ID: EXECUTABLE-STABILIZATION-001
 CATEGORY: GOVERNANCE_EXECUTABLE_WORLD_MODEL
 STATUS: ACTIVE
