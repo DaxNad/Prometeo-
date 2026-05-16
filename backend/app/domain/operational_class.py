@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.semantic_registry import get_semantic_gate_entry
+
 VALID_OPERATIONAL_CLASSES = {
     "STANDARD",
     "RICAMBIO",
@@ -91,6 +93,25 @@ def build_operational_policy(profile: dict[str, Any] | None) -> dict[str, Any]:
         ),
     }
 
+
+def _resolve_planner_admission_gate_metadata() -> dict[str, Any]:
+    """
+    Read-only semantic bridge for planner admission.
+
+    Existing boolean admission logic remains local and unchanged; this metadata
+    records the canonical gate authority for diagnostics and future resolver use.
+    """
+    gate = get_semantic_gate_entry("PLANNER_ADMISSION_GATE")
+    return {
+        "key": gate.key,
+        "authority": gate.authority,
+        "master_refs": gate.master_refs,
+        "inputs": gate.inputs,
+        "pass_rule": gate.pass_rule,
+        "fail_rule": gate.fail_rule,
+    }
+
+
 def build_planner_admission_gate(profile: dict[str, Any] | None) -> dict[str, Any]:
     """
     PROMETEO planner gate.
@@ -101,6 +122,7 @@ def build_planner_admission_gate(profile: dict[str, Any] | None) -> dict[str, An
     """
     profile = profile or {}
     policy = build_operational_policy(profile)
+    semantic_gate = _resolve_planner_admission_gate_metadata()
 
     operational_class = policy["operational_class"]
     planner_eligible = bool(policy["planner_eligible"])
@@ -156,5 +178,5 @@ def build_planner_admission_gate(profile: dict[str, Any] | None) -> dict[str, An
         "human_override_allowed": True,
         "reasons": reasons,
         "rule": "STANDARD_CERTAIN_ROUTE_CERTAIN_CONFIDENCE_NO_BLOCKERS_ACTIVE_DEMAND_HUMAN_OVERRIDE",
+        "semantic_gate": semantic_gate,
     }
-
