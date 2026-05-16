@@ -5,7 +5,11 @@ from .accessor import (
     resolve_semantic_gate,
     semantic_accessor_boundaries,
 )
-from .audit import RUNTIME_SEMANTIC_AUDIT, runtime_semantic_audit_as_dict
+from .audit import (
+    RUNTIME_SEMANTIC_AUDIT,
+    runtime_semantic_audit_as_dict,
+    semantic_accessor_audit_as_dict,
+)
 from .confidence_registry import CONFIDENCE_REGISTRY, get_confidence_entry
 from .escalation_registry import ESCALATION_REGISTRY, get_escalation_entry
 from .execution_readiness_registry import EXECUTION_READINESS_REGISTRY, get_execution_readiness_entry
@@ -37,5 +41,6 @@ __all__ = [
     "resolve_semantic_confidence",
     "resolve_semantic_gate",
     "runtime_semantic_audit_as_dict",
+    "semantic_accessor_audit_as_dict",
     "semantic_accessor_boundaries",
 ]
