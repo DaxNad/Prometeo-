@@ -1,0 +1,39 @@
+{
+  "id": "sanitized_zaw_shared_component_operational_risk_sample",
+  "title": "Sanitized ZAW shared component operational risk sample",
+  "data_scope": "sanitized_sample",
+  "contains_real_data": false,
+  "source": "non_real_micro_sample_for_eval_bridge",
+  "articles": [
+    {
+      "article_id": "ARTICLE_A",
+      "required_station": "ZAW-1",
+      "final_check": "CP",
+      "components": [
+        "COMPONENT_X"
+      ]
+    },
+    {
+      "article_id": "ARTICLE_B",
+      "required_station": "ZAW-1",
+      "final_check": "CP",
+      "components": [
+        "COMPONENT_X"
+      ]
+    }
+  ],
+  "operational_risks": [
+    "rischio saturazione ZAW-1",
+    "componente condiviso COMPONENT_X",
+    "non inferire ZAW-2 senza conferma",
+    "CP finale obbligatorio",
+    "output consultivo",
+    "TL decide"
+  ],
+  "forbidden_runtime_authority": [
+    "nessuna assegnazione automatica operatori",
+    "nessuna scrittura SMF",
+    "nessuna modifica ordine",
+    "nessuna decisione autonoma"
+  ]
+}
