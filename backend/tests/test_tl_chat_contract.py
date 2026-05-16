@@ -715,6 +715,40 @@ def test_tl_chat_uses_local_specs_metadata_when_present(monkeypatch, tmp_path):
     assert "CP finale obbligatorio" in data["answer"]
 
 
+def test_tl_chat_local_specs_confidence_uses_semantic_registry_fallback(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    specs_root = tmp_path / "specs_finitura"
+    article_dir = specs_root / "12991"
+    article_dir.mkdir(parents=True)
+
+    metadata = {
+        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+        "article": "12991",
+        "operational_class": "STANDARD",
+        "planner_eligible": True,
+        "route_status": "DA_VERIFICARE",
+        "confidence": "TL_DA_DOCUMENTARE",
+        "route_steps": [{"seq": 1, "station": "ZAW1", "status": "DA_VERIFICARE"}],
+        "constraints": {},
+    }
+    (article_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "12991?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["answer"].startswith("12991 — DA_VERIFICARE.")
+    assert data["requires_confirmation"] is True
+
+
 def test_tl_chat_local_specs_metadata_shows_henn_present(monkeypatch, tmp_path):
     import json
 
@@ -922,6 +956,43 @@ def test_tl_chat_uses_preview_for_da_verificare_article(monkeypatch, tmp_path):
     assert "PIDMILL_ZAW2" in data["answer"]
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
+
+
+def test_tl_chat_preview_confidence_uses_semantic_registry_fallback(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    preview = tmp_path / "article_route_matrix.preview.json"
+    preview.write_text(
+        json.dumps(
+            {
+                "profiles": {
+                    "99997": {
+                        "article": "99997",
+                        "confidence": "NON_CANONICO",
+                        "signals": {},
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    client = TestClient(app)
+    res = client.post("/tl/chat", json={"question": "99997?"})
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert "Profilo non operativo" in data["answer"]
+    assert data["requires_confirmation"] is True
+
 
 def test_tl_chat_answers_12402_confirmed_double_zaw_pidmill_profile(monkeypatch, tmp_path):
     import importlib

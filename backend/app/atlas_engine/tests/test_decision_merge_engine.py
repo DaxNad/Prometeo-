@@ -1,6 +1,9 @@
 from app.atlas_engine.decision_merge_engine import (
     MergeInput,
     MergeSignal,
+    _collect_signals,
+    _resolve_runtime_confidence_semantics,
+    _signal_strength,
     solve_decision_merge,
 )
 
@@ -108,3 +111,72 @@ def test_explain_contains_constraints():
     assert "missing certified operator" in result.explain
     assert "operator_capacity" in result.explain
 
+
+def test_none_confidence_keeps_existing_numeric_default():
+    signals = _collect_signals(
+        MergeInput(
+            shipment_priority_result=MergeSignal(
+                decision="ALLOW",
+                score=0.62,
+                confidence=None,
+            )
+        )
+    )
+
+    assert signals[0].confidence == 1.0
+    assert _signal_strength(signals[0]) == 0.62
+    assert signals[0].confidence_semantics == "DA_VERIFICARE"
+
+
+def test_confidence_above_one_still_clamps_without_score_change():
+    signals = _collect_signals(
+        MergeInput(
+            shipment_priority_result=MergeSignal(
+                decision="ALLOW",
+                score=0.62,
+                confidence=2.0,
+            )
+        )
+    )
+    result = solve_decision_merge(
+        MergeInput(
+            shipment_priority_result=MergeSignal(
+                decision="ALLOW",
+                score=0.62,
+                confidence=2.0,
+            )
+        )
+    )
+
+    assert signals[0].confidence == 1.0
+    assert _signal_strength(signals[0]) == 0.62
+    assert result.priority_score == 0.62
+    assert signals[0].confidence_semantics == "INFERITO"
+
+
+def test_semantic_confidence_binding_does_not_change_defer_score():
+    result = solve_decision_merge(
+        MergeInput(
+            bottleneck_pressure_result=MergeSignal(
+                decision="DEFER",
+                score=0.35,
+                confidence=0.8,
+                reasons=["line saturation"],
+            ),
+            phase_progress_result=MergeSignal(
+                decision="ALLOW",
+                score=0.9,
+                confidence=1.0,
+                reasons=["phase aligned"],
+            ),
+        )
+    )
+
+    assert result.decision == "DEFER"
+    assert result.priority_score == 0.28
+
+
+def test_runtime_confidence_semantics_uses_registry_conservatively():
+    assert _resolve_runtime_confidence_semantics(None) == "DA_VERIFICARE"
+    assert _resolve_runtime_confidence_semantics(0.4) == "INFERITO"
+    assert _resolve_runtime_confidence_semantics(2.0) == "INFERITO"

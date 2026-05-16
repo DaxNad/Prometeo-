@@ -1,3 +1,27 @@
+---
+
+THIS DOCUMENT IS NOT A SEMANTIC SOURCE OF TRUTH.
+
+Canonical domain semantics, planner constraints,
+AI governance, TL operational rules,
+station/process taxonomy and permanent policies
+are defined exclusively in:
+
+docs/PROMETEO_MASTER.md
+
+This file exists only as:
+
+* historical reference
+* implementation support
+* technical context
+* archived material
+* extracted summary
+
+In case of conflict:
+PROMETEO_MASTER.md prevails.
+
+---
+
 # PROMETEO DOMAIN RULES
 
 real stations:

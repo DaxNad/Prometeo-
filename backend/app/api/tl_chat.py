@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
+from app.semantic_registry import resolve_confidence
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -59,6 +60,16 @@ def _extract_article_from_question(question: str) -> str:
 
 def _clean(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _resolve_tl_chat_confidence(value: Any) -> str:
+    """
+    Bind TL Chat confidence labels to the canonical semantic registry.
+
+    This is intentionally read-only: it normalizes the label returned by
+    existing TL Chat sources and does not grant planner or execution authority.
+    """
+    return resolve_confidence(value).normalized_key
 
 
 def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
@@ -157,7 +168,9 @@ def _format_operational_answer(
 
 
 def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) -> TLChatResponse:
-    confidence = str(metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE").upper()
+    confidence = _resolve_tl_chat_confidence(
+        metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
+    )
     route_status = str(metadata.get("route_status") or "DA_VERIFICARE").upper()
     operational_class = str(metadata.get("operational_class") or "DA_VERIFICARE").upper()
     planner_eligible = bool(metadata.get("planner_eligible"))
@@ -549,7 +562,7 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
     if not isinstance(profile, dict):
         return None
 
-    confidence = str(profile.get("confidence") or "DA_VERIFICARE").upper()
+    confidence = _resolve_tl_chat_confidence(profile.get("confidence") or "DA_VERIFICARE")
     signals = profile.get("signals") if isinstance(profile.get("signals"), dict) else {}
     review_reasons = profile.get("review_reasons") if isinstance(profile.get("review_reasons"), list) else []
     discrepancies = profile.get("discrepancies") if isinstance(profile.get("discrepancies"), list) else []
@@ -636,7 +649,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     signals = summary.get("signals") if isinstance(summary.get("signals"), dict) else {}
     criticalities = summary.get("criticalities") if isinstance(summary.get("criticalities"), list) else []
 
-    confidence = str(summary.get("confidence") or "DA_VERIFICARE")
+    confidence = _resolve_tl_chat_confidence(summary.get("confidence") or "DA_VERIFICARE")
     primary_zaw = _clean(signals.get("primary_zaw_station"))
     zaw_passes = signals.get("zaw_passes")
 
