@@ -152,3 +152,56 @@ def test_semantic_accessor_boundaries_are_read_only():
     assert boundaries["no_planner_behavior_change"] is True
     assert boundaries["no_execution_authority"] is True
     assert boundaries["confidence_fallback"] == "DA_VERIFICARE"
+
+
+def test_semantic_accessor_diagnostics_read_all_canonical_confidence_states():
+    for confidence in (
+        "CERTO",
+        "INFERITO",
+        "DA_VERIFICARE",
+        "BLOCCATO",
+        "STANDARD",
+        "REFERENCE_ONLY",
+    ):
+        result = resolve_semantic_confidence(confidence)
+
+        assert result["normalized_key"] == confidence
+        assert result["read_only"] is True
+        assert result["no_runtime_mutation"] is True
+        assert result["entry"]["key"] == confidence
+
+
+def test_semantic_accessor_diagnostics_read_required_gates():
+    for gate_key in ("PLANNER_ADMISSION_GATE", "TL_CONFIRMATION_GATE"):
+        result = resolve_semantic_gate(gate_key)
+
+        assert result["normalized_key"] == gate_key
+        assert result["fallback_applied"] is False
+        assert result["read_only"] is True
+        assert result["no_runtime_mutation"] is True
+        assert result["entry"]["key"] == gate_key
+
+
+def test_semantic_accessor_diagnostics_keep_fallbacks_conservative():
+    confidence = resolve_semantic_confidence("UNKNOWN_CONFIDENCE")
+    gate = resolve_semantic_gate("UNKNOWN_GATE")
+
+    assert confidence["normalized_key"] == "DA_VERIFICARE"
+    assert confidence["fallback_applied"] is True
+    assert confidence["read_only"] is True
+    assert confidence["no_runtime_mutation"] is True
+
+    assert gate["normalized_key"] == "UNKNOWN_GATE"
+    assert gate["fallback_applied"] is True
+    assert gate["admitted"] is False
+    assert gate["read_only"] is True
+    assert gate["no_runtime_mutation"] is True
+
+
+def test_semantic_accessor_diagnostics_boundaries_block_runtime_authority():
+    boundaries = semantic_accessor_boundaries()
+
+    assert boundaries["read_only"] is True
+    assert boundaries["no_runtime_mutation"] is True
+    assert boundaries["no_planner_behavior_change"] is True
+    assert boundaries["no_execution_authority"] is True
