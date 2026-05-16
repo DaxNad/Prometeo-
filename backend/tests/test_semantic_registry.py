@@ -11,6 +11,9 @@ from app.semantic_registry import (
     get_confidence_entry,
     registry_lookup_boundaries,
     resolve_confidence,
+    resolve_semantic_confidence,
+    resolve_semantic_gate,
+    semantic_accessor_boundaries,
 )
 
 
@@ -89,3 +92,63 @@ def test_runtime_semantic_audit_classifies_dispersion():
     assert "backend/app/api/tl_chat.py" in audited_areas
     assert "backend/app/agent_runtime/decision_engine.py" in audited_areas
     assert all(finding.extraction_target for finding in RUNTIME_SEMANTIC_AUDIT)
+
+
+def test_semantic_accessor_resolves_certo_confidence():
+    result = resolve_semantic_confidence("CERTO")
+
+    assert result["registry"] == "confidence_registry"
+    assert result["normalized_key"] == "CERTO"
+    assert result["fallback_applied"] is False
+    assert result["read_only"] is True
+    assert result["no_runtime_mutation"] is True
+    assert result["entry"]["key"] == "CERTO"
+
+
+def test_semantic_accessor_normalizes_reference_only_alias():
+    result = resolve_semantic_confidence("solo-riferimento")
+
+    assert result["normalized_key"] == "REFERENCE_ONLY"
+    assert result["fallback_applied"] is True
+    assert result["entry"]["key"] == "REFERENCE_ONLY"
+
+
+def test_semantic_accessor_unknown_confidence_falls_back_to_da_verificare():
+    result = resolve_semantic_confidence("NON_CANONICO")
+
+    assert result["normalized_key"] == "DA_VERIFICARE"
+    assert result["fallback_applied"] is True
+    assert result["entry"]["key"] == "DA_VERIFICARE"
+
+
+def test_semantic_accessor_resolves_planner_admission_gate():
+    result = resolve_semantic_gate("PLANNER_ADMISSION_GATE")
+
+    assert result["registry"] == "semantic_gate_registry"
+    assert result["normalized_key"] == "PLANNER_ADMISSION_GATE"
+    assert result["fallback_applied"] is False
+    assert result["read_only"] is True
+    assert result["no_runtime_mutation"] is True
+    assert result["entry"]["key"] == "PLANNER_ADMISSION_GATE"
+
+
+def test_semantic_accessor_unknown_gate_returns_read_only_fallback():
+    result = resolve_semantic_gate("UNKNOWN_GATE")
+
+    assert result["registry"] == "semantic_gate_registry"
+    assert result["normalized_key"] == "UNKNOWN_GATE"
+    assert result["fallback_applied"] is True
+    assert result["read_only"] is True
+    assert result["no_runtime_mutation"] is True
+    assert result["admitted"] is False
+    assert result["entry"] is None
+
+
+def test_semantic_accessor_boundaries_are_read_only():
+    boundaries = semantic_accessor_boundaries()
+
+    assert boundaries["read_only"] is True
+    assert boundaries["no_runtime_mutation"] is True
+    assert boundaries["no_planner_behavior_change"] is True
+    assert boundaries["no_execution_authority"] is True
+    assert boundaries["confidence_fallback"] == "DA_VERIFICARE"
