@@ -8,17 +8,17 @@ on:
 
 jobs:
   tl-eval:
-    name: Run sanitized TL semantic eval
+    name: Run sanitized TL eval
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
 
       - name: Run TL eval
         run: make tl-eval

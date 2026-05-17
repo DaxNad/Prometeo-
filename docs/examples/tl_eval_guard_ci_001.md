@@ -1,22 +1,22 @@
-# TL eval guard CI 001
+# TL Eval Guard CI 001
 
-Obiettivo: rendere automatica la pipeline TL eval sanificata su GitHub Actions.
+Adds a dedicated GitHub Actions workflow for sanitized TL semantic evals.
 
-Workflow:
+## Scope
 
-.github/workflows/tl-eval.yml
+The workflow runs only `make tl-eval`.
 
-Comando eseguito:
+## Triggers
 
-make tl-eval
+- pull_request
+- push on main
 
-Perimetro:
-- nessun runtime applicativo
-- nessun frontend
-- nessuna AI esterna
-- nessun SMF reale
-- nessuna specifica
-- nessuna immagine
-- nessun codice reale
+## Runtime
 
-Stato: TL_EVAL_GUARD_CI_READY
+- GitHub Actions
+- Ubuntu latest
+- Python 3.11
+
+## Exclusions
+
+This guard must not start or depend on runtime app, frontend, Railway, Vercel, OpenAI, Ollama, database, SMF, specifications, images, or real codes.
