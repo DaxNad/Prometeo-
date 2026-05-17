@@ -1,13 +1,23 @@
 {
-  "state": "SANITIZED_SAMPLE_READY",
+  "state": "TL_CONFIRMED_SAMPLE_READY",
   "work_order": "WO_SAMPLE_001",
   "ship_date": "2030-01-01",
   "items": [
     {
       "article": "ITEM_A",
       "quantity": 2,
-      "stations": ["STATION_Z1", "STATION_CP"],
-      "components": ["COMP_SHARED_01"]
+      "stations": [
+        "STATION_Z1",
+        "STATION_CP"
+      ],
+      "components": [
+        "COMP_SHARED_01"
+      ]
     }
-  ]
+  ],
+  "tl_confirmation": {
+    "confirmed_by": "TL_SANITIZED",
+    "confirmation_level": "SANITIZED_OPERATIONAL_CONFIRMATION",
+    "notes": "Micro-campione confermato come rappresentativo del ragionamento TL, senza dati reali."
+  }
 }

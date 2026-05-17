@@ -8,4 +8,8 @@ Vincoli:
 - NO specifiche
 - NO immagini
 
-Stato: SANITIZED_SAMPLE_READY
+Stato: TL_CONFIRMED_SAMPLE_READY
+
+## Conferma TL sanificata
+
+Campione confermato come utile per testare il ragionamento operativo senza codici reali, SMF, specifiche o immagini.
