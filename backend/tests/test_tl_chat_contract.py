@@ -849,6 +849,41 @@ def test_tl_chat_operational_v2_contract_for_local_metadata(monkeypatch, tmp_pat
     assert "Azione: usare route confermata." in answer
 
 
+def test_tl_chat_operational_answer_formatter_shape_is_brief_and_actionable():
+    from app.api.tl_chat import _format_operational_answer
+
+    answer = _format_operational_answer(
+        article="ITEM_SHAPE",
+        confidence="CERTO",
+        route="HENN → ZAW1 → CP",
+        constraints=["CP finale obbligatorio", "ZAW2 non inferita"],
+        note="profilo operativo confermato",
+        action="usare route confermata",
+    )
+
+    assert answer.startswith("ITEM_SHAPE — CERTO.")
+    assert "Route:" in answer
+    assert "Vincoli:" in answer
+    assert "Nota:" in answer
+    assert "Azione:" in answer
+
+    assert answer.index("Route:") < answer.index("Vincoli:")
+    assert answer.index("Vincoli:") < answer.index("Nota:")
+    assert answer.index("Nota:") < answer.index("Azione:")
+
+    assert "Route: HENN → ZAW1 → CP." in answer
+    assert "Vincoli: CP finale obbligatorio; ZAW2 non inferita." in answer
+    assert "Nota: profilo operativo confermato." in answer
+    assert "Azione: usare route confermata." in answer
+
+    assert "\n" not in answer
+    assert len(answer) <= 220
+    assert "git" not in answer.lower()
+    assert "pytest" not in answer.lower()
+    assert "runtime" not in answer.lower()
+    assert "frontend" not in answer.lower()
+
+
 def test_tl_chat_local_specs_metadata_shows_guaina_and_zaw_specificity(monkeypatch, tmp_path):
     import json
 
