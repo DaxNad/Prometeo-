@@ -1,0 +1,81 @@
+{
+  "state": "TL_SEMANTIC_EVAL_MATRIX_READY",
+  "eval_matrix_id": "TL_SEMANTIC_EVAL_MATRIX_001",
+  "source_samples": [
+    "tl_micro_sample",
+    "tl_semantic_eval_001"
+  ],
+  "runtime_used": false,
+  "frontend_used": false,
+  "external_ai_used": false,
+  "private_planning_file_used": false,
+  "specs_used": false,
+  "images_used": false,
+  "real_codes_used": false,
+  "cases": [
+    {
+      "case_id": "CASE_001_FINAL_CHECK",
+      "context": {
+        "article": "ITEM_A",
+        "stations": [
+          "STATION_Z1",
+          "STATION_CP"
+        ],
+        "shared_components": [
+          "COMP_SHARED_01"
+        ],
+        "blocking_event_open": false,
+        "final_check_required": true
+      },
+      "question": "Dato ITEM_A con chiusura obbligatoria su STATION_CP, qual \u00e8 la priorit\u00e0 corretta?",
+      "required_meanings": [
+        "prioritize_final_pressure_check",
+        "do_not_close_without_final_check"
+      ],
+      "accepted_answer": "Dare priorit\u00e0 alla chiusura su STATION_CP e non considerare il lotto chiuso senza controllo finale."
+    },
+    {
+      "case_id": "CASE_002_Z1_LOAD_NO_BLOCK",
+      "context": {
+        "article": "ITEM_B",
+        "stations": [
+          "STATION_Z1",
+          "STATION_CP"
+        ],
+        "shared_components": [
+          "COMP_SHARED_01"
+        ],
+        "blocking_event_open": false,
+        "final_check_required": true
+      },
+      "question": "Dato ITEM_B con passaggio su STATION_Z1 ma senza evento bloccante, qual \u00e8 la risposta corretta?",
+      "required_meanings": [
+        "verify_z1_station_load",
+        "do_not_escalate_without_blocking_event"
+      ],
+      "accepted_answer": "Verificare il carico su STATION_Z1, ma non alzare criticit\u00e0 se non esiste un evento bloccante."
+    },
+    {
+      "case_id": "CASE_003_Z1_BLOCKING_EVENT",
+      "context": {
+        "article": "ITEM_C",
+        "stations": [
+          "STATION_Z1",
+          "STATION_CP"
+        ],
+        "shared_components": [
+          "COMP_SHARED_02"
+        ],
+        "blocking_event_open": true,
+        "final_check_required": true
+      },
+      "question": "Dato ITEM_C con evento bloccante aperto su STATION_Z1, qual \u00e8 la risposta corretta?",
+      "required_meanings": [
+        "verify_blocking_event_first",
+        "do_not_ignore_open_block",
+        "keep_final_check_required"
+      ],
+      "accepted_answer": "Verificare prima l'evento bloccante su STATION_Z1, non ignorare il blocco aperto e mantenere obbligatoria la chiusura su STATION_CP."
+    }
+  ]
+}
