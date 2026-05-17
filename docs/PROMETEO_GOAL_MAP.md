@@ -30,6 +30,28 @@ Una capacita avanza di stato solo se esiste almeno una prova ripetibile:
 - report locale sanificato,
 - conferma TL documentata fuori dai dati privati.
 
+
+## PROMETEO_GOAL_CLOSURE
+
+Stato operativo: PROMETEO e in fase `GOAL_CLOSURE`.
+
+Durante questa fase non si aggiungono nuovi layer architetturali. Ogni intervento ammesso deve chiudere, stabilizzare o verificare una capability gia esistente.
+
+### Regole di chiusura
+
+- Nessuna nuova architettura salvo fix di sicurezza, regressione o blocco operativo.
+- Nessun nuovo world model autonomo.
+- Nessun nuovo adapter AI.
+- Nessuna nuova UI o dashboard.
+- Nessun nuovo runtime.
+- Nessun uso di dati reali non sanificati.
+- Ogni passo deve essere piccolo, testabile e collegato a una capability gia presente.
+- La priorita e rendere PROMETEO usabile in reparto su perimetro ristretto, non espandere il perimetro.
+
+### Criterio GOAL
+
+PROMETEO avanza verso GOAL solo quando una capability esistente diventa piu chiusa, piu verificabile o piu sicura senza introdurre dipendenze laterali.
+
 ## Anti-Goal
 
 PROMETEO non deve diventare:
