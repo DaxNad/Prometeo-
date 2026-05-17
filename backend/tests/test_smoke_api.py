@@ -15,6 +15,10 @@ from app.main import app  # noqa: E402  (import dopo set env)
 def test_smoke_health_and_smf_endpoints():
     client = TestClient(app)
 
+    r_robots = client.get("/robots.txt")
+    assert r_robots.status_code == 200
+    assert "User-agent: *" in r_robots.text
+
     r_health = client.get("/health")
     assert r_health.status_code == 200
     data = r_health.json()
