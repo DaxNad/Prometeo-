@@ -1,5 +1,5 @@
 {
-  "state": "TL_CONFIRMED_SAMPLE_READY",
+  "state": "TESTED_REAL_SAMPLE",
   "work_order": "WO_SAMPLE_001",
   "ship_date": "2030-01-01",
   "items": [
@@ -19,5 +19,15 @@
     "confirmed_by": "TL_SANITIZED",
     "confirmation_level": "SANITIZED_OPERATIONAL_CONFIRMATION",
     "notes": "Micro-campione confermato come rappresentativo del ragionamento TL, senza dati reali."
+  },
+  "test_result": {
+    "tested_as": "SANITIZED_REALISTIC_TL_SAMPLE",
+    "runtime_used": false,
+    "frontend_used": false,
+    "external_ai_used": false,
+    "smf_used": false,
+    "specs_used": false,
+    "images_used": false,
+    "result": "PASS"
   }
 }

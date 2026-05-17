@@ -8,8 +8,12 @@ Vincoli:
 - NO specifiche
 - NO immagini
 
-Stato: TL_CONFIRMED_SAMPLE_READY
+Stato: TESTED_REAL_SAMPLE
 
 ## Conferma TL sanificata
 
 Campione confermato come utile per testare il ragionamento operativo senza codici reali, SMF, specifiche o immagini.
+
+## Test sanificato
+
+Campione testato come scenario realistico TL sanificato. Nessun runtime, frontend, AI esterna, SMF, specifica o immagine utilizzati.
