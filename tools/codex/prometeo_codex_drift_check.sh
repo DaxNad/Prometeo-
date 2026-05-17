@@ -1,9 +1,9 @@
 #!/bin/zsh
 set -euo pipefail
 
-SAFE_ROOT="/Users/davidepiangiolino/PROMETEO_SAFE_CODEX"
-PROMETEO_ROOT="/Users/davidepiangiolino/PROMETEO"
-CONFIG="/Users/davidepiangiolino/.codex/config.toml"
+SAFE_ROOT="${PROMETEO_SAFE_CODEX_DIR:-$HOME/PROMETEO_SAFE_CODEX}"
+PROMETEO_ROOT="${PROMETEO_ROOT:-$HOME/PROMETEO}"
+CONFIG="${CODEX_CONFIG:-$HOME/.codex/config.toml}"
 REPORT_DIR="$PROMETEO_ROOT/data/local_reports/codex_drift_checks"
 
 mkdir -p "$REPORT_DIR"
@@ -40,7 +40,7 @@ REPORT="$REPORT_DIR/drift_check_$(date +%Y%m%d_%H%M%S).txt"
   echo
 
   echo "===== SHELL_GUARD_CHECK ====="
-  grep -n 'PROMETEO SAFE CODEX GUARD\|PROMETEO OLLAMA CODEX GUARD\|codex()\|ollama()\|prometeo-codex' /Users/davidepiangiolino/.zshrc || true
+  grep -n 'PROMETEO SAFE CODEX GUARD\|PROMETEO OLLAMA CODEX GUARD\|codex()\|ollama()\|prometeo-codex' ${ZSHRC_PATH:-$HOME/.zshrc} || true
   echo
 
   echo "===== LAUNCHER_CHECK ====="
