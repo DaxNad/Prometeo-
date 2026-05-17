@@ -51,6 +51,16 @@ MEANING_KEYWORDS: dict[str, tuple[str, ...]] = {
         "station_cp",
         "obbligatoria",
     ),
+    "triage_open_station_event": (
+        "triage",
+        "evento aperto",
+        "station_z1",
+    ),
+    "do_not_auto_escalate_open_event": (
+        "non trasformare",
+        "evento aperto",
+        "criticità automatica",
+    ),
 }
 
 
