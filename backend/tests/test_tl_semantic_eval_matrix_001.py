@@ -23,15 +23,16 @@ def test_tl_semantic_eval_matrix_001_boundaries():
     assert data["real_codes_used"] is False
 
 
-def test_tl_semantic_eval_matrix_001_has_three_cases():
+def test_tl_semantic_eval_matrix_001_has_four_cases():
     data = load_fixture()
 
     assert data["eval_matrix_id"] == "TL_SEMANTIC_EVAL_MATRIX_001"
-    assert len(data["cases"]) == 3
+    assert len(data["cases"]) == 4
     assert [case["case_id"] for case in data["cases"]] == [
         "CASE_001_FINAL_CHECK",
         "CASE_002_Z1_LOAD_NO_BLOCK",
         "CASE_003_Z1_BLOCKING_EVENT",
+        "CASE_004_STATION_EVENT_TRIAGE",
     ]
 
 
@@ -66,6 +67,11 @@ def test_tl_semantic_eval_matrix_001_required_meanings_are_deterministic():
         "do_not_ignore_open_block",
         "keep_final_check_required",
     }
+    assert matrix["CASE_004_STATION_EVENT_TRIAGE"] == {
+        "triage_open_station_event",
+        "do_not_auto_escalate_open_event",
+        "keep_final_check_required",
+    }
 
 
 def test_tl_semantic_eval_matrix_001_expected_answers_contract():
@@ -83,3 +89,8 @@ def test_tl_semantic_eval_matrix_001_expected_answers_contract():
     assert "evento bloccante" in by_id["CASE_003_Z1_BLOCKING_EVENT"]
     assert "station_z1" in by_id["CASE_003_Z1_BLOCKING_EVENT"]
     assert "station_cp" in by_id["CASE_003_Z1_BLOCKING_EVENT"]
+
+    assert "triage" in by_id["CASE_004_STATION_EVENT_TRIAGE"]
+    assert "evento aperto" in by_id["CASE_004_STATION_EVENT_TRIAGE"]
+    assert "criticità automatica" in by_id["CASE_004_STATION_EVENT_TRIAGE"]
+    assert "station_cp" in by_id["CASE_004_STATION_EVENT_TRIAGE"]
