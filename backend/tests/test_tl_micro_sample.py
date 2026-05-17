@@ -2,8 +2,16 @@ import json
 from pathlib import Path
 
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FIXTURE_PATH = REPO_ROOT / "evals" / "fixtures" / "tl_micro_sample.json"
+
+
+def load_fixture():
+    return json.loads(FIXTURE_PATH.read_text())
+
+
 def test_tl_micro_sample_tested():
-    data = json.loads(Path("evals/fixtures/tl_micro_sample.json").read_text())
+    data = load_fixture()
 
     assert data["state"] == "TESTED_REAL_SAMPLE"
     assert "items" in data and data["items"], "Fixture must contain items"
@@ -22,7 +30,7 @@ def test_tl_micro_sample_tested():
 
 
 def test_tl_micro_sample_uses_only_sanitized_placeholders():
-    data = json.loads(Path("evals/fixtures/tl_micro_sample.json").read_text())
+    data = load_fixture()
 
     assert data["work_order"] == "WO_SAMPLE_001"
 
