@@ -1,0 +1,32 @@
+{
+  "state": "TL_SEMANTIC_EVAL_READY",
+  "eval_id": "TL_SEMANTIC_EVAL_001",
+  "source_sample": "tl_micro_sample",
+  "runtime_used": false,
+  "frontend_used": false,
+  "external_ai_used": false,
+  "private_planning_file_used": false,
+  "specs_used": false,
+  "images_used": false,
+  "real_codes_used": false,
+  "question": "Dato ITEM_A con passaggio su STATION_Z1 e chiusura obbligatoria su STATION_CP, qual \u00e8 la risposta operativa corretta?",
+  "context": {
+    "article": "ITEM_A",
+    "stations": [
+      "STATION_Z1",
+      "STATION_CP"
+    ],
+    "shared_components": [
+      "COMP_SHARED_01"
+    ],
+    "blocking_event_open": false
+  },
+  "expected_semantic_answer": {
+    "required_meanings": [
+      "prioritize_final_pressure_check",
+      "verify_z1_station_load",
+      "do_not_escalate_without_blocking_event"
+    ],
+    "accepted_answer": "Controllare prima il completamento su STATION_CP, verificare il carico su STATION_Z1 e non alzare criticit\u00e0 se non esiste un evento bloccante."
+  }
+}
