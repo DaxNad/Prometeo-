@@ -16,6 +16,7 @@ Questa baseline chiude il primo blocco verificabile della fase PROMETEO_GOAL_CLO
 - `#184` practical TL event triage case
 - `#186` TL Chat operational answer shape guard
 - `#188` 12066 pilot closure
+- `#190` 12056/12057/12058 controlled pilot closure
 
 ## Catena chiusa
 
@@ -31,6 +32,7 @@ PROMETEO dispone ora di una catena eval minima:
 - primo caso pratico di triage evento stazione
 - guard forma risposta operativa breve TL Chat
 - primo articolo pilota reale verificato: `12066`
+- secondo blocco pilota controllato: `12056 / 12057 / 12058`
 
 ## Capability chiusa
 
@@ -65,6 +67,24 @@ Documento dedicato:
 
 - `docs/TL_PILOT_12066_CLOSURE_001.md`
 
+## Secondo pilota controllato verificato
+
+`12056 / 12057 / 12058` è registrato come secondo blocco pilota controllato nel perimetro `PROMETEO_GOAL_CLOSURE`.
+
+Stato:
+
+- `VERIFICATO_CONTROLLATO`
+- non promosso a certezza globale
+- dipendenze assemblaggio mantenute visibili
+- progression contract non promotivo
+- 12058 con specificità ZAW da verificare
+- planner gate: nota ZAW da verificare non blocca da sola
+- planner gate: blocco solo con `has_blocking_constraint = true`
+
+Documento dedicato:
+
+- `docs/TL_PILOT_12056_12057_12058_CLOSURE_001.md`
+
 Regola fissata:
 
 - un evento aperto richiede triage;
@@ -79,6 +99,7 @@ Ultima verifica locale nota:
 - TL eval test suite: 24 passed
 - TL Chat contract suite: 25 passed
 - 12066 pilot test subset: 6 passed
+- 12056/12057/12058 controlled pilot subset: 7 passed
 - Privacy Guard: OK
 - Data Leak Guard: OK
 
