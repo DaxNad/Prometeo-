@@ -1,0 +1,24 @@
+name: TL Eval Guard
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  tl-eval:
+    name: Run sanitized TL semantic eval
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Run TL eval
+        run: make tl-eval
