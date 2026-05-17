@@ -14,6 +14,7 @@ Questa baseline chiude il primo blocco verificabile della fase PROMETEO_GOAL_CLO
 - `#182` TL Eval Guard CI
 - `#183` GOAL_CLOSURE policy
 - `#184` practical TL event triage case
+- `#186` TL Chat operational answer shape guard
 
 ## Catena chiusa
 
@@ -27,6 +28,7 @@ PROMETEO dispone ora di una catena eval minima:
 - CI guard
 - policy GOAL_CLOSURE
 - primo caso pratico di triage evento stazione
+- guard forma risposta operativa breve TL Chat
 
 ## Capability chiusa
 
@@ -34,6 +36,13 @@ PROMETEO distingue:
 
 - evento OPEN su stazione
 - criticità automatica
+
+PROMETEO protegge inoltre la forma risposta TL Chat:
+
+- Route
+- Vincoli
+- Nota
+- Azione
 
 Regola fissata:
 
@@ -47,6 +56,7 @@ Ultima verifica locale nota:
 - make tl-eval: RESULT=PASS
 - backend/tests/test_goal_closure_policy_001.py: 3 passed
 - TL eval test suite: 24 passed
+- TL Chat contract suite: 25 passed
 - Privacy Guard: OK
 - Data Leak Guard: OK
 
@@ -77,4 +87,4 @@ Da questa baseline in avanti, ogni passo GOAL deve:
 
 ## Stato finale
 
-`GOAL_CLOSURE_BASELINE_001` è valida quando `make tl-eval` produce `RESULT=PASS`.
+`GOAL_CLOSURE_BASELINE_001` è valida quando `make tl-eval` produce `RESULT=PASS` e il contratto TL Chat resta verde.
