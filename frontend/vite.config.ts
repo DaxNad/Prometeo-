@@ -18,7 +18,7 @@ export default defineConfig({
       "/production": proxyTarget,
       "/health": proxyTarget,
       "/agent-runtime": proxyTarget,
-      "/tl": proxyTarget
+      "/tl/chat": proxyTarget
     }
   }
 });
