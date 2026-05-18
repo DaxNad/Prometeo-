@@ -74,11 +74,11 @@ Ultima verifica locale nota:
 
 Backend:
 
-`cd /Users/davidepiangiolino/PROMETEO/backend && set -a && source /Users/davidepiangiolino/PROMETEO/backend/.env && set +a && export DATABASE_URL=postgresql://localhost/prometeo && python3 -m uvicorn app.main:app --reload`
+`cd <PROMETEO_REPO>/backend && load backend environment variables && export DATABASE_URL=<LOCAL_POSTGRES_URL> && python3 -m uvicorn app.main:app --reload`
 
 Frontend:
 
-`cd /Users/davidepiangiolino/PROMETEO/frontend && set -a && source /Users/davidepiangiolino/PROMETEO/backend/.env && set +a && npm run dev`
+`cd <PROMETEO_REPO>/frontend && load backend environment variables && npm run dev`
 
 URL locali:
 
