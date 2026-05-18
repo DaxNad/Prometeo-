@@ -17,6 +17,7 @@ Questa baseline chiude il primo blocco verificabile della fase PROMETEO_GOAL_CLO
 - `#186` TL Chat operational answer shape guard
 - `#188` 12066 pilot closure
 - `#190` 12056/12057/12058 controlled pilot closure
+- `#192` 12097 candidate guard
 
 ## Catena chiusa
 
@@ -33,6 +34,7 @@ PROMETEO dispone ora di una catena eval minima:
 - guard forma risposta operativa breve TL Chat
 - primo articolo pilota reale verificato: `12066`
 - secondo blocco pilota controllato: `12056 / 12057 / 12058`
+- candidato controllato non chiuso: `12097`
 
 ## Capability chiusa
 
@@ -85,6 +87,24 @@ Documento dedicato:
 
 - `docs/TL_PILOT_12056_12057_12058_CLOSURE_001.md`
 
+## Candidato controllato non chiuso
+
+`12097` è registrato come candidato controllato nel perimetro `PROMETEO_GOAL_CLOSURE`.
+
+Stato:
+
+- `CANDIDATO_CONTROLLATO`
+- non pilota chiuso
+- non promosso a `CERTO` globale
+- metadata povero con supporto resta `ASK_TL`
+- `COLLAUDO_VERTICALE` resta modalità macchina CP, non stazione autonoma
+- modifiche operative ad alto impatto richiedono conferma forte
+- `12099` e `12101` non sono inclusi senza copertura dedicata
+
+Documento dedicato:
+
+- `docs/TL_CANDIDATE_12097_GUARD_001.md`
+
 Regola fissata:
 
 - un evento aperto richiede triage;
@@ -100,6 +120,7 @@ Ultima verifica locale nota:
 - TL Chat contract suite: 25 passed
 - 12066 pilot test subset: 6 passed
 - 12056/12057/12058 controlled pilot subset: 7 passed
+- 12097 candidate guard subset: 3 passed
 - Privacy Guard: OK
 - Data Leak Guard: OK
 
