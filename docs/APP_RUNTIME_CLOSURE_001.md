@@ -17,6 +17,9 @@ Verificare che l'applicazione esistente sia avviabile e usabile localmente senza
 - TL Chat visibile da browser.
 - TL Chat collegata correttamente al backend locale.
 
+- Dashboard principale collegata correttamente al backend locale.
+- TL Board collegata correttamente al backend locale.
+
 ## Endpoint verificati
 
 - `/ping`: OK
@@ -30,6 +33,7 @@ Verificare che l'applicazione esistente sia avviabile e usabile localmente senza
 PR collegata:
 
 - `#194` fix(frontend): route local TL Chat through Vite proxy
+- `#197` fix(frontend): use local API base for production dashboard
 
 Problema risolto:
 
@@ -40,7 +44,8 @@ Comportamento corretto:
 
 - `/tl-chat` resta pagina React.
 - `/tl/chat` viene inoltrato al backend locale via Vite proxy.
-- frontend locale usa API base relativa.
+- `/production/*` viene inoltrato al backend locale via Vite proxy.
+- frontend locale usa API base relativa per TL Chat, TL Board e Dashboard.
 - frontend non locale usa `VITE_PROMETEO_API_BASE`.
 
 ## Verifica UI
@@ -59,6 +64,10 @@ Esempi verificati:
 
 - `12066?` restituisce risposta `CERTO`
 - `12070` restituisce risposta `INFERITO` con conferma TL richiesta
+
+- Dashboard `/` caricata correttamente dopo fix API base locale
+- TL Board caricata correttamente dopo fix API base locale
+- TL Chat caricata correttamente dopo fix API base locale
 
 ## Verifiche tecniche
 
