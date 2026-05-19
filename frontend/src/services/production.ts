@@ -1,8 +1,14 @@
-const API_BASE = (
+const configuredApiBase = (
   import.meta.env.VITE_API_BASE_URL ??
   import.meta.env.VITE_PROMETEO_API_BASE ??
-  "https://prometeo-railway-bootstrap-production.up.railway.app"
+  ""
 ).replace(/\/+$/, "");
+
+const isLocalFrontend =
+  typeof window !== "undefined" &&
+  ["localhost", "127.0.0.1"].includes(window.location.hostname);
+
+const API_BASE = isLocalFrontend ? "" : configuredApiBase;
 
 async function fetchJson(path: string) {
   const response = await fetch(`${API_BASE}${path}`, {
