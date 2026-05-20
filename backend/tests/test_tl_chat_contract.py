@@ -307,6 +307,45 @@ def test_tl_chat_contract_lists_fuori_produzione_codes(monkeypatch, tmp_path):
     assert "12410" not in data["answer"]
     assert "FUORI_PRODUZIONE" in data["answer"]
 
+
+def test_tl_chat_contract_lists_customer_request_only_with_fuori_produzione(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    registry.write_text(
+        json.dumps(
+            {
+                "12402": {
+                    "status": "CUSTOMER_REQUEST_ONLY",
+                    "source": "tl",
+                    "note": "Fuori produzione standard, producibile solo su richiesta cliente.",
+                },
+                "12410": {"status": "NEW_ENTRY"},
+                "12053": {"status": "FUORI_PRODUZIONE"},
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici sono fuori produzione?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "12053" in data["answer"]
+    assert "12402" in data["answer"]
+    assert "12410" not in data["answer"]
+    assert "richiesta cliente" in data["answer"].lower()
+    assert "non devono essere promossi automaticamente" in data["risk"].lower()
+    assert "conferma TL" in data["recommended_action"]
+
 def test_tl_chat_contract_lists_densification_candidates(monkeypatch, tmp_path):
     staging = tmp_path / "codici_staging_preview.json"
     staging.write_text(

@@ -311,6 +311,16 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
     )
 
 
+CUSTOMER_REQUEST_ONLY_STATUSES = {
+    "CUSTOMER_REQUEST_ONLY",
+    "FUORI_PRODUZIONE_STANDARD_CON_RICHIESTA_CLIENTE",
+}
+
+
+def _is_customer_request_only_status(status: str) -> bool:
+    return status in CUSTOMER_REQUEST_ONLY_STATUSES
+
+
 def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatResponse:
     status = _clean(payload.get("status")).upper() or "SCONOSCIUTO"
     note = _clean(payload.get("note"))
@@ -333,6 +343,19 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="INFERITO",
             risk="Codice non prioritario per densificazione operativa; evitare promozione automatica.",
             recommended_action="Non portare in staging salvo conferma TL esplicita.",
+            requires_confirmation=True,
+        )
+
+    if _is_customer_request_only_status(status):
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"Il codice {article} è fuori produzione standard ma producibile solo "
+                "su richiesta cliente esplicita."
+            ),
+            confidence="INFERITO",
+            risk="Codice non standard: non pianificare automaticamente senza ordine o richiesta cliente.",
+            recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
             requires_confirmation=True,
         )
 
@@ -484,6 +507,7 @@ def _response_for_lifecycle_status_list(
     requested_status: str,
 ) -> TLChatResponse:
     codes: list[str] = []
+    customer_request_only_codes: list[str] = []
 
     for code, payload in sorted(lifecycle.items()):
         if not isinstance(payload, dict):
@@ -492,6 +516,8 @@ def _response_for_lifecycle_status_list(
         status = _clean(payload.get("status")).upper()
         if status == requested_status:
             codes.append(code)
+        elif requested_status == "FUORI_PRODUZIONE" and _is_customer_request_only_status(status):
+            customer_request_only_codes.append(code)
 
     if requested_status == "DA_VERIFICARE":
         empty_answer = "Non risultano codici DA_VERIFICARE nel lifecycle registry reparto."
@@ -510,7 +536,7 @@ def _response_for_lifecycle_status_list(
         risk = "Stato lifecycle richiesto non gestito esplicitamente."
         recommended = "Verifica TL richiesta."
 
-    if not codes:
+    if not codes and not customer_request_only_codes:
         return TLChatResponse(
             ok=True,
             answer=empty_answer,
@@ -518,6 +544,30 @@ def _response_for_lifecycle_status_list(
             risk=None,
             recommended_action="Nessuna azione lifecycle urgente rilevata.",
             requires_confirmation=False,
+        )
+
+    if requested_status == "FUORI_PRODUZIONE":
+        answer_parts: list[str] = []
+        if codes:
+            answer_parts.append(
+                "Codici FUORI_PRODUZIONE nel lifecycle registry reparto: "
+                + ", ".join(codes)
+                + "."
+            )
+        if customer_request_only_codes:
+            answer_parts.append(
+                "Codici fuori produzione standard producibili solo su richiesta cliente: "
+                + ", ".join(customer_request_only_codes)
+                + "."
+            )
+
+        return TLChatResponse(
+            ok=True,
+            answer=" ".join(answer_parts),
+            confidence="CERTO",
+            risk="Questi codici non devono essere promossi automaticamente in priorità produttiva.",
+            recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
+            requires_confirmation=True,
         )
 
     return TLChatResponse(
