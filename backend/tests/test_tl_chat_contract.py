@@ -275,6 +275,63 @@ def test_tl_chat_contract_lists_new_entry_codes(monkeypatch, tmp_path):
     assert "NEW_ENTRY" in data["answer"]
 
 
+
+def test_tl_chat_contract_lists_local_intake_new_entry_candidates(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    registry.write_text(json.dumps({}), encoding="utf-8")
+
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    intake.write_text(
+        json.dumps(
+            {
+                "id": "TL_REAL_SPEC_INTAKE_001",
+                "scope": "local_preview_only",
+                "planner_auto_allowed": False,
+                "items": [
+                    {
+                        "article": "12589",
+                        "initial_classification": "NEW_ENTRY_CANDIDATE_ZAW",
+                        "confidence": "DA_VERIFICARE",
+                    },
+                    {
+                        "article": "12511",
+                        "initial_classification": "NEW_ENTRY_CANDIDATE_COMPLESSO",
+                        "confidence": "DA_VERIFICARE",
+                    },
+                    {
+                        "article": "12066",
+                        "initial_classification": "STANDARD",
+                        "confidence": "CERTO",
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Quali codici sono new entry?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "12589" in data["answer"]
+    assert "12511" in data["answer"]
+    assert "12066" not in data["answer"]
+    assert "intake locale" in data["answer"].lower()
+    assert "nessuna pianificazione automatica" in data["risk"].lower()
+
+
 def test_tl_chat_contract_lists_fuori_produzione_codes(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     registry.write_text(

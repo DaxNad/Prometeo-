@@ -15,6 +15,7 @@ router = APIRouter(prefix="/tl", tags=["tl-chat"])
 ROOT = Path(__file__).resolve().parents[3]
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
+TL_REAL_SPEC_INTAKE = ROOT / "data" / "local_reports" / "tl_real_spec_intake" / "TL_REAL_SPEC_INTAKE_001.json"
 ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "article_route_matrix.preview.json"
 SPECS_ROOT = ROOT / "specs_finitura"
 
@@ -414,6 +415,29 @@ def _load_codici_staging_preview() -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
+
+def _load_tl_real_spec_intake() -> dict[str, Any]:
+    """
+    Read-only TL real spec intake loader.
+
+    Contract:
+    - reads local preview-only intake if present
+    - does not create files/directories
+    - does not write to SMF/database/planner
+    - does not call external APIs
+    - missing intake preserves existing behavior
+    """
+    if not TL_REAL_SPEC_INTAKE.exists():
+        return {}
+
+    try:
+        data = json.loads(TL_REAL_SPEC_INTAKE.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    return data if isinstance(data, dict) else {}
+
+
 def _question_asks_for_densification_candidates(question: str) -> bool:
     normalized = question.strip().lower()
 
@@ -502,6 +526,30 @@ def _requested_lifecycle_status_from_question(question: str) -> str | None:
     return None
 
 
+def _new_entry_candidates_from_intake(intake: dict[str, Any]) -> list[str]:
+    items = intake.get("items")
+    if not isinstance(items, list):
+        return []
+
+    codes: list[str] = []
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+
+        article = _clean(item.get("article")).upper()
+        classification = _clean(item.get("initial_classification")).upper()
+        confidence = _clean(item.get("confidence")).upper()
+
+        if (
+            article
+            and classification.startswith("NEW_ENTRY_CANDIDATE")
+            and confidence in {"DA_VERIFICARE", "INFERITO", "CERTO"}
+        ):
+            codes.append(article)
+
+    return sorted(set(codes))
+
+
 def _response_for_lifecycle_status_list(
     lifecycle: dict[str, dict[str, Any]],
     requested_status: str,
@@ -519,12 +567,16 @@ def _response_for_lifecycle_status_list(
         elif requested_status == "FUORI_PRODUZIONE" and _is_customer_request_only_status(status):
             customer_request_only_codes.append(code)
 
+    intake_new_entry_candidates: list[str] = []
+    if requested_status == "NEW_ENTRY":
+        intake_new_entry_candidates = _new_entry_candidates_from_intake(_load_tl_real_spec_intake())
+
     if requested_status == "DA_VERIFICARE":
         empty_answer = "Non risultano codici DA_VERIFICARE nel lifecycle registry reparto."
         risk = "Sono presenti codici con stato vita articolo non ancora confermato."
         recommended = "Verifica TL richiesta prima di densificazione o staging."
     elif requested_status == "NEW_ENTRY":
-        empty_answer = "Non risultano codici NEW_ENTRY nel lifecycle registry reparto."
+        empty_answer = "Non risultano codici NEW_ENTRY nel lifecycle registry reparto o intake locale."
         risk = "I codici NEW_ENTRY richiedono densificazione prioritaria e conferma TL."
         recommended = "Verificare i codici nuovi e prepararli per preview/staging controllato."
     elif requested_status == "FUORI_PRODUZIONE":
@@ -536,7 +588,7 @@ def _response_for_lifecycle_status_list(
         risk = "Stato lifecycle richiesto non gestito esplicitamente."
         recommended = "Verifica TL richiesta."
 
-    if not codes and not customer_request_only_codes:
+    if not codes and not customer_request_only_codes and not intake_new_entry_candidates:
         return TLChatResponse(
             ok=True,
             answer=empty_answer,
@@ -544,6 +596,29 @@ def _response_for_lifecycle_status_list(
             risk=None,
             recommended_action="Nessuna azione lifecycle urgente rilevata.",
             requires_confirmation=False,
+        )
+
+    if requested_status == "NEW_ENTRY" and intake_new_entry_candidates:
+        answer_parts: list[str] = []
+        if codes:
+            answer_parts.append(
+                "Codici NEW_ENTRY nel lifecycle registry reparto: "
+                + ", ".join(codes)
+                + "."
+            )
+        answer_parts.append(
+            "Candidati new entry da intake locale: "
+            + ", ".join(intake_new_entry_candidates)
+            + "."
+        )
+
+        return TLChatResponse(
+            ok=True,
+            answer=" ".join(answer_parts),
+            confidence="CERTO",
+            risk="Candidati da specifiche reali locali: conferma TL obbligatoria; nessuna pianificazione automatica.",
+            recommended_action="Revisionare le specifiche e promuovere solo dopo conferma TL controllata.",
+            requires_confirmation=True,
         )
 
     if requested_status == "FUORI_PRODUZIONE":
