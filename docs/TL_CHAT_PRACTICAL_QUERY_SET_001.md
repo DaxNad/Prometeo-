@@ -135,6 +135,7 @@ La verifica fallisce se:
 - `APP_RUNTIME_CLOSURE_001`
 - `RUNTIME_OPERATION_GUIDE_001`
 - `GOAL_CLOSURE_BASELINE_001`
+- Test automatico: `backend/tests/test_tl_chat_practical_query_set.py`
 
 ## Stato finale
 

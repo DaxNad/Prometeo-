@@ -4,6 +4,8 @@ import urllib.request
 import ssl
 import certifi
 
+from app.ai_router.policy_gate import AIRouterPolicyBlocked, enforce_external_ai_boundary
+
 
 class MiMoAdapterError(RuntimeError):
     pass
@@ -29,6 +31,17 @@ class MiMoAdapter:
     def ask(self, prompt: str, system: str | None = None) -> dict:
         if not self.enabled:
             raise MiMoAdapterError("MiMo adapter non configurato: mancano MIMO_API_KEY o MIMO_BASE_URL")
+
+        try:
+            boundary = enforce_external_ai_boundary(
+                target_adapter="mimo_cloud",
+                scope="mimo_adapter.ask",
+                raw_prompt=prompt,
+            )
+        except AIRouterPolicyBlocked as exc:
+            raise MiMoAdapterError(f"MiMo policy blocked: {exc}") from exc
+
+        prompt = boundary["sanitized_prompt"]
 
         messages = []
         if system:

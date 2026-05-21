@@ -6,9 +6,18 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from app.security.prompt_sanitizer import sanitize_prompt
+
 
 EXTERNAL_AI_ADAPTERS = {"openai", "claude", "mimo_cloud", "codex"}
 AI_INVOCATION_AUDIT_LOG = Path("data/local_reports/ai_invocation_audit.jsonl")
+
+
+class AIRouterPolicyBlocked(RuntimeError):
+    def __init__(self, decision: dict[str, Any]):
+        self.decision = decision
+        reason = decision.get("reason") or "external_ai_policy_blocked"
+        super().__init__(str(reason))
 
 
 @dataclass(frozen=True)
@@ -87,3 +96,67 @@ def append_ai_invocation_audit(
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
     return record
+
+
+def prepare_external_ai_invocation(
+    *,
+    target_adapter: str,
+    scope: str,
+    raw_prompt: str | None,
+    raw_files_attached: bool = False,
+    screenshots_attached: bool = False,
+    log_path: Path | None = None,
+) -> dict[str, Any]:
+    """
+    Single read-only boundary for cloud AI invocations.
+
+    Contract:
+    - classifier and sanitizer always run before provider IO
+    - policy decision is audited without raw prompt storage
+    - returned prompt is sanitized output only
+    """
+    sanitization = sanitize_prompt(raw_prompt, scope_declared=bool(scope))
+    sanitized_prompt = str(sanitization.get("sanitized_prompt") or "")
+    decision = evaluate_ai_router_policy(
+        target_adapter=target_adapter,
+        scope=scope,
+        sanitized_prompt=sanitized_prompt,
+        data_boundary_check=sanitization.get("boundary_check") or {},
+        sanitized=True,
+        raw_files_attached=raw_files_attached,
+        screenshots_attached=screenshots_attached,
+    )
+    audit_record = append_ai_invocation_audit(decision, log_path=log_path)
+
+    return {
+        "allowed": bool(decision.get("allowed")),
+        "blocked": bool(decision.get("blocked")),
+        "sanitized_prompt": sanitized_prompt,
+        "sanitization": sanitization,
+        "decision": decision,
+        "audit": audit_record,
+    }
+
+
+def enforce_external_ai_boundary(
+    *,
+    target_adapter: str,
+    scope: str,
+    raw_prompt: str | None,
+    raw_files_attached: bool = False,
+    screenshots_attached: bool = False,
+    log_path: Path | None = None,
+) -> dict[str, Any]:
+    invocation = prepare_external_ai_invocation(
+        target_adapter=target_adapter,
+        scope=scope,
+        raw_prompt=raw_prompt,
+        raw_files_attached=raw_files_attached,
+        screenshots_attached=screenshots_attached,
+        log_path=log_path,
+    )
+
+    if invocation["blocked"]:
+        raise AIRouterPolicyBlocked(invocation["decision"])
+
+    return invocation
