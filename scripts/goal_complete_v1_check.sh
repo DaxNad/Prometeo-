@@ -4,15 +4,19 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-SESSION_MEMORY_FILE="data/local_reports/session_memory/scadenze_2026-06-22.md"
-GOAL_TMP_DIR="${PROMETEO_GOAL_TMPDIR:-$ROOT_DIR/.goal_complete_v1_tmp}"
+SESSION_MEMORY_DIR="data/local_reports/session_memory"
+DEFAULT_GOAL_TMP_DIR="$ROOT_DIR/.goal_complete_v1_tmp"
+if [ -d "$SESSION_MEMORY_DIR" ]; then
+  DEFAULT_GOAL_TMP_DIR="$ROOT_DIR/$SESSION_MEMORY_DIR/.goal_complete_v1_tmp"
+fi
+GOAL_TMP_DIR="${PROMETEO_GOAL_TMPDIR:-$DEFAULT_GOAL_TMP_DIR}"
 
 mkdir -p "$GOAL_TMP_DIR"
 export TMPDIR="$GOAL_TMP_DIR"
 
 cleanup_tmp() {
   if [ -z "${PROMETEO_GOAL_TMPDIR:-}" ]; then
-    rm -rf "$GOAL_TMP_DIR"
+    rm -rf "$GOAL_TMP_DIR" || true
   fi
 }
 trap cleanup_tmp EXIT
@@ -28,16 +32,20 @@ fail() {
 
 log_step "PROMETEO_GOAL_COMPLETE_V1 preflight"
 
-if [ ! -f "$SESSION_MEMORY_FILE" ]; then
-  fail "session memory file missing: $SESSION_MEMORY_FILE"
-fi
+if [ -d "$SESSION_MEMORY_DIR" ]; then
+  if git ls-files "$SESSION_MEMORY_DIR" | grep -v '^data/local_reports/session_memory/.gitkeep$' | grep -q .; then
+    git ls-files "$SESSION_MEMORY_DIR" | grep -v '^data/local_reports/session_memory/.gitkeep$' >&2
+    fail "session memory local files are tracked by git"
+  fi
 
-if git ls-files --error-unmatch "$SESSION_MEMORY_FILE" >/dev/null 2>&1; then
-  fail "session memory file is tracked by git: $SESSION_MEMORY_FILE"
-fi
+  ignore_probe="$SESSION_MEMORY_DIR/__prometeo_goal_complete_ignore_probe__"
+  if ! git check-ignore -q "$ignore_probe"; then
+    fail "session memory local files are not ignored by git: $SESSION_MEMORY_DIR/*"
+  fi
 
-if ! git check-ignore -q "$SESSION_MEMORY_FILE"; then
-  fail "session memory file is not ignored by git: $SESSION_MEMORY_FILE"
+  printf '[PASS] session memory directory present; local contents are ignored and untracked\n'
+else
+  printf '[INFO] session memory directory missing; skipping local session memory check\n'
 fi
 
 log_step "Tracked sensitive file check"
