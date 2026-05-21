@@ -3,6 +3,10 @@ from __future__ import annotations
 import shutil
 import stat
 import subprocess
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def _write_executable(path, text: str) -> None:
@@ -20,7 +24,7 @@ def test_goal_complete_v1_check_does_not_require_local_scadenze_file(tmp_path):
     fake_bin.mkdir()
 
     shutil.copyfile(
-        "scripts/goal_complete_v1_check.sh",
+        str(REPO_ROOT / "scripts/goal_complete_v1_check.sh"),
         scripts_dir / "goal_complete_v1_check.sh",
     )
 
