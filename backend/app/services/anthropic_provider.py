@@ -4,6 +4,9 @@ import os
 
 import requests
 
+from app.ai_router.policy_gate import AIRouterPolicyBlocked, enforce_external_ai_boundary
+from app.security.prompt_sanitizer import sanitize_prompt
+
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 
 DEFAULT_SYSTEM = """
@@ -34,6 +37,21 @@ def claude_chat(
 
     if not api_key:
         raise RuntimeError("ANTHROPIC_API_KEY non definita")
+
+    raw_boundary_text = "\n\n".join(part for part in (system, prompt) if part)
+
+    try:
+        boundary = enforce_external_ai_boundary(
+            target_adapter="claude",
+            scope="anthropic_provider.claude_chat",
+            raw_prompt=raw_boundary_text,
+        )
+    except AIRouterPolicyBlocked as exc:
+        raise RuntimeError(f"Claude policy blocked: {exc}") from exc
+
+    del boundary
+    prompt = sanitize_prompt(prompt, scope_declared=True)["sanitized_prompt"]
+    system = sanitize_prompt(system, scope_declared=True)["sanitized_prompt"]
 
     payload = {
         "model": model,
