@@ -27,7 +27,7 @@ def test_mimo_adapter_blocks_unsanitized_operational_prompt_before_cloud_call(mo
     adapter = MiMoAdapter()
     raw_prompt = (
         "Analizza BOM route ZAW1 per articolo 12066 da "
-        "/Users/local/project/specs_finitura/12066/sheet.pdf"
+        "[PRIVATE_SPEC_PATH_REDACTED]"
     )
 
     with pytest.raises(MiMoAdapterError) as exc:
