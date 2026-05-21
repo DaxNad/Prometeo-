@@ -49,3 +49,22 @@ Questo check non introduce:
 - modifiche a dati reali
 - modifiche a `specs_finitura`
 - modifiche a metadata articolo
+
+## Esplicitamente escluso da GOAL_COMPLETE_V1
+
+PROMETEO DEMO PACK sintetico vendibile è escluso da GOAL_COMPLETE_V1.
+
+Motivo:
+questa fase è prematura rispetto alla chiusura operativa corrente. Prima va consolidato il GOAL tecnico-operativo già raggiunto: guard, TL eval, AI boundary, docs authority, TL practical query automation e controllo `make goal-complete-v1`.
+
+Il DEMO PACK commerciale/sintetico potrà diventare un perimetro successivo separato, solo dopo conferma esplicita. Non deve introdurre ora:
+- nuovi dataset demo;
+- nuove schermate;
+- nuova logica commerciale;
+- nuova PWA;
+- modifiche runtime;
+- dati sintetici strutturati per vendita.
+
+Per GOAL_COMPLETE_V1 il criterio resta:
+chiusura operativa verificabile, non preparazione commerciale.
+
