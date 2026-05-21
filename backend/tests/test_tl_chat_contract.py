@@ -1125,6 +1125,57 @@ def test_tl_chat_preview_confidence_uses_semantic_registry_fallback(monkeypatch,
     assert data["requires_confirmation"] is True
 
 
+def test_tl_chat_reference_only_confirmed_route_still_requires_tl_confirmation(monkeypatch, tmp_path):
+    specs_root = tmp_path / "specs_finitura"
+    article_dir = specs_root / "12402"
+    article_dir.mkdir(parents=True)
+
+    metadata = {
+        "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+        "article": "12402",
+        "confidence": "CERTO",
+        "route_status": "CERTO",
+        "operational_class": "REFERENCE_ONLY",
+        "planner_eligible": False,
+        "route_steps": [
+            {"station": "LAVAGGIO"},
+            {"station": "ZAW1"},
+            {"station": "ZAW1"},
+            {"station": "PIDMILL"},
+            {"station": "CP"},
+        ],
+        "constraints": {
+            "has_henn": False,
+            "has_pidmill": True,
+            "primary_zaw_station": "ZAW1",
+            "zaw_passes": 2,
+            "has_zaw2": False,
+            "cp_required": True,
+            "cp_mode": "VERTICALE",
+            "cp_pieces_per_plane": 2,
+        },
+    }
+
+    (article_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+
+    client = TestClient(app)
+    response = client.post("/tl/chat", json={"question": "Il 12402 è da verificare?"})
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "route CERTO" in data["answer"]
+    assert "REFERENCE_ONLY" in data["answer"]
+    assert "planner_eligible=false" in data["answer"]
+    assert "Non va pianificato automaticamente" in data["answer"]
+    assert "richiesta cliente esplicita" in data["recommended_action"].lower()
+    assert "conferma TL" in data["recommended_action"]
+
+
 def test_tl_chat_answers_12402_confirmed_double_zaw_pidmill_profile(monkeypatch, tmp_path):
     import importlib
     import json

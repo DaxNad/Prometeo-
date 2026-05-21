@@ -312,6 +312,50 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
     )
 
 
+def _question_asks_if_article_needs_verification(question: str) -> bool:
+    normalized = question.strip().lower()
+    return (
+        "verificare" in normalized
+        or "da verificare" in normalized
+        or "verifica" in normalized
+    )
+
+
+def _response_for_article_operational_verification(
+    article: str,
+    metadata: dict[str, Any],
+) -> TLChatResponse | None:
+    operational_class = str(metadata.get("operational_class") or "DA_VERIFICARE").upper()
+    planner_eligible = bool(metadata.get("planner_eligible"))
+    route_status = str(metadata.get("route_status") or "DA_VERIFICARE").upper()
+    confidence = _resolve_tl_chat_confidence(metadata.get("confidence") or route_status)
+
+    if operational_class == "STANDARD" and planner_eligible is True:
+        return None
+
+    if operational_class == "REFERENCE_ONLY":
+        operational_label = "REFERENCE_ONLY / producibile solo se esiste richiesta cliente esplicita"
+    else:
+        operational_label = operational_class
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            f"Il codice {article} ha route {route_status}, ma classe operativa "
+            f"{operational_label} e planner_eligible={str(planner_eligible).lower()}. "
+            "Non va pianificato automaticamente."
+        ),
+        confidence=confidence,
+        risk="Certezza route e ammissibilità operativa ordinaria sono due cose diverse.",
+        recommended_action=(
+            "Usare solo con richiesta cliente esplicita e conferma TL; "
+            "non promuovere automaticamente a priorità produttiva."
+        ),
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
+
 CUSTOMER_REQUEST_ONLY_STATUSES = {
     "CUSTOMER_REQUEST_ONLY",
     "FUORI_PRODUZIONE_STANDARD_CON_RICHIESTA_CLIENTE",
@@ -859,6 +903,14 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     if article:
         local_specs_metadata = _load_local_specs_metadata(article)
         if local_specs_metadata:
+            if _question_asks_if_article_needs_verification(question):
+                operational_verification = _response_for_article_operational_verification(
+                    article,
+                    local_specs_metadata,
+                )
+                if operational_verification:
+                    return operational_verification
+
             return _response_from_local_specs_metadata(article, local_specs_metadata)
 
         article_summary_response = _response_from_article_summary(article)
