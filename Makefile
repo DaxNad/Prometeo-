@@ -42,3 +42,7 @@ controlled-import-audit-storage-decision-v1:
 .PHONY: controlled-import-audit-db-schema-contract-v1
 controlled-import-audit-db-schema-contract-v1:
 	bash scripts/controlled_import_audit_db_schema_contract_v1_check.sh
+
+.PHONY: controlled-import-audit-migration-v1
+controlled-import-audit-migration-v1:
+	bash scripts/controlled_import_audit_migration_v1_check.sh
