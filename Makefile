@@ -30,3 +30,7 @@ controlled-import-no-apply-guard-v1:
 .PHONY: controlled-import-apply-contract-v1
 controlled-import-apply-contract-v1:
 	bash scripts/controlled_import_apply_contract_v1_check.sh
+
+.PHONY: controlled-import-persistent-audit-contract-v1
+controlled-import-persistent-audit-contract-v1:
+	bash scripts/controlled_import_persistent_audit_contract_v1_check.sh
