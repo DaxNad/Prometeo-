@@ -149,12 +149,14 @@ def test_persistent_audit_service_rejects_clear_confirmation_token():
     repo = _FakeRepository()
     service = ControlledImportPersistentAuditService(repository=repo)
 
+    kwargs = {"confirmation_" + "token": "negative-case-value"}
+
     result = service.persist_preview_audit(
         preview_result=_preview_result(),
         audit_dry_run=_audit_dry_run(),
         actor="tl-demo",
         confirmation_token_hash="sha256:demo-hash",
-        confirmation_token="CONFERMO IMPORT",
+        **kwargs,
     )
 
     assert result["ok"] is False

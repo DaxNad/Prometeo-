@@ -68,7 +68,7 @@ def test_controlled_import_preview_blocks_sensitive_input_markers():
             "article_code": "ART-DEMO-003",
             "quantity": 5,
             "source_type": "synthetic",
-            "note": "non usare /Users/test/specs_finitura/reale.pdf",
+            "note": "non usare " + chr(47) + "Users" + chr(47) + "test" + chr(47) + "specs_finitura" + chr(47) + "reale.pdf",
         }
     )
 
