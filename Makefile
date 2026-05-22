@@ -26,3 +26,7 @@ controlled-import-schema-contract-v1:
 .PHONY: controlled-import-no-apply-guard-v1
 controlled-import-no-apply-guard-v1:
 	bash scripts/controlled_import_no_apply_guard_v1_check.sh
+
+.PHONY: controlled-import-apply-contract-v1
+controlled-import-apply-contract-v1:
+	bash scripts/controlled_import_apply_contract_v1_check.sh
