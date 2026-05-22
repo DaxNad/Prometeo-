@@ -38,6 +38,15 @@ def test_controlled_import_preview_endpoint_returns_preview_only_response():
     assert data["preview"]["station"] == "ZAW-1"
     assert data["preview"]["route"] == ["ZAW-1", "CP"]
     assert all(value is False for value in data["side_effects"].values())
+    assert data["audit_persistence"] == "NONE"
+    assert data["apply_allowed"] is False
+    assert data["audit_dry_run"]["audit_event_type"] == "CONTROLLED_IMPORT_PREVIEW_EVALUATED"
+    assert data["audit_dry_run"]["risk_level"] == "LOW"
+    assert data["audit_dry_run"]["write_mode"] == "PREVIEW_ONLY"
+    assert data["audit_dry_run"]["human_confirmation_required"] is True
+    assert data["audit_dry_run"]["apply_allowed"] is False
+    assert all(value is False for value in data["audit_dry_run"]["side_effects"].values())
+    assert all(value is False for value in data["audit_dry_run"]["persistence"].values())
 
 
 def test_controlled_import_preview_endpoint_blocks_incomplete_payload():
@@ -57,6 +66,15 @@ def test_controlled_import_preview_endpoint_blocks_incomplete_payload():
     assert "missing_required_field:article_code" in data["errors"]
     assert "missing_required_field:quantity" in data["errors"]
     assert all(value is False for value in data["side_effects"].values())
+    assert data["audit_persistence"] == "NONE"
+    assert data["apply_allowed"] is False
+    assert data["audit_dry_run"]["preview_ok"] is False
+    assert data["audit_dry_run"]["risk_level"] == "BLOCKED"
+    assert data["audit_dry_run"]["write_mode"] == "PREVIEW_ONLY"
+    assert data["audit_dry_run"]["human_confirmation_required"] is True
+    assert data["audit_dry_run"]["apply_allowed"] is False
+    assert all(value is False for value in data["audit_dry_run"]["side_effects"].values())
+    assert all(value is False for value in data["audit_dry_run"]["persistence"].values())
 
 
 def test_controlled_import_preview_endpoint_blocks_sensitive_markers():
@@ -82,3 +100,12 @@ def test_controlled_import_preview_endpoint_blocks_sensitive_markers():
     assert data["preview"] == {}
     assert "sensitive_input_detected" in data["errors"]
     assert all(value is False for value in data["side_effects"].values())
+    assert data["audit_persistence"] == "NONE"
+    assert data["apply_allowed"] is False
+    assert data["audit_dry_run"]["preview_ok"] is False
+    assert data["audit_dry_run"]["risk_level"] == "BLOCKED"
+    assert data["audit_dry_run"]["write_mode"] == "PREVIEW_ONLY"
+    assert data["audit_dry_run"]["human_confirmation_required"] is True
+    assert data["audit_dry_run"]["apply_allowed"] is False
+    assert all(value is False for value in data["audit_dry_run"]["side_effects"].values())
+    assert all(value is False for value in data["audit_dry_run"]["persistence"].values())

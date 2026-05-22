@@ -5,6 +5,7 @@ from typing import Any
 from fastapi import APIRouter
 from pydantic import BaseModel, ConfigDict
 
+from app.services.controlled_import_audit import build_controlled_import_audit_dry_run
 from app.services.controlled_import_preview import build_controlled_import_preview
 
 
@@ -30,4 +31,11 @@ class ControlledImportPreviewRequest(BaseModel):
 
 @router.post("/preview")
 def controlled_import_preview(payload: ControlledImportPreviewRequest) -> dict[str, Any]:
-    return build_controlled_import_preview(payload.model_dump())
+    preview = build_controlled_import_preview(payload.model_dump())
+    audit_dry_run = build_controlled_import_audit_dry_run(preview)
+    return {
+        **preview,
+        "audit_dry_run": audit_dry_run,
+        "audit_persistence": "NONE",
+        "apply_allowed": False,
+    }
