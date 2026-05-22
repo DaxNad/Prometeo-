@@ -50,3 +50,7 @@ controlled-import-audit-migration-v1:
 .PHONY: controlled-import-audit-repository-contract-v1
 controlled-import-audit-repository-contract-v1:
 	bash scripts/controlled_import_audit_repository_contract_v1_check.sh
+
+.PHONY: controlled-import-persistent-audit-binding-contract-v1
+controlled-import-persistent-audit-binding-contract-v1:
+	bash scripts/controlled_import_persistent_audit_binding_contract_v1_check.sh
