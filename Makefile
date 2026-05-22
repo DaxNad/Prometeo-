@@ -13,3 +13,7 @@ product-complete-roadmap:
 .PHONY: product-core-closure-v1
 product-core-closure-v1:
 	bash scripts/product_core_closure_v1_check.sh
+
+.PHONY: controlled-import-pipeline-v1
+controlled-import-pipeline-v1:
+	bash scripts/controlled_import_pipeline_v1_check.sh
