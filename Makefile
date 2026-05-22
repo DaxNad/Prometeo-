@@ -10,3 +10,6 @@ goal-complete-v1:
 product-complete-roadmap:
 	bash scripts/product_complete_roadmap_check.sh
 
+.PHONY: product-core-closure-v1
+product-core-closure-v1:
+	bash scripts/product_core_closure_v1_check.sh
