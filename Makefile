@@ -22,3 +22,7 @@ controlled-import-pipeline-v1:
 controlled-import-schema-contract-v1:
 	bash scripts/controlled_import_schema_contract_v1_check.sh
 	PYTHONDONTWRITEBYTECODE=1 python3 -m pytest -s backend/tests/test_controlled_import_schema_contract.py -q
+
+.PHONY: controlled-import-no-apply-guard-v1
+controlled-import-no-apply-guard-v1:
+	bash scripts/controlled_import_no_apply_guard_v1_check.sh
