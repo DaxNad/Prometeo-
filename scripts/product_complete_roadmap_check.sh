@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/Users/davidepiangiolino/PROMETEO"
+ROOT="$(git rev-parse --show-toplevel)"
 DOC="$ROOT/docs/PROMETEO_PRODUCT_COMPLETE_ROADMAP_V1.md"
 
 if [ ! -f "$DOC" ]; then
-  echo "MISSING: $DOC"
+  echo "MISSING: docs/PROMETEO_PRODUCT_COMPLETE_ROADMAP_V1.md"
   exit 1
 fi
 
