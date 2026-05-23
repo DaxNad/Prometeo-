@@ -1287,3 +1287,27 @@ def test_tl_chat_answers_zaw_interchangeability_without_article():
     assert "non sono intercambiabili" in data["answer"]
     assert "ZAW1_2" in data["answer"]
     assert "non ZAW2" in data["answer"]
+
+
+def test_tl_chat_answers_turn_question_without_article_with_safe_checklist():
+    client = TestClient(app)
+
+    res = client.post(
+        "/tl/chat",
+        json={"question": "Cosa conviene controllare adesso sul turno?"},
+    )
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "Domanda turno senza articolo specifico" in data["answer"]
+    assert "eventi/blocchi aperti" in data["answer"]
+    assert "ZAW1/ZAW2" in data["answer"]
+    assert "CP finale" in data["answer"]
+    assert "priorità specifica serve codice articolo o stato board" in data["answer"]
+    assert "12066" not in data["answer"]
+    assert "12100" not in data["answer"]
+    assert "Nota:" not in data["answer"]
