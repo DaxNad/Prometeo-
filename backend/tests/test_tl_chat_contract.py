@@ -1269,3 +1269,21 @@ def test_tl_chat_answers_12402_confirmed_double_zaw_pidmill_profile(monkeypatch,
     assert "ZAW1_DOPPIO_PASSAGGIO_PIDMILL" in data["answer"]
     assert data["requires_confirmation"] is False
     assert data["technical_details_hidden"] is True
+
+
+def test_tl_chat_answers_zaw_interchangeability_without_article():
+    client = TestClient(app)
+
+    res = client.post(
+        "/tl/chat",
+        json={"question": "ZAW1 e ZAW2 sono intercambiabili?"},
+    )
+    data = res.json()
+
+    assert res.status_code == 200
+    assert data["ok"] is True
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "non sono intercambiabili" in data["answer"]
+    assert "ZAW1_2" in data["answer"]
+    assert "non ZAW2" in data["answer"]

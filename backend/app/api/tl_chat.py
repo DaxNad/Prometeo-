@@ -933,6 +933,26 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     )
 
 
+
+def _question_asks_zaw_interchangeability(question: str) -> bool:
+    import re
+
+    normalized = question.strip().lower()
+    compact = re.sub(r"[^a-z0-9]", "", normalized)
+
+    asks_relation = any(
+        token in normalized
+        for token in (
+            "intercambi",
+            "alternativa",
+            "equivalent",
+            "spostare",
+        )
+    )
+
+    return "zaw1" in compact and "zaw2" in compact and asks_relation
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
@@ -979,6 +999,24 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             risk="Stato vita articolo non noto alla TL Chat.",
             recommended_action="Verificare articolo tramite preview Codici, lifecycle registry o profilo articolo.",
             requires_confirmation=True,
+        )
+
+    if not article and _question_asks_zaw_interchangeability(question):
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                "ZAW1 e ZAW2 non sono intercambiabili. "
+                "Vincoli: ZAW1_2 indica secondo passaggio su ZAW1, non ZAW2; "
+                "non spostare route o carico da ZAW1 a ZAW2 senza profilo articolo e conferma TL. "
+                "Azione: usare la postazione indicata dalla route/profilo articolo."
+            ),
+            confidence="CERTO",
+            risk=(
+                "Errore di interchangeability ZAW può alterare sequenza "
+                "e priorità operative."
+            ),
+            recommended_action="Non usare ZAW2 come alternativa automatica a ZAW1.",
+            requires_confirmation=False,
         )
 
     return TLChatResponse(
