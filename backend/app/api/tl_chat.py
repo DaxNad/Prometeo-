@@ -890,7 +890,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
             constraints.append("CP finale obbligatorio")
 
     shared = signals.get("shared_components") or []
-    hide_shared_components = compact_non_planner and bool(signals.get("has_pidmill"))
+    hide_shared_components = compact_non_planner and bool(signals.get("has_pidmill")) and len(route_parts) <= 4
     if shared and not hide_shared_components:
         constraints.append("componenti condivisi " + ", ".join(str(x) for x in shared))
 
