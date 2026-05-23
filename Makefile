@@ -3,9 +3,11 @@
 tl-eval:
 	./scripts/run_tl_eval.sh
 
+# Operational closure validator: confirms PROMETEO_GOAL_COMPLETE_V1 locally.
 goal-complete-v1:
 	bash scripts/goal_complete_v1_check.sh
 
+# Merge/PR predictor: run before push or PR to mirror local required checks.
 goal-guard:
 	bash scripts/goal_guard.sh
 
