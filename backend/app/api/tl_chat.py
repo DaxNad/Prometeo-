@@ -279,12 +279,31 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         if packaging_bits:
             note_bits.append("packaging " + ", ".join(packaging_bits))
 
-    requires_confirmation = route_status != "CERTO"
-    action = (
-        "usare il metadata locale come base articolo; confermare route prima di pianificazione piena"
-        if requires_confirmation
-        else "usare route confermata"
-    )
+    planner_admission_status = _clean(metadata.get("planner_admission_status")).upper()
+    admission_blocked = planner_admission_status in {
+        "BLOCKED",
+        "NOT_ADMITTED",
+        "BLOCKED_PENDING_OPERATIONAL_CLASS",
+        "DA_VERIFICARE",
+    }
+
+    requires_confirmation = route_status != "CERTO" or admission_blocked
+
+    if route_status != "CERTO":
+        action = "usare il metadata locale come base articolo; confermare route prima di pianificazione piena"
+        risk = "Metadata locale articolo presente; route ancora da verificare."
+        recommended_action = "Usare il metadata locale come base articolo; confermare route prima di pianificazione piena."
+    elif admission_blocked:
+        constraints_text.append(
+            "admission planner bloccata: route confermata ma classe operativa non chiusa"
+        )
+        action = "usare route confermata solo come riferimento; confermare admission planner prima della pianificazione"
+        risk = "Route confermata, ma admission planner bloccata dal metadata."
+        recommended_action = "Non pianificare automaticamente; serve conferma TL su classe operativa/admission planner."
+    else:
+        action = "usare route confermata"
+        risk = "Metadata locale articolo presente."
+        recommended_action = "Usare il metadata locale come riferimento operativo confermato."
 
     return TLChatResponse(
         ok=True,
@@ -297,16 +316,8 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
             action=action,
         ),
         confidence=confidence,
-        risk=(
-            "Metadata locale articolo presente; route ancora da verificare."
-            if requires_confirmation
-            else "Metadata locale articolo presente."
-        ),
-        recommended_action=(
-            "Usare il metadata locale come base articolo; confermare route prima di pianificazione piena."
-            if requires_confirmation
-            else "Usare il metadata locale come riferimento operativo confermato."
-        ),
+        risk=risk,
+        recommended_action=recommended_action,
         requires_confirmation=requires_confirmation,
         technical_details_hidden=True,
     )
