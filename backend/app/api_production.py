@@ -237,6 +237,62 @@ def _ensure_tables(db: Session) -> None:
             CREATE INDEX IF NOT EXISTS idx_production_events_created_at
             ON production_events(created_at DESC)
             """,
+            """
+            DROP VIEW IF EXISTS vw_tl_zaw1_board
+            """,
+            """
+            DROP VIEW IF EXISTS vw_tl_zaw2_board
+            """,
+            """
+            CREATE VIEW vw_tl_zaw1_board AS
+            SELECT
+                1 AS priorita_operativa,
+                codice AS articolo,
+                '' AS disegno,
+                '' AS componenti_condivisi,
+                qta AS quantita,
+                NULL AS data_spedizione,
+                CASE
+                    WHEN semaforo = 'ROSSO' THEN 'ALTA'
+                    WHEN semaforo = 'GIALLO' THEN 'MEDIA'
+                    ELSE 'BASSA'
+                END AS priorita_cliente,
+                note AS complessivo_articolo,
+                'ZAW-1' AS postazione_critica,
+                CASE
+                    WHEN semaforo = 'ROSSO' THEN 'VERIFICA_BLOCCO'
+                    WHEN semaforo = 'GIALLO' THEN 'VERIFICA_SEGNALAZIONE_OPERATIVA'
+                    ELSE 'PROCEDI_SE_NESSUN_BLOCCO'
+                END AS azione_tl,
+                'board_state:SQLITE_REALISTIC_VIEW' AS origine_logica
+            FROM board_state
+            WHERE postazione IN ('ZAW-1', 'ZAW1')
+            """,
+            """
+            CREATE VIEW vw_tl_zaw2_board AS
+            SELECT
+                1 AS priorita_operativa,
+                codice AS articolo,
+                '' AS disegno,
+                '' AS componenti_condivisi,
+                qta AS quantita,
+                NULL AS data_spedizione,
+                CASE
+                    WHEN semaforo = 'ROSSO' THEN 'ALTA'
+                    WHEN semaforo = 'GIALLO' THEN 'MEDIA'
+                    ELSE 'BASSA'
+                END AS priorita_cliente,
+                note AS complessivo_articolo,
+                'ZAW-2' AS postazione_critica,
+                CASE
+                    WHEN semaforo = 'ROSSO' THEN 'VERIFICA_BLOCCO'
+                    WHEN semaforo = 'GIALLO' THEN 'VERIFICA_SEGNALAZIONE_OPERATIVA'
+                    ELSE 'PROCEDI_SE_NESSUN_BLOCCO'
+                END AS azione_tl,
+                'board_state:SQLITE_REALISTIC_VIEW' AS origine_logica
+            FROM board_state
+            WHERE postazione IN ('ZAW-2', 'ZAW2')
+            """,
         ]
     else:
         statements = [
