@@ -955,9 +955,11 @@ def test_tl_chat_operational_v2_contract_for_local_metadata(monkeypatch, tmp_pat
     assert answer.startswith("12999 — CERTO.")
     assert "Route:" in answer
     assert "Vincoli:" in answer
-    assert "Nota:" in answer
+    assert "Nota:" not in answer
     assert "Azione:" in answer
     assert "Route: HENN → ZAW1 → CP." in answer
+    assert "disegno MOCKDRAWING" in answer
+    assert "classe STANDARD, planner_eligible=true" in answer
     assert "Azione: usare route confermata." in answer
 
 
@@ -976,16 +978,14 @@ def test_tl_chat_operational_answer_formatter_shape_is_brief_and_actionable():
     assert answer.startswith("ITEM_SHAPE — CERTO.")
     assert "Route:" in answer
     assert "Vincoli:" in answer
-    assert "Nota:" in answer
+    assert "Nota:" not in answer
     assert "Azione:" in answer
 
     assert answer.index("Route:") < answer.index("Vincoli:")
-    assert answer.index("Vincoli:") < answer.index("Nota:")
-    assert answer.index("Nota:") < answer.index("Azione:")
+    assert answer.index("Vincoli:") < answer.index("Azione:")
 
     assert "Route: HENN → ZAW1 → CP." in answer
-    assert "Vincoli: CP finale obbligatorio; ZAW2 non inferita." in answer
-    assert "Nota: profilo operativo confermato." in answer
+    assert "Vincoli: CP finale obbligatorio; ZAW2 non inferita; profilo operativo confermato." in answer
     assert "Azione: usare route confermata." in answer
 
     assert "\n" not in answer

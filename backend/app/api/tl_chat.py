@@ -156,11 +156,12 @@ def _format_operational_answer(
     if route:
         parts.append(_sentence(f"Route: {route}"))
 
-    if constraints:
-        parts.append(_sentence("Vincoli: " + "; ".join(constraints)))
-
+    constraint_parts = list(constraints)
     if note:
-        parts.append(_sentence(f"Nota: {note}"))
+        constraint_parts.append(note)
+
+    if constraint_parts:
+        parts.append(_sentence("Vincoli: " + "; ".join(constraint_parts)))
 
     if action:
         parts.append(_sentence(f"Azione: {action}"))
