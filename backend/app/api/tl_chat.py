@@ -953,6 +953,48 @@ def _question_asks_zaw_interchangeability(question: str) -> bool:
     return "zaw1" in compact and "zaw2" in compact and asks_relation
 
 
+
+def _question_asks_turn_fallback_without_article(question: str) -> bool:
+    normalized = question.strip().lower()
+
+    turn_tokens = (
+        "turno",
+        "adesso",
+        "ora",
+        "controllare",
+        "controllo",
+        "conviene",
+        "priorità",
+        "priorita",
+        "cosa faccio",
+        "cosa controllo",
+    )
+
+    return any(token in normalized for token in turn_tokens)
+
+
+def _response_for_turn_fallback_without_article() -> TLChatResponse:
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            "Domanda turno senza articolo specifico. Controlla prima: "
+            "eventi/blocchi aperti, carico ZAW1/ZAW2, articoli con ordine attivo, "
+            "componenti condivisi e CP finale. Per una priorità specifica serve codice "
+            "articolo o stato board."
+        ),
+        confidence="DA_VERIFICARE",
+        risk=(
+            "Domanda operativa generale: senza articolo o stato board non generare "
+            "priorità automatica."
+        ),
+        recommended_action=(
+            "Fornire codice articolo, stato board o evento aperto per una risposta "
+            "operativa specifica."
+        ),
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
@@ -965,6 +1007,9 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     requested_status = _requested_lifecycle_status_from_question(question)
     if not article and requested_status:
         return _response_for_lifecycle_status_list(lifecycle, requested_status)
+
+    if not article and _question_asks_turn_fallback_without_article(question):
+        return _response_for_turn_fallback_without_article()
 
     if article:
         local_specs_metadata = _load_local_specs_metadata(article)
