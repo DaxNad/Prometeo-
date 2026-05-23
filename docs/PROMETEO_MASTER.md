@@ -1819,3 +1819,42 @@ Elenco letterale di compatibilità per guard legacy. Non introduce nuove fonti s
 
 - nessuna promozione automatica a `CERTO` da fonti derivate/cache/preview
 
+<!-- PROMETEO_GOAL_RUNTIME_LOCAL_BASELINE_START -->
+## PROMETEO GOAL runtime operativo locale — baseline 2026-05-23
+
+Stato: **GOAL_RUNTIME_PASS**.
+
+PROMETEO ha raggiunto una baseline locale operativa ripetibile, verificata su `main` con:
+
+- `make goal-guard` → PASS
+- `make goal-complete-v1` → PASS
+- `tools/goal/runtime_operational_goal_check.sh` → `GOAL_RUNTIME_PASS`
+
+Baseline verificata su commit:
+
+- `0c4da21 guard(goal): add runtime operational goal check (#220)`
+- `158a419 fix(tl-chat): answer global ZAW interchangeability rule (#219)`
+- `b20e0d7 docs: formalize GOAL target contracts (#218)`
+
+La validazione runtime conferma:
+
+- backend locale vivo;
+- `/health` operativo;
+- autenticazione API attiva;
+- `/tl/chat` senza chiave respinto;
+- `/tl/chat` con chiave valido;
+- TL Chat runtime corretta su `12066`;
+- TL Chat runtime corretta su `12100`;
+- regola globale ZAW1/ZAW2 esposta e coerente: ZAW1 e ZAW2 non sono intercambiabili;
+- frontend locale raggiungibile;
+- nessun dato sensibile evidente nell’HTML root servito.
+
+Questa baseline non dichiara PROMETEO come prodotto finale completo. Dichiara invece che PROMETEO ha superato la soglia minima di sistema locale vivo, protetto, interrogabile e verificabile.
+
+Regola operativa da questo punto in avanti:
+
+> Ogni evoluzione successiva deve preservare `goal-guard`, `goal-complete-v1` e `runtime_operational_goal_check.sh` verdi, salvo modifica intenzionale del contratto documentata in questo MASTER.
+
+Non espandere architettura, planner, AI adapter, frontend o dominio reale partendo da questa sezione. Usarla solo come punto di baseline stabile per successive evoluzioni controllate.
+<!-- PROMETEO_GOAL_RUNTIME_LOCAL_BASELINE_END -->
+
