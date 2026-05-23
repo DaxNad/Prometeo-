@@ -871,13 +871,15 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         if not signals.get("has_zaw2"):
             constraints.append("ZAW2 non valida")
 
+    cp_mode = _clean(signals.get("cp_machine_mode"))
+
     if signals.get("has_pidmill"):
         if not route_from_summary:
             route_parts.append("PIDMILL")
-        if not compact_non_planner:
+        hide_pidmill_constraint = compact_non_planner and cp_mode == "VERTICALE_DUE_PIANI" and len(route_parts) <= 4
+        if not hide_pidmill_constraint:
             constraints.append("PIDMILL presente")
 
-    cp_mode = _clean(signals.get("cp_machine_mode"))
     hide_cp_machine_mode = compact_non_planner and bool(signals.get("has_pidmill"))
     if signals.get("cp_required"):
         if not route_from_summary:
