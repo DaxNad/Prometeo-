@@ -233,7 +233,7 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         cp_mode = _clean(constraints.get("cp_mode"))
         cp_pieces_per_plane = constraints.get("cp_pieces_per_plane")
         if cp_mode.upper() == "VERTICALE" and cp_pieces_per_plane == 2:
-            constraints_text.append("CP finale obbligatorio, modalità VERTICALE_DUE_PIANI")
+            constraints_text.append("CP finale, modalità VERTICALE_DUE_PIANI")
         elif cp_mode:
             constraints_text.append(f"CP finale obbligatorio, modalità {cp_mode}")
         else:
@@ -828,13 +828,27 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
     signals = summary.get("signals") if isinstance(summary.get("signals"), dict) else {}
     criticalities = summary.get("criticalities") if isinstance(summary.get("criticalities"), list) else []
+    planner_eligible = summary.get("planner_eligible")
+    compact_non_planner = planner_eligible is False
 
     confidence = _resolve_tl_chat_confidence(summary.get("confidence") or "DA_VERIFICARE")
     primary_zaw = _clean(signals.get("primary_zaw_station"))
     zaw_passes = signals.get("zaw_passes")
 
     summary_route = summary.get("route") if isinstance(summary.get("route"), list) else []
-    route_parts: list[str] = [str(item).strip() for item in summary_route if str(item).strip()]
+    route_aliases = {
+        "COLLAUDO_PRESSIONE": "CP",
+        "COLLAUDO_PRESSSIONE": "CP",
+        "COLLAUDO_VERTICALE": "CP",
+        "COLLAUDO_PRESSIONE_VERTICALE": "CP",
+    }
+    route_parts: list[str] = []
+    for item in summary_route:
+        value = str(item).strip()
+        if not value:
+            continue
+        route_parts.append(route_aliases.get(value, value))
+
     route_from_summary = bool(route_parts)
     constraints: list[str] = []
     note_parts: list[str] = []
@@ -842,7 +856,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     if signals.get("has_henn"):
         if not route_from_summary:
             route_parts.append("HENN")
-        constraints.append("HENN prima di innesto rapido/ZAW")
+        constraints.append("HENN prima di ZAW")
     elif signals.get("has_henn") is False:
         constraints.append("HENN assente/non indicato")
 
@@ -850,35 +864,54 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         if not route_from_summary:
             route_parts.append(primary_zaw)
         if isinstance(zaw_passes, int) and zaw_passes > 1:
-            constraints.append(f"{primary_zaw} con {zaw_passes} passaggi; ZAW1_2 non è ZAW2")
+            constraints.append(f"{primary_zaw} con {zaw_passes} passaggi")
+            constraints.append("ZAW1_2 non è ZAW2")
         else:
-            constraints.append(f"{primary_zaw} obbligatorio; non usare ZAW2 come alternativa automatica")
+            constraints.append(f"{primary_zaw} obbligatorio")
+        if not signals.get("has_zaw2"):
+            constraints.append("ZAW2 non valida")
 
     if signals.get("has_pidmill"):
         if not route_from_summary:
             route_parts.append("PIDMILL")
-        constraints.append("PIDMILL presente")
+        if not compact_non_planner:
+            constraints.append("PIDMILL presente")
 
     cp_mode = _clean(signals.get("cp_machine_mode"))
+    hide_cp_machine_mode = compact_non_planner and bool(signals.get("has_pidmill"))
     if signals.get("cp_required"):
         if not route_from_summary:
             route_parts.append("CP")
-        if cp_mode:
+        if cp_mode and not hide_cp_machine_mode:
             constraints.append(f"CP finale obbligatorio, modalità {cp_mode}")
         else:
             constraints.append("CP finale obbligatorio")
 
     shared = signals.get("shared_components") or []
-    if shared:
+    hide_shared_components = compact_non_planner and bool(signals.get("has_pidmill"))
+    if shared and not hide_shared_components:
         constraints.append("componenti condivisi " + ", ".join(str(x) for x in shared))
 
     for item in criticalities:
-        text = str(item)
-        if "Discrepanza" in text or "discrepanza" in text:
-            note_parts.append(text)
+        value = str(item)
+        if "Discrepanza" in value or "discrepanza" in value:
+            if "HENN_ZAW1_PIDMILL" in value:
+                note_parts.append("BOM discordante")
+            elif "HENN_ZAW1" in value:
+                note_parts.append("BOM discordante: HENN_ZAW1")
+            elif "ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA" in value:
+                note_parts.append("BOM discordante: ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA")
+            else:
+                note_parts.append("BOM discordante")
             break
 
-    action = str(summary.get("tl_action") or "seguire route confermata")
+    if not note_parts:
+        note_parts.append("profilo operativo confermato")
+
+    if summary.get("planner_eligible") is False:
+        action = "usa solo con ordine attivo"
+    else:
+        action = "usa route confermata"
 
     return TLChatResponse(
         ok=True,
