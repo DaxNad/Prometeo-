@@ -901,6 +901,8 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
                 constraints.append("BOM discordante: HENN_ZAW1")
             elif "ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA" in value:
                 constraints.append("BOM discordante: ZAW1_DOPPIO_PASSAGGIO_GUAINA_DOPPIA")
+            elif "ZAW1_DOPPIO_PASSAGGIO_PIDMILL" in value:
+                constraints.append("BOM discordante: ZAW1_DOPPIO_PASSAGGIO_PIDMILL")
             else:
                 constraints.append("BOM discordante")
             break
