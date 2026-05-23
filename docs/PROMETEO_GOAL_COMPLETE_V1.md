@@ -6,6 +6,16 @@ Stato: `PROMETEO_GOAL_COMPLETE_V1_CHECK`
 
 Definire il check locale unico per verificare la chiusura pratica `PROMETEO_GOAL_COMPLETE_V1` senza cambiare runtime, architettura o dati reali.
 
+## Distinzione contrattuale dei target GOAL
+
+`make goal-guard` e `make goal-complete-v1` hanno ruoli separati.
+
+`make goal-guard` è un merge/PR predictor: va usato prima di push o Pull Request per verificare localmente i controlli minimi di integrabilità, inclusi diff check, Data Leak Guard, Privacy Guard, Docs Authority Guard, TL eval e backend tests.
+
+`make goal-complete-v1` è un operational closure validator: va usato per validare localmente la chiusura pratica `PROMETEO_GOAL_COMPLETE_V1`, includendo TL Chat contract, TL eval, controlli su file sensibili tracciati, regole di session memory, Privacy Guard, Data Leak Guard e semantica di closure operativa.
+
+I due target non sono definiti come superset obbligatori uno dell'altro. La separazione evita accoppiamento tra percorso pre-PR e validazione di chiusura operativa.
+
 ## Comando
 
 `make goal-complete-v1`
