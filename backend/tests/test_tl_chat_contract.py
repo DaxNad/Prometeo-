@@ -539,13 +539,29 @@ def test_tl_chat_answers_12066_from_article_summary_before_lifecycle(monkeypatch
     assert res.status_code == 200
     assert data["ok"] is True
     assert data["confidence"] == "CERTO"
-    assert "12066" in data["answer"]
-    assert "ZAW1" in data["answer"]
-    assert "ZAW2" in data["answer"]
-    assert "HENN" in data["answer"]
-    assert "PIDMILL" in data["answer"]
-    assert "VERTICALE_DUE_PIANI" in data["answer"]
-    assert "468728" in data["answer"]
+
+    answer = data["answer"]
+    assert answer.startswith("12066 — CERTO.")
+    assert "Route:" in answer
+    assert "Vincoli:" in answer
+    assert "Nota:" not in answer
+    assert "Azione:" in answer
+    assert answer.index("Route:") < answer.index("Vincoli:")
+    assert answer.index("Vincoli:") < answer.index("Azione:")
+
+    assert "Route: HENN → ZAW1 → PIDMILL → CP." in answer
+    assert "HENN prima di ZAW" in answer
+    assert "ZAW1 obbligatorio" in answer
+    assert "ZAW2 non valida" in answer
+    assert "CP finale" in answer
+    assert "BOM discordante" in answer
+    assert "468728" in answer
+    assert "468796" in answer
+    assert "ordine attivo" in answer
+
+    assert "\n" not in answer
+    assert len(answer) <= 260
+    assert "VERTICALE_DUE_PIANI" not in answer
     assert data["technical_details_hidden"] is True
 
 def test_tl_chat_answers_12055_from_article_summary(monkeypatch, tmp_path):
@@ -973,7 +989,7 @@ def test_tl_chat_operational_answer_formatter_shape_is_brief_and_actionable():
     assert "Azione: usare route confermata." in answer
 
     assert "\n" not in answer
-    assert len(answer) <= 220
+    assert len(answer) <= 260
     assert "git" not in answer.lower()
     assert "pytest" not in answer.lower()
     assert "runtime" not in answer.lower()
