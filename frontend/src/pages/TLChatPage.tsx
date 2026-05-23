@@ -14,6 +14,20 @@ function extractArticle(question: string): string | undefined {
   return match?.[0];
 }
 
+function normalizeError(err: unknown): string {
+  const message = err instanceof Error ? err.message : "";
+
+  if (
+    message.includes("Failed to fetch") ||
+    message.includes("NetworkError") ||
+    message.includes("POST /tl/chat failed")
+  ) {
+    return "PROMETEO non è raggiungibile. Riprovare o verificare il runtime locale.";
+  }
+
+  return "Errore durante l'interrogazione TL Chat. Riprovare.";
+}
+
 export default function TLChatPage() {
   const [question, setQuestion] = useState("Quali codici posso densificare?");
   const [loading, setLoading] = useState(false);
@@ -22,7 +36,12 @@ export default function TLChatPage() {
 
   async function submit(nextQuestion = question) {
     const cleanQuestion = nextQuestion.trim();
-    if (!cleanQuestion) return;
+
+    if (!cleanQuestion) {
+      setResponse(null);
+      setError("Inserisci una domanda TL prima di interrogare PROMETEO.");
+      return;
+    }
 
     setQuestion(cleanQuestion);
     setLoading(true);
@@ -30,14 +49,16 @@ export default function TLChatPage() {
 
     try {
       const article = extractArticle(cleanQuestion);
+
       const data = await tlChat({
         question: cleanQuestion,
         context: article ? { article } : {},
       });
+
       setResponse(data);
     } catch (err) {
       setResponse(null);
-      setError(err instanceof Error ? err.message : "Errore richiesta TL Chat");
+      setError(normalizeError(err));
     } finally {
       setLoading(false);
     }
@@ -53,11 +74,20 @@ export default function TLChatPage() {
       </header>
 
       <section style={{ display: "grid", gap: 8 }}>
-        <label htmlFor="tl-question" style={{ fontWeight: 700 }}>Domanda TL</label>
+        <label htmlFor="tl-question" style={{ fontWeight: 700 }}>
+          Domanda TL
+        </label>
+
         <textarea
           id="tl-question"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              submit();
+            }
+          }}
           rows={4}
           style={{
             width: "100%",
@@ -71,6 +101,7 @@ export default function TLChatPage() {
           }}
           placeholder="Esempio: Quali codici posso densificare?"
         />
+
         <button
           onClick={() => submit()}
           disabled={loading}
@@ -108,6 +139,12 @@ export default function TLChatPage() {
         ))}
       </section>
 
+      {loading && (
+        <section style={{ border: "1px solid #27272a", background: "#111", borderRadius: 12, padding: 12 }}>
+          PROMETEO sta analizzando la richiesta…
+        </section>
+      )}
+
       {error && (
         <section style={{ border: "1px solid #7f1d1d", background: "#1f0a0a", borderRadius: 12, padding: 12 }}>
           <strong>Errore</strong>
@@ -118,31 +155,46 @@ export default function TLChatPage() {
       {response && (
         <section style={{ border: "1px solid #27272a", background: "#0b0b0c", borderRadius: 14, padding: 16, display: "grid", gap: 12 }}>
           <div>
-            <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>Risposta</div>
-            <div style={{ fontSize: 20, lineHeight: 1.35 }}>{response.answer}</div>
+            <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
+              Risposta
+            </div>
+            <div style={{ fontSize: 20, lineHeight: 1.35 }}>
+              {response.answer}
+            </div>
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
             <div style={{ border: "1px solid #222", borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>Confidence</div>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                Confidence
+              </div>
               <strong>{response.confidence}</strong>
             </div>
+
             <div style={{ border: "1px solid #222", borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>Conferma TL</div>
-              <strong>{response.requires_confirmation ? "Richiesta" : "Non richiesta"}</strong>
+              <div style={{ fontSize: 12, color: "#9ca3af" }}>
+                Conferma TL
+              </div>
+              <strong>
+                {response.requires_confirmation ? "Richiesta" : "Non richiesta"}
+              </strong>
             </div>
           </div>
 
           {response.risk && (
             <div>
-              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>Rischio</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
+                Rischio
+              </div>
               <div>{response.risk}</div>
             </div>
           )}
 
           {response.recommended_action && (
             <div>
-              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>Azione consigliata</div>
+              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
+                Azione consigliata
+              </div>
               <div>{response.recommended_action}</div>
             </div>
           )}
