@@ -880,7 +880,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         if not hide_pidmill_constraint:
             constraints.append("PIDMILL presente")
 
-    hide_cp_machine_mode = compact_non_planner and bool(signals.get("has_pidmill"))
+    hide_cp_machine_mode = compact_non_planner and bool(signals.get("has_pidmill")) and len(route_parts) <= 4
     if signals.get("cp_required"):
         if not route_from_summary:
             route_parts.append("CP")
