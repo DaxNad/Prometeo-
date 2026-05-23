@@ -13,6 +13,7 @@ if [ -z "$RUNTIME_VALUE" ]; then
 fi
 
 header_args=(-H "X-API-Key: $RUNTIME_VALUE")
+fail_count=0
 
 print_row() {
   printf "%-38s %-8s %-8s %-8s %s\n" "$1" "$2" "$3" "$4" "$5"
@@ -30,8 +31,10 @@ check_get() {
     print_row "$endpoint" "$code" "YES" "YES" "none"
   elif [ "$code" = "000" ]; then
     print_row "$endpoint" "$code" "NO" "NO" "backend not reachable"
+    fail_count=$((fail_count + 1))
   else
     print_row "$endpoint" "$code" "YES" "NO" "non-200 response"
+    fail_count=$((fail_count + 1))
   fi
 }
 
@@ -51,8 +54,10 @@ check_post_ai_sequence() {
     print_row "$endpoint" "$code" "YES" "YES" "none"
   elif [ "$code" = "000" ]; then
     print_row "$endpoint" "TIMEOUT" "YES" "NO" "local AI call did not complete within 20s"
+    fail_count=$((fail_count + 1))
   else
     print_row "$endpoint" "$code" "YES" "NO" "POST non-200 response"
+    fail_count=$((fail_count + 1))
   fi
 }
 
@@ -68,4 +73,8 @@ check_get "/production/sequence/atlas-merge"
 check_post_ai_sequence
 
 echo
-echo "VERDICT PARTIAL"
+if [ "$fail_count" -eq 0 ]; then
+  echo "VERDICT CLOSED"
+else
+  echo "VERDICT PARTIAL"
+fi

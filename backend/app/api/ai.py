@@ -1,4 +1,5 @@
 import json
+import os
 import urllib.request
 import urllib.error
 
@@ -174,17 +175,37 @@ def ai_sequence(db: Session = Depends(get_db)):
     prompt += f"\n- high_risk={high_risk}"
     prompt += f"\n- zaw_blocked={list(zaw_blocked)}"
 
-    result = run_local_llm_with_metadata(prompt)
+    result = run_local_llm_with_metadata(
+        prompt,
+        timeout_seconds=5,
+        allow_fallback=False,
+        model=os.getenv("LOCAL_LLM_SEQUENCE_MODEL", "qwen2.5:1.5b"),
+        num_predict=180,
+        keep_alive="10m",
+    )
+
+    response_text = result.response or ""
+    response_lower = response_text.lower()
+    ai_partial = response_text.startswith("OLLAMA_ERROR") or "timeout" in response_lower
 
     return {
         "model": result.model,
         "configured_model": get_local_llm_model(),
-        "fallback_used": result.fallback_used,
+        "ai_status": "PARTIAL" if ai_partial else "OK",
+        "fallback_used": True if ai_partial else result.fallback_used,
         "source": "sequence_planner",
         "prompt_preview": prompt,
-        "response": result.response,
+        "response": (
+            "AI locale non disponibile entro timeout; planner core valido."
+            if ai_partial
+            else result.response
+        ),
         "sequence": sequence_payload,
-        "warning": "Suggerimento AI locale su sequenza reale — da validare TL",
+        "warning": (
+            "AI advisory parziale; usare planner core."
+            if ai_partial
+            else "Suggerimento AI locale su sequenza reale — da validare TL"
+        ),
     }
 
 @router.post("/ai/mimo")
@@ -295,4 +316,3 @@ Rispondi in modo sintetico e strutturato.
             "enabled": adapter.enabled,
             "error": str(exc),
         }
-
