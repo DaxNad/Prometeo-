@@ -1858,3 +1858,12 @@ Regola operativa da questo punto in avanti:
 Non espandere architettura, planner, AI adapter, frontend o dominio reale partendo da questa sezione. Usarla solo come punto di baseline stabile per successive evoluzioni controllate.
 <!-- PROMETEO_GOAL_RUNTIME_LOCAL_BASELINE_END -->
 
+<!-- PROMETEO_SUMMA_REFLECTION_FIRST_VIEW_START -->
+## PROMETEO strategic reflection mirror — prima vista
+
+Documento di controllo strategico: [`PROMETEO_SUMMA_REFLECTION_001.md`](PROMETEO_SUMMA_REFLECTION_001.md).
+
+Funzione: mantenere visibili rischio di deriva nicchia, rischio di overengineering, disciplina runtime-first e tensione tra ambizione architetturale e uso reale.
+
+Questo documento è uno specchio, non una roadmap, non una nuova governance e non un backlog automatico.
+<!-- PROMETEO_SUMMA_REFLECTION_FIRST_VIEW_END -->
