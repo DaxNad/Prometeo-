@@ -1,10 +1,13 @@
 
-.PHONY: tl-eval goal-complete-v1
+.PHONY: tl-eval goal-complete-v1 goal-guard
 tl-eval:
 	./scripts/run_tl_eval.sh
 
 goal-complete-v1:
 	bash scripts/goal_complete_v1_check.sh
+
+goal-guard:
+	bash scripts/goal_guard.sh
 
 .PHONY: product-complete-roadmap
 product-complete-roadmap:
@@ -58,4 +61,3 @@ controlled-import-persistent-audit-binding-contract-v1:
 .PHONY: controlled-import-persistent-audit-binding-guard-v1
 controlled-import-persistent-audit-binding-guard-v1:
 	bash scripts/controlled_import_persistent_audit_binding_guard_v1_check.sh
-
