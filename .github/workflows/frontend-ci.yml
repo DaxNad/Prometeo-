@@ -25,7 +25,6 @@ jobs:
           HEAD_SHA='${{ github.event.pull_request.head.sha }}'
           echo "BASE_SHA=$BASE_SHA"
           echo "HEAD_SHA=$HEAD_SHA"
-          git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
           git diff --name-only "$BASE_SHA" "$HEAD_SHA" > changed_files.txt || true
           echo "Changed files:"; cat changed_files.txt || true
 

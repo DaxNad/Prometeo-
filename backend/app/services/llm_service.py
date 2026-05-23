@@ -82,16 +82,35 @@ def get_local_llm_fallback_model() -> str:
     return FALLBACK_MODEL
 
 
-def _call_ollama(model: str, prompt_with_memory: str) -> str:
+def _call_ollama(
+    model: str,
+    prompt_with_memory: str,
+    timeout_seconds: int | float = 120,
+    options: dict | None = None,
+) -> str:
+    request_options = {
+        "temperature": 0,
+        "top_p": 0.2,
+    }
+    keep_alive = None
+    if options:
+        request_options.update(
+            {
+                key: value
+                for key, value in options.items()
+                if key not in {"keep_alive"} and value is not None
+            }
+        )
+        keep_alive = options.get("keep_alive")
+
     payload = {
         "model": model,
         "prompt": prompt_with_memory,
         "stream": False,
-        "options": {
-            "temperature": 0,
-            "top_p": 0.2,
-        },
+        "options": request_options,
     }
+    if keep_alive is not None:
+        payload["keep_alive"] = keep_alive
 
     req = urllib.request.Request(
         OLLAMA_URL,
@@ -100,15 +119,26 @@ def _call_ollama(model: str, prompt_with_memory: str) -> str:
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=120) as res:
+    with urllib.request.urlopen(req, timeout=timeout_seconds) as res:
         data = json.loads(res.read().decode("utf-8"))
 
     return data.get("response", "").strip() or "Nessuna risposta dal modello."
 
 
-def run_local_llm_with_metadata(prompt: str) -> LocalLLMResult:
+def run_local_llm_with_metadata(
+    prompt: str,
+    timeout_seconds: int | float = 120,
+    allow_fallback: bool = True,
+    model: str | None = None,
+    fallback_model: str | None = None,
+    num_predict: int | None = None,
+    keep_alive: str | None = None,
+) -> LocalLLMResult:
+    selected_model = model or MODEL
+    selected_fallback_model = fallback_model or FALLBACK_MODEL
+
     if not prompt.strip():
-        return LocalLLMResult(response="Nessun testo ricevuto.", model=MODEL)
+        return LocalLLMResult(response="Nessun testo ricevuto.", model=selected_model)
 
     q = prompt.lower()
     if "zaw-1" in q and "zaw-2" in q and "intercambi" in q:
@@ -124,7 +154,7 @@ def run_local_llm_with_metadata(prompt: str) -> LocalLLMResult:
             "- Separare subito il problema: ZAW-1 o ZAW-2.\n"
             "- Verificare articolo, componente condiviso e operazione in corso.\n"
             "- Solo dopo decidere se ribilanciare operatori o sequenza."
-        ), model=MODEL)
+        ), model=selected_model)
 
     if "reference_only" in q and (
         "planner_eligible=false" in q
@@ -141,7 +171,7 @@ def run_local_llm_with_metadata(prompt: str) -> LocalLLMResult:
             "3. Azione TL immediata\n"
             "- Non produrre automaticamente.\n"
             "- Procedere solo con ordine cliente esplicito o conferma TL."
-        ), model=MODEL)
+        ), model=selected_model)
 
     relevant_rules = retrieve_relevant_rules(prompt)
     prompt_with_memory = (
@@ -151,23 +181,45 @@ def run_local_llm_with_metadata(prompt: str) -> LocalLLMResult:
         + "\n\nScenario:\n"
         + prompt
     )
+    ollama_options = {
+        "temperature": 0,
+        "top_p": 0.2,
+        "num_predict": num_predict,
+        "keep_alive": keep_alive,
+    }
 
     try:
-        raw_response = _call_ollama(MODEL, prompt_with_memory)
-        actual_model = MODEL
+        raw_response = _call_ollama(
+            selected_model,
+            prompt_with_memory,
+            timeout_seconds=timeout_seconds,
+            options=ollama_options,
+        )
+        actual_model = selected_model
         fallback_used = False
     except Exception as primary_error:
+        if not allow_fallback:
+            return LocalLLMResult(
+                response=f"OLLAMA_ERROR: primary={selected_model}: {str(primary_error)}",
+                model=selected_model,
+                fallback_used=False,
+            )
         try:
-            raw_response = _call_ollama(FALLBACK_MODEL, prompt_with_memory)
-            actual_model = FALLBACK_MODEL
+            raw_response = _call_ollama(
+                selected_fallback_model,
+                prompt_with_memory,
+                timeout_seconds=timeout_seconds,
+                options=ollama_options,
+            )
+            actual_model = selected_fallback_model
             fallback_used = True
         except Exception as fallback_error:
             return LocalLLMResult(
                 response=(
-                    f"OLLAMA_ERROR: primary={MODEL}: {str(primary_error)}; "
-                    f"fallback={FALLBACK_MODEL}: {str(fallback_error)}"
+                    f"OLLAMA_ERROR: primary={selected_model}: {str(primary_error)}; "
+                    f"fallback={selected_fallback_model}: {str(fallback_error)}"
                 ),
-                model=MODEL,
+                model=selected_model,
                 fallback_used=False,
             )
 
