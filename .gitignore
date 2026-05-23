@@ -77,3 +77,5 @@ data/local_reports/session_memory/*
 !.env.example
 backend/data/local_smf/
 smf_core/SuperMegaFile*.xlsx
+# PROMETEO local runtime/audit reports - never version
+backend/data/local_reports/
