@@ -48,7 +48,7 @@ def guard_prompt(prompt: str) -> None:
         fail("Prompt requests forbidden operation or sensitive material.")
 
 
-def call_ollama(prompt: str, model: str) -> str:
+def call_ollama(prompt: str, model: str, timeout: int) -> str:
     payload = json.dumps(
         {
             "model": model,
@@ -65,7 +65,7 @@ def call_ollama(prompt: str, model: str) -> str:
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=60) as response:
+    with urllib.request.urlopen(req, timeout=timeout) as response:
         data = json.loads(response.read().decode("utf-8"))
 
     return str(data.get("response", "")).strip()
@@ -84,39 +84,78 @@ def _safe_read(path: Path, max_chars: int = 6000) -> str:
         return ""
 
 
-def collect_repo_context(user_goal: str) -> str:
-    lowered = user_goal.lower()
-    candidates: list[str] = []
+def _repo_candidate_files() -> list[Path]:
+    roots = [
+        REPO_ROOT / "backend" / "app",
+        REPO_ROOT / "backend" / "tests",
+        REPO_ROOT / "docs",
+        REPO_ROOT / "tools",
+    ]
+    suffixes = {".py", ".md", ".json", ".txt"}
 
-    if "pattern" in lowered or "pattern-learning" in lowered:
-        candidates.extend([
-            "backend/app/api/pattern_learning.py",
-            "backend/app/services/pattern_learning_registry.py",
-            "backend/tests/test_pattern_learning_registry.py",
-            "docs/pattern_registry/README.md",
-        ])
-
-    if "tl chat" in lowered or "/tl/chat" in lowered:
-        candidates.extend([
-            "backend/app/api/tl_chat.py",
-            "backend/tests/test_tl_chat_contract.py",
-        ])
-
-    if "local llm" in lowered or "ollama" in lowered:
-        candidates.extend([
-            "tools/local_llm/prometeo_local_editor.py",
-            "docs/PROMETEO_LOCAL_LLM_EDITOR.md",
-        ])
-
-    seen: set[str] = set()
-    sections: list[str] = []
-    for rel in candidates:
-        if rel in seen:
+    files: list[Path] = []
+    for root in roots:
+        if not root.exists():
             continue
-        seen.add(rel)
-        content = _safe_read(REPO_ROOT / rel)
+        for path in root.rglob("*"):
+            if not path.is_file() or path.suffix not in suffixes:
+                continue
+            rel = str(path.relative_to(REPO_ROOT))
+            if any(rel.startswith(x) for x in FORBIDDEN_PATHS):
+                continue
+            if "__pycache__" in rel or ".pytest_cache" in rel:
+                continue
+            files.append(path)
+    return files
+
+
+def _goal_terms(user_goal: str) -> set[str]:
+    raw = user_goal.lower().replace("/", " ").replace("-", " ").replace("_", " ")
+    return {x for x in raw.split() if len(x) >= 3}
+
+
+def _score_file(path: Path, terms: set[str]) -> int:
+    rel = str(path.relative_to(REPO_ROOT)).lower()
+    content = _safe_read(path, max_chars=2000).lower()
+    score = 0
+
+    for term in terms:
+        if term in rel:
+            score += 8
+        if term in content:
+            score += 2
+
+    if "test" in terms and "backend/tests" in rel:
+        score += 5
+    if "api" in terms and "backend/app/api" in rel:
+        score += 5
+    if "service" in terms and "backend/app/services" in rel:
+        score += 5
+    if "pattern" in terms and "pattern" in rel:
+        score += 8
+    if "local" in terms and "tools/local_llm" in rel:
+        score += 8
+
+    return score
+
+
+def collect_repo_context(user_goal: str) -> str:
+    terms = _goal_terms(user_goal)
+    scored: list[tuple[int, Path]] = []
+
+    for path in _repo_candidate_files():
+        score = _score_file(path, terms)
+        if score > 0:
+            scored.append((score, path))
+
+    scored.sort(key=lambda item: (-item[0], str(item[1])))
+
+    sections: list[str] = []
+    for score, path in scored[:4]:
+        rel = str(path.relative_to(REPO_ROOT))
+        content = _safe_read(path)
         if content:
-            sections.append(f"--- FILE: {rel} ---\n{content}")
+            sections.append(f"--- FILE: {rel} | score={score} ---\n{content}")
 
     if not sections:
         return "No specific repository context selected."
@@ -184,6 +223,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="PROMETEO local LLM editor dry-run tool.")
     parser.add_argument("goal", nargs="+", help="Editing goal for local LLM dry-run.")
     parser.add_argument("--model", default="mistral", help="Ollama model name. Default: mistral.")
+    parser.add_argument("--timeout", type=int, default=120, help="Ollama timeout seconds. Default: 120.")
     args = parser.parse_args()
 
     goal = " ".join(args.goal).strip()
@@ -195,10 +235,11 @@ def main() -> int:
     print("== PROMETEO LOCAL LLM EDITOR ==")
     print("mode: DRY-RUN ONLY")
     print(f"model: {args.model}")
+    print(f"timeout: {args.timeout}s")
     print()
 
     try:
-        response = call_ollama(prompt, args.model)
+        response = call_ollama(prompt, args.model, args.timeout)
     except Exception as exc:
         fail(f"Ollama call failed: {exc}")
 
