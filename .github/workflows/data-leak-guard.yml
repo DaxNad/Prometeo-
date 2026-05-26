@@ -3,7 +3,6 @@ name: Data Leak Guard
 on:
   pull_request:
   push:
-  workflow_dispatch: {}
 
 jobs:
   data-leak-guard:

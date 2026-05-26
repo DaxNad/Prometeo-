@@ -3,7 +3,6 @@ name: Privacy Guard
 on:
   pull_request:
   push:
-  workflow_dispatch: {}
 
 jobs:
   privacy-guard:
