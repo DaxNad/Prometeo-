@@ -71,7 +71,61 @@ def call_ollama(prompt: str, model: str) -> str:
     return str(data.get("response", "")).strip()
 
 
+
+def _safe_read(path: Path, max_chars: int = 6000) -> str:
+    try:
+        if not path.exists() or not path.is_file():
+            return ""
+        rel = str(path.relative_to(REPO_ROOT))
+        if any(rel.startswith(x) for x in FORBIDDEN_PATHS):
+            return ""
+        return path.read_text(encoding="utf-8", errors="replace")[:max_chars]
+    except Exception:
+        return ""
+
+
+def collect_repo_context(user_goal: str) -> str:
+    lowered = user_goal.lower()
+    candidates: list[str] = []
+
+    if "pattern" in lowered or "pattern-learning" in lowered:
+        candidates.extend([
+            "backend/app/api/pattern_learning.py",
+            "backend/app/services/pattern_learning_registry.py",
+            "backend/tests/test_pattern_learning_registry.py",
+            "docs/pattern_registry/README.md",
+        ])
+
+    if "tl chat" in lowered or "/tl/chat" in lowered:
+        candidates.extend([
+            "backend/app/api/tl_chat.py",
+            "backend/tests/test_tl_chat_contract.py",
+        ])
+
+    if "local llm" in lowered or "ollama" in lowered:
+        candidates.extend([
+            "tools/local_llm/prometeo_local_editor.py",
+            "docs/PROMETEO_LOCAL_LLM_EDITOR.md",
+        ])
+
+    seen: set[str] = set()
+    sections: list[str] = []
+    for rel in candidates:
+        if rel in seen:
+            continue
+        seen.add(rel)
+        content = _safe_read(REPO_ROOT / rel)
+        if content:
+            sections.append(f"--- FILE: {rel} ---\n{content}")
+
+    if not sections:
+        return "No specific repository context selected."
+
+    return "\n\n".join(sections)
+
+
 def build_controlled_prompt(user_goal: str) -> str:
+    repo_context = collect_repo_context(user_goal)
     return f"""PROMETEO LOCAL LLM EDITOR — DRY RUN ONLY
 
 You are a local editing assistant for PROMETEO.
@@ -101,6 +155,9 @@ PROMETEO technical context:
 
 Allowed areas:
 {chr(10).join("- " + x for x in ALLOWED_HINTS)}
+
+Repository context:
+{repo_context}
 
 User goal:
 {user_goal}
