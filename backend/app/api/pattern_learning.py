@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Query
 
-from backend.app.services.pattern_learning_registry import (
+from app.services.pattern_learning_registry import (
     find_patterns_by_code,
     find_patterns_by_station,
     list_patterns,
