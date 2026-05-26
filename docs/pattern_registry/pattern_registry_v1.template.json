@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "status": "ACTIVE_PATTERN_REGISTRY_V1",
+  "purpose": "Registry operativo per apprendere pattern TL e ridurre arretratezza rispetto alla produzione reale.",
+  "classification": [
+    "CERTO",
+    "PATTERN_CANDIDATE",
+    "ACTIVE_PATTERN",
+    "EXCEPTION"
+  ],
+  "patterns": [],
+  "rules": {
+    "no_runtime_mutation_without_tl_confirmation": true,
+    "preview_required_before_operational_use": true,
+    "pattern_learning_dominates_scope": true
+  }
+}
