@@ -68,15 +68,29 @@ def list_patterns() -> list[dict[str, str]]:
     ]
 
 
+def _extract_field(content: str, field_name: str) -> str:
+    prefix = f"{field_name}:"
+    for line in content.splitlines():
+        if line.strip().lower().startswith(prefix.lower()):
+            return line.split(":", 1)[1].strip()
+    return ""
+
+
 def find_patterns_by_station(station: str) -> list[PatternExample]:
     needle = station.strip().lower()
     if not needle:
         return []
-    return [p for p in load_pattern_examples() if needle in p.content.lower()]
+    return [
+        p for p in load_pattern_examples()
+        if needle in _extract_field(p.content, "Postazione/i").lower()
+    ]
 
 
 def find_patterns_by_code(code: str) -> list[PatternExample]:
     needle = code.strip().lower()
     if not needle:
         return []
-    return [p for p in load_pattern_examples() if needle in p.content.lower()]
+    return [
+        p for p in load_pattern_examples()
+        if needle in _extract_field(p.content, "Codice/i").lower()
+    ]
