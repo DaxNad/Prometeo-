@@ -1,3 +1,17 @@
+# PRIMARY PROJECT IMPERATIVES
+
+PROMETEO è governato da due documenti primari:
+
+1. `docs/PROMETEO_PATTERN_LEARNING_IMPERATIVE.md`
+   - obiettivo dominante: apprendere dai pattern TL per ridurre arretratezza rispetto alla produzione reale.
+
+2. `docs/PROMETEO_INPUT_INTERFACE_V1.md`
+   - porta d'ingresso core: interfaccia stile ChatGPT con input foto, screenshot, Excel, testo e OCR/parsing controllato.
+
+Qualunque sviluppo futuro deve allinearsi prima a questi due documenti.
+
+---
+
 # PROMETEO MASTER
 Documento semantico primario del progetto PROMETEO.
 Scopo: verita operativa, governance architetturale, contratto AI, anti-frammentazione.
