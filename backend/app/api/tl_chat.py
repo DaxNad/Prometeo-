@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
 from app.semantic_registry import resolve_confidence
+from app.services.pattern_learning_registry import find_patterns_by_station
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -821,6 +822,20 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
     )
 
 
+
+def _pattern_hint_for_stations(stations: list[str]) -> str:
+    pattern_titles: list[str] = []
+    for station in stations:
+        for pattern in find_patterns_by_station(station):
+            if pattern.title not in pattern_titles:
+                pattern_titles.append(pattern.title)
+
+    if not pattern_titles:
+        return ""
+
+    return " PATTERN TL: ZAW1/ZAW2 non intercambiabili."
+
+
 def _response_from_article_summary(article: str) -> TLChatResponse | None:
     summary = build_article_tl_summary(article)
 
@@ -915,6 +930,8 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     else:
         action = "usa route confermata"
 
+    pattern_hint = _pattern_hint_for_stations(route_parts)
+
     return TLChatResponse(
         ok=True,
         answer=_format_operational_answer(
@@ -927,7 +944,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         ),
         confidence=confidence,
         risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
-        recommended_action=str(summary.get("tl_action") or "Seguire risposta operativa sintetica."),
+        recommended_action=(str(summary.get("tl_action") or "Seguire risposta operativa sintetica.") + pattern_hint).strip(),
         requires_confirmation=False,
         technical_details_hidden=True,
     )
