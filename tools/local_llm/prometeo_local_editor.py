@@ -109,9 +109,17 @@ Return:
 1. Scope
 2. Files likely involved
 3. Proposed patch summary
-4. Risks
-5. Tests to run
-6. Explicit confirmation that this is dry-run only
+4. Proposed unified diff preview
+5. Risks
+6. Tests to run
+7. Explicit confirmation that this is dry-run only
+
+Unified diff rules:
+- Return patch as preview text only.
+- Do not claim files were written.
+- Use repository-relative paths.
+- Do not include .env, specs_finitura, data/local_smf, logs or dumps.
+- Prefer minimal diffs.
 """
 
 
@@ -139,6 +147,7 @@ def main() -> int:
 
     print(response)
     print()
+    print("== PATCH PREVIEW ONLY ==")
     print("== NO FILES WRITTEN ==")
     return 0
 
