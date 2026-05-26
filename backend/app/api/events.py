@@ -9,7 +9,7 @@ from ..agent_runtime.runtime_hook import trigger_runtime_analysis
 from ..repositories.factory import get_events_repository
 from ..services.atlas_engine import detect_anomaly
 
-router = APIRouter()
+router = APIRouter(tags=["operational-events"])
 
 
 class Event(BaseModel):
@@ -88,6 +88,12 @@ def _to_event(item: dict) -> Event:
 
 @router.get("/events", response_model=EventListResponse)
 def list_events() -> EventListResponse:
+    """Secondary operational station signals.
+
+    Do not confuse this with /production/events:
+    - /events/* manages mutable OPEN/CLOSED station signals.
+    - /production/events exposes read-only production audit events.
+    """
     repo = get_events_repository()
     rows = repo.list_events()
     items = [_to_event(row) for row in rows]
@@ -116,6 +122,7 @@ def list_active_events() -> EventListResponse:
 
 @router.post("/events/create", response_model=Event)
 def create_event(payload: EventCreate) -> Event:
+    """Create a secondary operational station signal, not a ProductionEvent."""
     repo = get_events_repository()
     try:
         item = repo.create_event(payload.model_dump())

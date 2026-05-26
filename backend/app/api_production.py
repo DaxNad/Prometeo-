@@ -1,7 +1,8 @@
 from datetime import date, datetime
-from typing import Any, Dict
+from typing import Any
 
 from fastapi import APIRouter
+from pydantic import BaseModel, ConfigDict
 from app.services.decision_engine import apply_decisions
 from fastapi import Body, Depends
 from sqlalchemy import text
@@ -33,6 +34,37 @@ SMF_MUTABLE_ORDER_COLUMNS = (
     "Note",
     "Priorità",
 )
+
+
+class ProductionOrderPayload(BaseModel):
+    """Stable API contract for POST /production/order.
+
+    Compatibility rule:
+    - keep HTTP 200 + {"ok": false, "error": "..."} for missing business fields;
+    - accept extra fields to avoid breaking existing PWA/runtime clients;
+    - coerce numeric operational fields through Pydantic before DB write.
+    """
+
+    model_config = ConfigDict(extra="allow")
+
+    order_id: str | None = None
+    cliente: str | None = None
+    codice: str | None = None
+    qta: float = 0
+    postazione: str | None = None
+    stato: str | None = None
+    due_date: str | None = ""
+    note: str | None = ""
+    progress: float | None = None
+    semaforo: str | None = None
+    priority: str | None = None
+    priorita: str | None = None
+    shared_component_pressure: int = 0
+    multi_order_dependency: int = 0
+    cluster_saturation: float = 0
+    station_queue_pressure: int = 0
+    station_load: int | None = None
+
 
 
 def _normalize_stato(value: Any) -> str:
@@ -521,7 +553,7 @@ def _build_machine_load(db: Session) -> dict[str, Any]:
 
 @router.post("/order")
 def create_or_update_order(
-    payload: Dict[str, Any] = Body(...),
+    payload: ProductionOrderPayload = Body(...),
     db: Session = Depends(get_db),
 ):
     _ensure_tables(db)
@@ -530,16 +562,22 @@ def create_or_update_order(
     current_ts_expr = "CURRENT_TIMESTAMP" if dialect_name == "sqlite" else "NOW()"
     payload_expr = ":payload" if dialect_name == "sqlite" else "CAST(:payload AS JSONB)"
 
-    order_id = str(payload.get("order_id", "")).strip()
-    cliente = str(payload.get("cliente", "")).strip()
-    codice = str(payload.get("codice", "")).strip()
-    qta = float(payload.get("qta", 0) or 0)
-    postazione = str(payload.get("postazione", "")).strip()
-    stato = _normalize_stato(payload.get("stato"))
-    due_date = str(payload.get("due_date", "") or "")
-    note = str(payload.get("note", "") or "")
-    progress = float(payload.get("progress", _progress_from_stato(stato)))
-    semaforo = str(payload.get("semaforo", _semaforo_from_stato(stato)))
+    data = payload.model_dump()
+
+    order_id = str(data.get("order_id") or "").strip()
+    cliente = str(data.get("cliente") or "").strip()
+    codice = str(data.get("codice") or "").strip()
+    qta = float(data.get("qta") or 0)
+    postazione = str(data.get("postazione") or "").strip()
+    stato = _normalize_stato(data.get("stato"))
+    due_date = str(data.get("due_date") or "")
+    note = str(data.get("note") or "")
+    progress = float(
+        data.get("progress")
+        if data.get("progress") is not None
+        else _progress_from_stato(stato)
+    )
+    semaforo = str(data.get("semaforo") or _semaforo_from_stato(stato))
 
     if not order_id:
         return {"ok": False, "error": "order_id mancante"}
@@ -564,15 +602,15 @@ def create_or_update_order(
 
     blocked = _is_blocked(stato, semaforo)
     overdue = _is_overdue(due_date, stato, semaforo)
-    priority = str(payload.get("priority", payload.get("priorita", "")) or "").strip().upper()
+    priority = str(data.get("priority") or data.get("priorita") or "").strip().upper()
     if not priority:
         priority = "ALTA" if str(semaforo).strip().upper() == "ROSSO" else "MEDIA"
 
-    shared_component_pressure = int(payload.get("shared_component_pressure", 0) or 0)
-    multi_order_dependency = int(payload.get("multi_order_dependency", 0) or 0)
-    cluster_saturation = float(payload.get("cluster_saturation", 0) or 0)
-    station_queue_pressure = int(payload.get("station_queue_pressure", 0) or 0)
-    station_load = int(payload.get("station_load", station_queue_pressure) or 0)
+    shared_component_pressure = int(data.get("shared_component_pressure") or 0)
+    multi_order_dependency = int(data.get("multi_order_dependency") or 0)
+    cluster_saturation = float(data.get("cluster_saturation") or 0)
+    station_queue_pressure = int(data.get("station_queue_pressure") or 0)
+    station_load = int(data.get("station_load") or station_queue_pressure or 0)
 
     db.execute(
         text(
