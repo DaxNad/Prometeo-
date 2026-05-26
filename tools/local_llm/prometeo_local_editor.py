@@ -85,6 +85,20 @@ Hard rules:
 - Propose only a safe plan and patch-style guidance.
 - Respect PROMETEO Pattern Learning as primary objective.
 
+PROMETEO technical context:
+
+- Stack: Python + FastAPI.
+- Backend source: backend/app/
+- Tests: pytest under backend/tests/
+- API routers: backend/app/api/
+- Services: backend/app/services/
+- Domain logic: backend/app/domain/
+- NEVER propose PHP.
+- NEVER propose Laravel.
+- NEVER propose controllers.php patterns.
+- NEVER propose PHPUnit or backend/tests/Unit/.
+- Use PROMETEO repository conventions only.
+
 Allowed areas:
 {chr(10).join("- " + x for x in ALLOWED_HINTS)}
 
