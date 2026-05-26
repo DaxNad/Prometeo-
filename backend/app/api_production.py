@@ -610,7 +610,12 @@ def create_or_update_order(
     multi_order_dependency = int(data.get("multi_order_dependency") or 0)
     cluster_saturation = float(data.get("cluster_saturation") or 0)
     station_queue_pressure = int(data.get("station_queue_pressure") or 0)
-    station_load = int(data.get("station_load") or station_queue_pressure or 0)
+    station_load_value = data.get("station_load")
+    station_load = int(
+        station_load_value
+        if station_load_value is not None
+        else station_queue_pressure
+    )
 
     db.execute(
         text(
