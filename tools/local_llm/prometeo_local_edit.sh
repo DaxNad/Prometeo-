@@ -3,8 +3,26 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+usage() {
+  echo "usage: tools/local_llm/prometeo_local_edit.sh [--llm|--no-llm] \"goal...\"" >&2
+}
+
+if [[ $# -lt 1 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 2
+fi
+
+llm_mode="--no-llm"
+if [[ "${1:-}" == "--llm" ]]; then
+  llm_mode=""
+  shift
+elif [[ "${1:-}" == "--no-llm" ]]; then
+  llm_mode="--no-llm"
+  shift
+fi
+
 if [[ $# -lt 1 ]]; then
-  echo "usage: tools/local_llm/prometeo_local_edit.sh \"goal...\"" >&2
+  usage
   exit 2
 fi
 
@@ -27,7 +45,11 @@ fi
 
 echo
 echo "== LOCAL LLM EDITOR =="
-python3 tools/local_llm/prometeo_local_editor.py "$goal"
+if [[ -n "$llm_mode" ]]; then
+  python3 tools/local_llm/prometeo_local_editor.py "$llm_mode" "$goal"
+else
+  python3 tools/local_llm/prometeo_local_editor.py "$goal"
+fi
 
 echo
 echo "== GIT STATUS =="
