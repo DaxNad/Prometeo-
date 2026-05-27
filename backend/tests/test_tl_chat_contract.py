@@ -171,6 +171,29 @@ def test_tl_chat_contract_requires_context_for_specific_answer():
     assert data["requires_confirmation"] is True
     assert "codice articolo" in data["recommended_action"].lower()
 
+def test_tl_chat_contract_turn_question_without_article_does_not_generate_priority():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Cosa faccio adesso?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["mode"] == "TL_CHAT_CONTRACT_V1"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "senza articolo" in data["answer"].lower()
+    assert "non genero priorità automatica" in data["answer"].lower()
+    assert "codice articolo" in data["recommended_action"].lower()
+    assert "ordine" in data["recommended_action"].lower()
+    assert "lotto" in data["recommended_action"].lower()
+
+
 def test_tl_chat_contract_lists_codes_da_verificare(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     registry.write_text(
@@ -1303,11 +1326,12 @@ def test_tl_chat_answers_turn_question_without_article_with_safe_checklist():
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
-    assert "Domanda turno senza articolo specifico" in data["answer"]
-    assert "eventi/blocchi aperti" in data["answer"]
-    assert "ZAW1/ZAW2" in data["answer"]
-    assert "CP finale" in data["answer"]
-    assert "priorità specifica serve codice articolo o stato board" in data["answer"]
+    assert "Domanda turno senza articolo" in data["answer"]
+    assert "non genero priorità automatica" in data["answer"].lower()
+    assert "codice articolo" in data["answer"].lower()
+    assert "evento aperto" in data["answer"].lower()
+    assert "ordine" in data["answer"].lower()
+    assert "lotto" in data["answer"].lower()
     assert "12066" not in data["answer"]
     assert "12100" not in data["answer"]
     assert "Nota:" not in data["answer"]
