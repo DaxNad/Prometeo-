@@ -139,7 +139,7 @@ def _score_file(path: Path, terms: set[str]) -> int:
     return score
 
 
-def collect_repo_context(user_goal: str) -> str:
+def select_repo_context(user_goal: str, limit: int = 4) -> tuple[str, list[str]]:
     terms = _goal_terms(user_goal)
     scored: list[tuple[int, Path]] = []
 
@@ -151,20 +151,29 @@ def collect_repo_context(user_goal: str) -> str:
     scored.sort(key=lambda item: (-item[0], str(item[1])))
 
     sections: list[str] = []
-    for score, path in scored[:4]:
+    selected_files: list[str] = []
+
+    for score, path in scored[:limit]:
         rel = str(path.relative_to(REPO_ROOT))
         content = _safe_read(path)
         if content:
+            selected_files.append(rel)
             sections.append(f"--- FILE: {rel} | score={score} ---\n{content}")
 
     if not sections:
-        return "No specific repository context selected."
+        return "No specific repository context selected.", []
 
-    return "\n\n".join(sections)
+    return "\n\n".join(sections), selected_files
+
+
+def collect_repo_context(user_goal: str) -> str:
+    context, _files = select_repo_context(user_goal)
+    return context
 
 
 def build_controlled_prompt(user_goal: str) -> str:
-    repo_context = collect_repo_context(user_goal)
+    repo_context, selected_files = select_repo_context(user_goal)
+    allowed_files = "\n".join("- " + file for file in selected_files) or "- none"
     return f"""PROMETEO LOCAL LLM EDITOR — DRY RUN ONLY
 
 You are a local editing assistant for PROMETEO.
@@ -195,6 +204,9 @@ PROMETEO technical context:
 Allowed areas:
 {chr(10).join("- " + x for x in ALLOWED_HINTS)}
 
+Auto-detected allowed files for this goal:
+{allowed_files}
+
 Repository context:
 {repo_context}
 
@@ -203,12 +215,13 @@ User goal:
 
 Return:
 1. Scope
-2. Files likely involved
+2. Auto-detected allowed files
 3. Proposed patch summary
 4. Proposed unified diff preview
-5. Risks
-6. Tests to run
-7. Explicit confirmation that this is dry-run only
+5. Risk summary
+6. Suggested pytest command
+7. Human confirmation checklist
+8. Explicit confirmation that this is dry-run only
 
 Unified diff rules:
 - Return patch as preview text only.
@@ -216,6 +229,8 @@ Unified diff rules:
 - Use repository-relative paths.
 - Do not include .env, specs_finitura, data/local_smf, logs or dumps.
 - Prefer minimal diffs.
+- Only propose edits for auto-detected allowed files.
+- If the needed file is not listed, say that human scope update is required.
 """
 
 
@@ -230,12 +245,19 @@ def main() -> int:
     guard_prompt(goal)
     assert_clean_main_safe()
 
+    _context, selected_files = select_repo_context(goal)
     prompt = build_controlled_prompt(goal)
 
     print("== PROMETEO LOCAL LLM EDITOR ==")
     print("mode: DRY-RUN ONLY")
     print(f"model: {args.model}")
     print(f"timeout: {args.timeout}s")
+    print("selected files:")
+    if selected_files:
+        for file in selected_files:
+            print(f"- {file}")
+    else:
+        print("- none")
     print()
 
     try:
