@@ -21,6 +21,15 @@ class SemanticEvalResult:
 
 
 MEANING_KEYWORDS: dict[str, tuple[str, ...]] = {
+    "zaw_non_interchangeable": (
+        "zaw-1",
+        "zaw-2",
+        "non sono intercambiabili",
+    ),
+    "preview_context_used": (
+        "contesto preview",
+        "regola",
+    ),
     "prioritize_final_pressure_check": (
         "station_cp",
         "controllo finale",

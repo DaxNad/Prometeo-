@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -47,8 +48,22 @@ def run_eval(matrix: dict) -> tuple[bool, list[str]]:
     return all_passed, lines
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run sanitized PROMETEO TL semantic eval matrix."
+    )
+    parser.add_argument(
+        "--matrix",
+        type=Path,
+        default=DEFAULT_MATRIX_PATH,
+        help="Path to sanitized semantic eval matrix JSON.",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
-    matrix = load_matrix()
+    args = parse_args()
+    matrix = load_matrix(args.matrix)
     passed, lines = run_eval(matrix)
     print("\n".join(lines))
     return 0 if passed else 1
