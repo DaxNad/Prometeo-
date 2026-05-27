@@ -171,6 +171,24 @@ def collect_repo_context(user_goal: str) -> str:
     return context
 
 
+
+def suggest_pytest_command(selected_files: list[str]) -> str:
+    test_files = [
+        file for file in selected_files
+        if file.startswith("backend/tests/") and file.endswith(".py")
+    ]
+
+    if test_files:
+        return "python3 -m pytest " + " ".join(test_files) + " -q"
+
+    if any(file.startswith("backend/app/api/") for file in selected_files):
+        return "python3 -m pytest backend/tests/test_tl_chat_contract.py backend/tests/test_pattern_learning_registry.py -q"
+
+    if any(file.startswith("tools/local_llm/") for file in selected_files):
+        return "python3 tools/local_llm/prometeo_local_editor.py --help"
+
+    return "python3 -m pytest backend/tests/test_tl_chat_contract.py -q"
+
 def build_controlled_prompt(user_goal: str) -> str:
     repo_context, selected_files = select_repo_context(user_goal)
     allowed_files = "\n".join("- " + file for file in selected_files) or "- none"
@@ -246,6 +264,7 @@ def main() -> int:
     assert_clean_main_safe()
 
     _context, selected_files = select_repo_context(goal)
+    pytest_command = suggest_pytest_command(selected_files)
     prompt = build_controlled_prompt(goal)
 
     print("== PROMETEO LOCAL LLM EDITOR ==")
@@ -267,6 +286,8 @@ def main() -> int:
 
     print(response)
     print()
+    print("== AUTHORITATIVE TEST COMMAND ==")
+    print(pytest_command)
     print("== PATCH PREVIEW ONLY ==")
     print("== NO FILES WRITTEN ==")
     return 0
