@@ -994,10 +994,9 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
     return TLChatResponse(
         ok=True,
         answer=(
-            "Domanda turno senza articolo specifico. Controlla prima: "
-            "eventi/blocchi aperti, carico ZAW1/ZAW2, articoli con ordine attivo, "
-            "componenti condivisi e CP finale. Per una priorità specifica serve codice "
-            "articolo o stato board."
+            "Domanda turno senza articolo o contesto operativo sufficiente. "
+            "Non genero priorità automatica senza codice articolo, ordine, lotto, "
+            "stato board o evento aperto confermato."
         ),
         confidence="DA_VERIFICARE",
         risk=(
@@ -1005,8 +1004,8 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
             "priorità automatica."
         ),
         recommended_action=(
-            "Fornire codice articolo, stato board o evento aperto per una risposta "
-            "operativa specifica."
+            "Fornire codice articolo, ordine, lotto, stato board o evento aperto "
+            "per una risposta operativa specifica."
         ),
         requires_confirmation=True,
         technical_details_hidden=True,
