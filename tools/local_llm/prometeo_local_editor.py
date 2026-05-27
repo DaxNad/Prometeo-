@@ -257,6 +257,11 @@ def main() -> int:
     parser.add_argument("goal", nargs="+", help="Editing goal for local LLM dry-run.")
     parser.add_argument("--model", default="mistral", help="Ollama model name. Default: mistral.")
     parser.add_argument("--timeout", type=int, default=120, help="Ollama timeout seconds. Default: 120.")
+    parser.add_argument(
+        "--no-llm",
+        action="store_true",
+        help="Skip Ollama and print deterministic local scope/test guidance only.",
+    )
     args = parser.parse_args()
 
     goal = " ".join(args.goal).strip()
@@ -279,12 +284,31 @@ def main() -> int:
         print("- none")
     print()
 
-    try:
-        response = call_ollama(prompt, args.model, args.timeout)
-    except Exception as exc:
-        fail(f"Ollama call failed: {exc}")
+    if args.no_llm:
+        print("== DETERMINISTIC LOCAL SCOPE ==")
+        print("goal:")
+        print(goal)
+        print()
+        print("allowed files:")
+        if selected_files:
+            for file in selected_files:
+                print(f"- {file}")
+        else:
+            print("- none")
+        print()
+        print("risk summary:")
+        print("- no LLM call")
+        print("- no files written")
+        print("- no commit/push/merge")
+        print("- human review required before any patch")
+    else:
+        try:
+            response = call_ollama(prompt, args.model, args.timeout)
+        except Exception as exc:
+            fail(f"Ollama call failed: {exc}")
 
-    print(response)
+        print(response)
+
     print()
     print("== AUTHORITATIVE TEST COMMAND ==")
     print(pytest_command)
