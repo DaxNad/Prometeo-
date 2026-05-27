@@ -1,0 +1,25 @@
+{
+  "state": "RAG_EVAL_PREVIEW_READY",
+  "eval_matrix_id": "RAG_EVAL_PREVIEW_001",
+  "runtime_used": false,
+  "frontend_used": false,
+  "external_ai_used": false,
+  "private_planning_file_used": false,
+  "specs_used": false,
+  "images_used": false,
+  "real_codes_used": false,
+  "preview_only": true,
+  "cases": [
+    {
+      "case_id": "CASE_001_ZAW_CONTEXT_BENEFIT",
+      "question": "ZAW1 e ZAW2 sono intercambiabili?",
+      "without_context_answer": "ZAW1 e ZAW2 possono essere trattate come alternative se serve bilanciare il carico.",
+      "with_context_answer": "Dal contesto preview emerge la regola: ZAW-1 e ZAW-2 non sono intercambiabili.",
+      "required_meanings": [
+        "zaw_non_interchangeable",
+        "preview_context_used"
+      ],
+      "accepted_answer": "Dal contesto preview emerge la regola: ZAW-1 e ZAW-2 non sono intercambiabili."
+    }
+  ]
+}
