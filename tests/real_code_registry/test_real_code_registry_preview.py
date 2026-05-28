@@ -61,3 +61,22 @@ def test_bom_specs_is_observational_source_only():
     assert record["planner_safe"] is False
     assert record["confidence"] == "DA_VERIFICARE"
     assert record["route_status"] == "UNKNOWN"
+
+
+def test_tl_real_spec_intake_is_observational_source_only():
+    run_preview()
+    data = load_registry()
+
+    records = {r["code"]: r for r in data["records"]}
+    record = records["12511"]
+
+    assert "TL_REAL_SPEC_INTAKE" in record["sources"]
+    assert record["tl_real_spec_intake_seen"] is True
+    assert record["tl_real_spec_initial_classification"] == "NEW_ENTRY_CANDIDATE_COMPLESSO"
+
+    assert "COLLAUDO_A_PRESSIONE" in record["tl_real_spec_visible_processes"]
+    assert "6429" in record["tl_real_spec_visible_components"]
+
+    assert record["planner_safe"] is False
+    assert record["confidence"] == "DA_VERIFICARE"
+    assert record["route_status"] == "UNKNOWN"

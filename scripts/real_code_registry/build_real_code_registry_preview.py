@@ -103,6 +103,66 @@ def apply_bom_specs(records: dict[str, dict]) -> None:
             rec["confidence"] = rec.get("confidence") or "DA_VERIFICARE"
             rec["route_status"] = rec.get("route_status") or "UNKNOWN"
 
+def apply_tl_real_spec_intake(records: dict[str, dict]) -> None:
+    src = ROOT / "data/local_reports/tl_real_spec_intake/TL_REAL_SPEC_INTAKE_001.json"
+    if not src.exists():
+        return
+
+    try:
+        data = json.loads(src.read_text(encoding="utf-8"))
+    except Exception:
+        return
+
+    if data.get("planner_auto_allowed") is not False:
+        return
+    if data.get("database_write_allowed") is not False:
+        return
+    if data.get("smf_write_allowed") is not False:
+        return
+    if data.get("git_versioning_allowed") is not False:
+        return
+
+    ref = str(src.relative_to(ROOT))
+
+    for item in data.get("items", []):
+        code = str(item.get("article") or "").strip()
+        if not CODE_RE.fullmatch(code):
+            continue
+
+        rec = records.setdefault(code, {
+            "code": code,
+            "sources": [],
+            "confidence": "DA_VERIFICARE",
+            "observed_in_field": True,
+            "route_status": "UNKNOWN",
+            "planner_safe": False,
+            "evidence_count": 0,
+            "contradictions": [],
+            "last_seen": date.today().isoformat(),
+            "signal_quality": "HIGH",
+            "exclusion_reason": None,
+            "evidence_refs": [],
+        })
+
+        if "TL_REAL_SPEC_INTAKE" not in rec["sources"]:
+            rec["sources"].append("TL_REAL_SPEC_INTAKE")
+
+        if ref not in rec["evidence_refs"]:
+            rec["evidence_refs"].append(ref)
+            rec["evidence_count"] += 1
+
+        rec["tl_real_spec_intake_seen"] = True
+        rec["tl_real_spec_initial_classification"] = item.get("initial_classification")
+        rec["tl_real_spec_visible_processes"] = item.get("visible_processes") or []
+        rec["tl_real_spec_visible_components"] = item.get("visible_components") or []
+        rec["tl_real_spec_drawing"] = item.get("drawing")
+        rec["tl_real_spec_sap_code"] = item.get("sap_code")
+
+        # Guardrail: real spec intake is still observational here.
+        rec["planner_safe"] = False
+        rec["confidence"] = rec.get("confidence") or "DA_VERIFICARE"
+        rec["route_status"] = rec.get("route_status") or "UNKNOWN"
+
 def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     records: dict[str, dict] = {}
     excluded_candidates: list[dict] = []
@@ -169,6 +229,7 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
                     rec["signal_quality"] = sq
 
     apply_bom_specs(records)
+    apply_tl_real_spec_intake(records)
     return records, excluded_candidates
 
 def main() -> int:
