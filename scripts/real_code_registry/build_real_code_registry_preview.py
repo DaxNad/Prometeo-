@@ -337,6 +337,63 @@ def apply_evidence_score(records: dict[str, dict]) -> None:
 
         rec["evidence_score"] = max(score, 0)
 
+def build_evidence_pack(rec: dict) -> dict:
+    sources = rec.get("sources") or []
+    evidence_refs = rec.get("evidence_refs") or []
+    contradictions = rec.get("contradictions") or []
+    signals = _source_signals(rec)
+
+    source_summary = [
+        {
+            "source": source,
+            "seen": True,
+        }
+        for source in sources
+    ]
+
+    process_signals = {
+        "sources": {source: sorted(values) for source, values in signals.items()},
+        "observed": sorted({value for values in signals.values() for value in values}),
+    }
+
+    contradiction_summary = [
+        {
+            "kind": item.get("kind"),
+            "severity": item.get("severity"),
+            "planner_blocking": item.get("planner_blocking", False),
+        }
+        for item in contradictions
+        if isinstance(item, dict)
+    ]
+
+    missing_fields = []
+    if not sources:
+        missing_fields.append("sources")
+    if not evidence_refs:
+        missing_fields.append("evidence_refs")
+    if rec.get("route_status") in {None, "UNKNOWN"}:
+        missing_fields.append("confirmed_route")
+
+    strict_input_ready = bool(rec.get("code") and sources and evidence_refs)
+    has_strong_source = bool(rec.get("smf_bom_specs_seen") or rec.get("tl_real_spec_intake_seen"))
+
+    return {
+        "context_type": "REGISTRY_EVIDENCE_PACK",
+        "strict_input_ready": strict_input_ready,
+        "planner_allowed": False,
+        "safe_answer_mode": "OBSERVATIONAL_ONLY",
+        "source_summary": source_summary,
+        "process_signals": process_signals,
+        "contradiction_summary": contradiction_summary,
+        "missing_fields": missing_fields,
+        "tl_required": bool(contradictions or not has_strong_source or rec.get("route_status") != "CERTO"),
+    }
+
+
+def apply_evidence_pack(records: dict[str, dict]) -> None:
+    for rec in records.values():
+        rec["evidence_pack"] = build_evidence_pack(rec)
+
 def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     records: dict[str, dict] = {}
     excluded_candidates: list[dict] = []
@@ -407,6 +464,7 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     apply_known_contradiction_rules(records)
     apply_cross_source_contradiction_detector(records)
     apply_evidence_score(records)
+    apply_evidence_pack(records)
     return records, excluded_candidates
 
 def main() -> int:
