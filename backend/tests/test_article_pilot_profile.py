@@ -178,3 +178,171 @@ def test_build_article_pilot_profile_from_reader_is_read_only(tmp_path):
     assert "missing_bom_specs" in missing_profile["discrepancies"]
     assert not missing_dir.exists()
 
+
+def test_build_article_pilot_profile_realistic_12066():
+    specs = pd.DataFrame(
+        [
+            {
+                "articolo": "12066",
+                "codice_articolo": "12066",
+                "disegno": "A2145013301",
+                "rev": "13",
+                "qta_imballo": 30,
+                "codice_imballo": "6429",
+                "cluster_name": "HENN_ZAW1_PIDMILL",
+                "cp_required": True,
+                "raw_json": json.dumps(
+                    {
+                        "pattern": "HENN_ZAW1_PIDMILL",
+                        "codice_sap": "12066",
+                        "sequenza": [
+                            "LAVAGGIO",
+                            "CONTROLLO_VISIVO",
+                            "GUAINA",
+                            "MARCATURA",
+                            "HENN",
+                            "ZAW1",
+                            "PIDMILL",
+                            "CP",
+                        ],
+                        "componenti": [
+                            "468922",
+                            "469122",
+                            "468728",
+                            "468796",
+                        ],
+                        "innesto_rapido_1": {
+                            "componenti": ["468728", "468796"],
+                            "attrezzatura": "CRT004",
+                        },
+                        "zaw_1": {"crm": "CRM004"},
+                        "packaging": {
+                            "sacchetto": "467660",
+                        },
+                    }
+                ),
+            }
+        ]
+    )
+
+    operations = pd.DataFrame(
+        [
+            {"articolo": "12066", "seq_no": i + 1, "fase": fase}
+            for i, fase in enumerate(
+                [
+                    "LAVAGGIO",
+                    "CONTROLLO_VISIVO",
+                    "GUAINA",
+                    "MARCATURA",
+                    "HENN",
+                    "ZAW1",
+                    "PIDMILL",
+                    "CP",
+                ]
+            )
+        ]
+    )
+
+    controls = pd.DataFrame(
+        [
+            {
+                "articolo": "12066",
+                "extra": json.dumps({"collaudo_pressione": True}),
+            }
+        ]
+    )
+
+    profile = build_article_pilot_profile(
+        "12066",
+        specs=specs,
+        operations=operations,
+        controls=controls,
+    )
+
+    assert profile["ok"] is True
+    assert profile["article"] == "12066"
+    assert profile["confidence"] == "CERTO"
+    assert profile["route_raw"] == [
+        "LAVAGGIO",
+        "CONTROLLO_VISIVO",
+        "GUAINA",
+        "MARCATURA",
+        "HENN",
+        "ZAW1",
+        "PIDMILL",
+        "CP",
+    ]
+    assert "468922" in profile["components_from_specs"]
+    assert "468796" in profile["components_from_specs"]
+    assert profile["tooling"] == ["CRT004", "CRM004"]
+    assert profile["controls"]["collaudo_pressione"] is True
+
+
+def test_build_article_pilot_profile_realistic_12100():
+    specs = pd.DataFrame(
+        [
+            {
+                "articolo": "12100",
+                "codice_articolo": "12100",
+                "cluster_name": "HENN_ZAW1_PIDMILL",
+                "cp_required": True,
+                "raw_json": json.dumps(
+                    {
+                        "pattern": "HENN_ZAW1_PIDMILL",
+                        "sequenza": [
+                            "GUAINA",
+                            "MARCATURA",
+                            "HENN",
+                            "ZAW1",
+                            "PIDMILL",
+                            "CP",
+                        ],
+                        "componenti": [
+                            "469122",
+                            "468762",
+                            "468796",
+                            "468922",
+                        ],
+                    }
+                ),
+            }
+        ]
+    )
+
+    operations = pd.DataFrame(
+        [
+            {"articolo": "12100", "seq_no": i + 1, "fase": fase}
+            for i, fase in enumerate(
+                [
+                    "GUAINA",
+                    "MARCATURA",
+                    "HENN",
+                    "ZAW1",
+                    "PIDMILL",
+                    "CP",
+                ]
+            )
+        ]
+    )
+
+    profile = build_article_pilot_profile(
+        "12100",
+        specs=specs,
+        operations=operations,
+        controls=pd.DataFrame(columns=["articolo"]),
+    )
+
+    assert profile["ok"] is True
+    assert profile["article"] == "12100"
+    assert profile["confidence"] == "CERTO"
+    assert profile["route_raw"] == [
+        "GUAINA",
+        "MARCATURA",
+        "HENN",
+        "ZAW1",
+        "PIDMILL",
+        "CP",
+    ]
+    assert "469122" in profile["components_from_specs"]
+    assert profile["discrepancies"] == []
+
