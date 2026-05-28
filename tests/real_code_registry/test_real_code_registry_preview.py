@@ -60,7 +60,7 @@ def test_bom_specs_is_observational_source_only():
 
     assert record["planner_safe"] is False
     assert record["confidence"] == "DA_VERIFICARE"
-    assert record["route_status"] == "UNKNOWN"
+    assert record["route_status"] in {"UNKNOWN", "DA_VERIFICARE"}
 
 
 def test_tl_real_spec_intake_is_observational_source_only():
@@ -79,4 +79,20 @@ def test_tl_real_spec_intake_is_observational_source_only():
 
     assert record["planner_safe"] is False
     assert record["confidence"] == "DA_VERIFICARE"
-    assert record["route_status"] == "UNKNOWN"
+    assert record["route_status"] in {"UNKNOWN", "DA_VERIFICARE"}
+
+
+def test_known_contradiction_rules_keep_records_non_planner_safe():
+    run_preview()
+    data = load_registry()
+
+    records = {r["code"]: r for r in data["records"]}
+
+    for code in ["12056", "12058", "12511"]:
+        record = records[code]
+        assert record["planner_safe"] is False
+        assert record["route_status"] == "DA_VERIFICARE"
+        assert record["contradictions"]
+
+    assert records["12058"]["contradictions"][0]["planner_blocking"] is True
+    assert records["12511"]["contradictions"][0]["kind"] == "KNOWN_ZAW2_FALSE_INFERENCE_RISK"

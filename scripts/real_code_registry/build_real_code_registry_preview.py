@@ -163,6 +163,71 @@ def apply_tl_real_spec_intake(records: dict[str, dict]) -> None:
         rec["confidence"] = rec.get("confidence") or "DA_VERIFICARE"
         rec["route_status"] = rec.get("route_status") or "UNKNOWN"
 
+KNOWN_OBSERVATIONAL_MISMATCH_RULES = {
+    "12056": {
+        "kind": "KNOWN_ROUTE_SOURCE_LIMITATION",
+        "severity": "MEDIUM",
+        "reason": "BOM/spec-derived route may underrepresent TL-confirmed PIDMILL/CP flow for 12056.",
+    },
+    "12058": {
+        "kind": "KNOWN_ZAW_RESOLUTION_RISK",
+        "severity": "HIGH",
+        "reason": "SMF_BOM_SPECS may indicate PIDMILL_ZAW2, but 12058 requires TL-sensitive ZAW resolution and must remain non-planner-safe.",
+    },
+    "12511": {
+        "kind": "KNOWN_ZAW2_FALSE_INFERENCE_RISK",
+        "severity": "HIGH",
+        "reason": "12511 has double ZAW1 known behavior; do not infer physical ZAW2 from double tooling/pass signals.",
+    },
+}
+
+def apply_known_contradiction_rules(records: dict[str, dict]) -> None:
+    for code, rule in KNOWN_OBSERVATIONAL_MISMATCH_RULES.items():
+        rec = records.get(code)
+        if not rec:
+            continue
+
+        existing = {
+            (
+                c.get("kind"),
+                c.get("severity"),
+                c.get("reason"),
+            )
+            for c in rec.get("contradictions", [])
+            if isinstance(c, dict)
+        }
+
+        item = {
+            "kind": rule["kind"],
+            "severity": rule["severity"],
+            "reason": rule["reason"],
+            "status": "OBSERVATIONAL_ONLY",
+            "planner_blocking": True,
+        }
+
+        key = (item["kind"], item["severity"], item["reason"])
+        if key not in existing:
+            rec.setdefault("contradictions", []).append(item)
+
+        rec["planner_safe"] = False
+        rec["route_status"] = "DA_VERIFICARE"
+
+def apply_evidence_score(records: dict[str, dict]) -> None:
+    for rec in records.values():
+        sources = rec.get("sources", [])
+        evidence_count = int(rec.get("evidence_count") or 0)
+        contradictions = rec.get("contradictions", [])
+
+        score = evidence_count + len(sources)
+        if rec.get("smf_bom_specs_seen"):
+            score += 2
+        if rec.get("tl_real_spec_intake_seen"):
+            score += 3
+        if contradictions:
+            score -= 2
+
+        rec["evidence_score"] = max(score, 0)
+
 def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     records: dict[str, dict] = {}
     excluded_candidates: list[dict] = []
@@ -230,6 +295,8 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
 
     apply_bom_specs(records)
     apply_tl_real_spec_intake(records)
+    apply_known_contradiction_rules(records)
+    apply_evidence_score(records)
     return records, excluded_candidates
 
 def main() -> int:
