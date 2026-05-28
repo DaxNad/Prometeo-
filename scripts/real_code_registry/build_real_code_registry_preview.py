@@ -212,6 +212,115 @@ def apply_known_contradiction_rules(records: dict[str, dict]) -> None:
         rec["planner_safe"] = False
         rec["route_status"] = "DA_VERIFICARE"
 
+PROCESS_SIGNAL_ALIASES = {
+    "ZAW1": {"ZAW1", "ZAW-1"},
+    "ZAW2": {"ZAW2", "ZAW-2"},
+    "HENN": {"HENN"},
+    "PIDMILL": {"PIDMILL"},
+    "CP": {"CP", "COLLAUDO_A_PRESSIONE", "COLLAUDO_PRESSIONE", "COLLAUDO_VERTICALE"},
+}
+
+
+def _has_signal(value: object, aliases: set[str]) -> bool:
+    if value is None:
+        return False
+    if isinstance(value, list):
+        text = " ".join(str(v) for v in value)
+    else:
+        text = str(value)
+    upper = text.upper()
+    return any(alias in upper for alias in aliases)
+
+
+def _source_signals(rec: dict) -> dict[str, set[str]]:
+    signals: dict[str, set[str]] = {}
+
+    smf_family = rec.get("smf_famiglia_processo")
+    if smf_family:
+        for signal, aliases in PROCESS_SIGNAL_ALIASES.items():
+            if _has_signal(smf_family, aliases):
+                signals.setdefault("SMF_BOM_SPECS", set()).add(signal)
+
+    tl_processes = rec.get("tl_real_spec_visible_processes") or []
+    if tl_processes:
+        for signal, aliases in PROCESS_SIGNAL_ALIASES.items():
+            if _has_signal(tl_processes, aliases):
+                signals.setdefault("TL_REAL_SPEC_INTAKE", set()).add(signal)
+
+    return signals
+
+
+def _append_cross_source_contradiction(rec: dict, item: dict) -> None:
+    existing = {
+        (
+            c.get("kind"),
+            c.get("source_a"),
+            c.get("source_b"),
+            c.get("signal"),
+            c.get("reason"),
+        )
+        for c in rec.get("contradictions", [])
+        if isinstance(c, dict)
+    }
+    key = (
+        item.get("kind"),
+        item.get("source_a"),
+        item.get("source_b"),
+        item.get("signal"),
+        item.get("reason"),
+    )
+    if key not in existing:
+        rec.setdefault("contradictions", []).append(item)
+
+    rec["planner_safe"] = False
+    rec["route_status"] = "DA_VERIFICARE"
+
+
+def apply_cross_source_contradiction_detector(records: dict[str, dict]) -> None:
+    for rec in records.values():
+        signals = _source_signals(rec)
+        smf = signals.get("SMF_BOM_SPECS", set())
+        tl = signals.get("TL_REAL_SPEC_INTAKE", set())
+
+        if not smf or not tl:
+            continue
+
+        if "ZAW2" in smf and "ZAW1" in tl and "ZAW2" not in tl:
+            _append_cross_source_contradiction(rec, {
+                "kind": "ZAW_STATION_MISMATCH",
+                "severity": "HIGH",
+                "source_a": "SMF_BOM_SPECS",
+                "source_b": "TL_REAL_SPEC_INTAKE",
+                "signal": "ZAW",
+                "reason": "SMF_BOM_SPECS indicates ZAW2 while TL_REAL_SPEC_INTAKE indicates ZAW1 without ZAW2.",
+                "status": "OBSERVATIONAL_ONLY",
+                "planner_blocking": True,
+            })
+
+        if "PIDMILL" in smf and "PIDMILL" not in tl:
+            _append_cross_source_contradiction(rec, {
+                "kind": "PIDMILL_SIGNAL_MISMATCH",
+                "severity": "MEDIUM",
+                "source_a": "SMF_BOM_SPECS",
+                "source_b": "TL_REAL_SPEC_INTAKE",
+                "signal": "PIDMILL",
+                "reason": "SMF_BOM_SPECS indicates PIDMILL while TL_REAL_SPEC_INTAKE does not expose PIDMILL.",
+                "status": "OBSERVATIONAL_ONLY",
+                "planner_blocking": True,
+            })
+
+        if "HENN" in smf and "HENN" not in tl:
+            _append_cross_source_contradiction(rec, {
+                "kind": "HENN_SIGNAL_MISMATCH",
+                "severity": "MEDIUM",
+                "source_a": "SMF_BOM_SPECS",
+                "source_b": "TL_REAL_SPEC_INTAKE",
+                "signal": "HENN",
+                "reason": "SMF_BOM_SPECS indicates HENN while TL_REAL_SPEC_INTAKE does not expose HENN.",
+                "status": "OBSERVATIONAL_ONLY",
+                "planner_blocking": True,
+            })
+
 def apply_evidence_score(records: dict[str, dict]) -> None:
     for rec in records.values():
         sources = rec.get("sources", [])
@@ -296,6 +405,7 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     apply_bom_specs(records)
     apply_tl_real_spec_intake(records)
     apply_known_contradiction_rules(records)
+    apply_cross_source_contradiction_detector(records)
     apply_evidence_score(records)
     return records, excluded_candidates
 

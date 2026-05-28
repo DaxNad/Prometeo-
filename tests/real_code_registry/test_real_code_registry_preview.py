@@ -96,3 +96,48 @@ def test_known_contradiction_rules_keep_records_non_planner_safe():
 
     assert records["12058"]["contradictions"][0]["planner_blocking"] is True
     assert records["12511"]["contradictions"][0]["kind"] == "KNOWN_ZAW2_FALSE_INFERENCE_RISK"
+
+def test_cross_source_zaw_mismatch_detector_is_generic():
+    from scripts.real_code_registry.build_real_code_registry_preview import (
+        apply_cross_source_contradiction_detector,
+    )
+
+    records = {
+        "99901": {
+            "code": "99901",
+            "sources": ["SMF_BOM_SPECS", "TL_REAL_SPEC_INTAKE"],
+            "confidence": "DA_VERIFICARE",
+            "route_status": "UNKNOWN",
+            "planner_safe": False,
+            "evidence_count": 2,
+            "contradictions": [],
+            "smf_bom_specs_seen": True,
+            "smf_famiglia_processo": "PIDMILL_ZAW2",
+            "tl_real_spec_intake_seen": True,
+            "tl_real_spec_visible_processes": ["MARCATURA", "MACCHINA_CRIMP_RING_ZAW1", "COLLAUDO_A_PRESSIONE"],
+        }
+    }
+
+    apply_cross_source_contradiction_detector(records)
+
+    record = records["99901"]
+    kinds = {c["kind"] for c in record["contradictions"]}
+
+    assert "ZAW_STATION_MISMATCH" in kinds
+    assert record["planner_safe"] is False
+    assert record["route_status"] == "DA_VERIFICARE"
+
+
+def test_cross_source_contradictions_block_evidence_score_promotion():
+    run_preview()
+    data = load_registry()
+
+    records = {r["code"]: r for r in data["records"]}
+    record = records["12511"]
+
+    assert record["contradictions"]
+    assert record["planner_safe"] is False
+    assert record["confidence"] == "DA_VERIFICARE"
+    assert record["route_status"] == "DA_VERIFICARE"
+    assert record["evidence_score"] >= 0
+
