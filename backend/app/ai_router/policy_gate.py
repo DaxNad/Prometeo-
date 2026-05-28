@@ -108,6 +108,7 @@ def prepare_external_ai_invocation(
     raw_prompt: str | None,
     raw_files_attached: bool = False,
     screenshots_attached: bool = False,
+    verifier_present: bool = False,
     log_path: Path | None = None,
 ) -> dict[str, Any]:
     """
@@ -128,6 +129,7 @@ def prepare_external_ai_invocation(
         sanitized=True,
         raw_files_attached=raw_files_attached,
         screenshots_attached=screenshots_attached,
+        verifier_present=verifier_present,
     )
     audit_record = append_ai_invocation_audit(decision, log_path=log_path)
 
@@ -148,6 +150,7 @@ def enforce_external_ai_boundary(
     raw_prompt: str | None,
     raw_files_attached: bool = False,
     screenshots_attached: bool = False,
+    verifier_present: bool = False,
     log_path: Path | None = None,
 ) -> dict[str, Any]:
     invocation = prepare_external_ai_invocation(
@@ -156,6 +159,7 @@ def enforce_external_ai_boundary(
         raw_prompt=raw_prompt,
         raw_files_attached=raw_files_attached,
         screenshots_attached=screenshots_attached,
+        verifier_present=verifier_present,
         log_path=log_path,
     )
 
