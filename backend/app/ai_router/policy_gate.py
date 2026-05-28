@@ -44,6 +44,7 @@ def evaluate_ai_router_policy(
     sanitized: bool,
     raw_files_attached: bool = False,
     screenshots_attached: bool = False,
+    verifier_present: bool = False,
 ) -> dict[str, Any]:
     adapter = str(target_adapter or "").strip().lower()
     scope_value = str(scope or "").strip()
@@ -62,6 +63,8 @@ def evaluate_ai_router_policy(
             reasons.append("raw_files_forbidden")
         if screenshots_attached:
             reasons.append("screenshots_forbidden")
+        if scope_value == "C_GUARDED" and not verifier_present:
+            reasons.append("verifier_required")
 
     allowed = not reasons
     return AIRouterPolicyDecision(
