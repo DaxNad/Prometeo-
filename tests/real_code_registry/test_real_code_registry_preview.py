@@ -141,3 +141,73 @@ def test_cross_source_contradictions_block_evidence_score_promotion():
     assert record["route_status"] == "DA_VERIFICARE"
     assert record["evidence_score"] >= 0
 
+def test_every_record_has_registry_evidence_pack():
+    run_preview()
+    data = load_registry()
+
+    assert data["records"]
+    for record in data["records"]:
+        pack = record["evidence_pack"]
+        assert pack["context_type"] == "REGISTRY_EVIDENCE_PACK"
+        assert pack["safe_answer_mode"] == "OBSERVATIONAL_ONLY"
+        assert pack["planner_allowed"] is False
+
+
+def test_evidence_pack_strict_input_ready_requires_code_sources_and_evidence_refs():
+    from scripts.real_code_registry.build_real_code_registry_preview import build_evidence_pack
+
+    ready = build_evidence_pack({
+        "code": "99902",
+        "sources": ["LOCAL_REPORTS"],
+        "evidence_refs": ["data/local_reports/example.md"],
+        "contradictions": [],
+        "route_status": "UNKNOWN",
+    })
+    missing = build_evidence_pack({
+        "code": "99903",
+        "sources": [],
+        "evidence_refs": [],
+        "contradictions": [],
+        "route_status": "UNKNOWN",
+    })
+
+    assert ready["strict_input_ready"] is True
+    assert missing["strict_input_ready"] is False
+    assert "sources" in missing["missing_fields"]
+    assert "evidence_refs" in missing["missing_fields"]
+
+
+def test_evidence_pack_contradiction_summary_reflects_record_contradictions():
+    run_preview()
+    data = load_registry()
+
+    records = {r["code"]: r for r in data["records"]}
+    record = records["12511"]
+
+    assert record["contradictions"]
+    assert record["evidence_pack"]["contradiction_summary"]
+    assert {
+        item["kind"] for item in record["evidence_pack"]["contradiction_summary"]
+    } == {
+        item["kind"] for item in record["contradictions"]
+    }
+
+
+def test_evidence_pack_requires_tl_when_route_is_not_certo():
+    run_preview()
+    data = load_registry()
+
+    assert data["records"]
+    assert any(
+        record["route_status"] != "CERTO" and record["evidence_pack"]["tl_required"] is True
+        for record in data["records"]
+    )
+
+
+def test_evidence_pack_does_not_promote_any_record_to_certo():
+    run_preview()
+    data = load_registry()
+
+    assert all(record["confidence"] != "CERTO" for record in data["records"])
+    assert all(record["evidence_pack"]["planner_allowed"] is False for record in data["records"])
+
