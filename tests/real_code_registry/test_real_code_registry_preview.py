@@ -45,3 +45,19 @@ def test_preview_does_not_write_to_runtime_targets():
     assert data["rules"]["writes_to_smf"] is False
     assert data["rules"]["writes_to_db"] is False
     assert data["rules"]["promotes_to_certo"] is False
+
+
+def test_bom_specs_is_observational_source_only():
+    run_preview()
+    data = load_registry()
+
+    records = {r["code"]: r for r in data["records"]}
+    record = records["12056"]
+
+    assert "SMF_BOM_SPECS" in record["sources"]
+    assert record["smf_bom_specs_seen"] is True
+    assert record["smf_famiglia_processo"] == "DOPPIO_INNESTO_ZAW"
+
+    assert record["planner_safe"] is False
+    assert record["confidence"] == "DA_VERIFICARE"
+    assert record["route_status"] == "UNKNOWN"

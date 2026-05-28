@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import csv
 import json
 import re
 from datetime import date
@@ -55,6 +56,52 @@ def signal_quality(text: str) -> str:
     if hits >= 1:
         return "MEDIUM"
     return "LOW"
+
+def apply_bom_specs(records: dict[str, dict]) -> None:
+    bom = ROOT / "data/local_smf/BOM_Specs.csv"
+    if not bom.exists():
+        return
+
+    with bom.open(newline="", encoding="utf-8", errors="ignore") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            code = (row.get("articolo") or "").strip()
+            if not CODE_RE.fullmatch(code):
+                continue
+
+            rec = records.setdefault(code, {
+                "code": code,
+                "sources": [],
+                "confidence": "DA_VERIFICARE",
+                "observed_in_field": True,
+                "route_status": "UNKNOWN",
+                "planner_safe": False,
+                "evidence_count": 0,
+                "contradictions": [],
+                "last_seen": date.today().isoformat(),
+                "signal_quality": "HIGH",
+                "exclusion_reason": None,
+                "evidence_refs": [],
+            })
+
+            if "SMF_BOM_SPECS" not in rec["sources"]:
+                rec["sources"].append("SMF_BOM_SPECS")
+
+            ref = "data/local_smf/BOM_Specs.csv"
+            if ref not in rec["evidence_refs"]:
+                rec["evidence_refs"].append(ref)
+                rec["evidence_count"] += 1
+
+            rec["smf_bom_specs_seen"] = True
+            rec["smf_famiglia_processo"] = (row.get("famiglia_processo") or "").strip() or None
+            rec["smf_documento_tipo"] = (row.get("documento_tipo") or "").strip() or None
+            rec["smf_disegno"] = (row.get("disegno") or "").strip() or None
+            rec["smf_codice_imballo"] = (row.get("codice_imballo") or "").strip() or None
+
+            # Guardrail: BOM_Specs is observational here only.
+            rec["planner_safe"] = False
+            rec["confidence"] = rec.get("confidence") or "DA_VERIFICARE"
+            rec["route_status"] = rec.get("route_status") or "UNKNOWN"
 
 def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     records: dict[str, dict] = {}
@@ -121,6 +168,7 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
                 if rank[sq] > rank[current]:
                     rec["signal_quality"] = sq
 
+    apply_bom_specs(records)
     return records, excluded_candidates
 
 def main() -> int:
