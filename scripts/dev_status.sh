@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$HOME/PROMETEO"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 GATE_SCRIPT="$ROOT_DIR/scripts/agent_runtime_gate.sh"
 
 echo "=== HEALTH ==="

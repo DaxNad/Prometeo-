@@ -10,6 +10,11 @@ TMP_HEALTH="$(mktemp)"
 TMP_STATUS="$(mktemp)"
 TMP_SUMMARY="$(mktemp)"
 
+AUTH_HEADERS=()
+if [ -n "${PROMETEO_API_KEY:-}" ]; then
+  AUTH_HEADERS=(-H "X-API-Key: ${PROMETEO_API_KEY:-}")
+fi
+
 cleanup() {
   rm -f "$TMP_HEALTH" "$TMP_STATUS" "$TMP_SUMMARY"
 }
@@ -29,7 +34,7 @@ PY
 
 echo
 echo "=== CHECK /agent-runtime/status ==="
-curl -fsS "$BASE_URL/agent-runtime/status" > "$TMP_STATUS"
+curl -fsS "${AUTH_HEADERS[@]}" "$BASE_URL/agent-runtime/status" > "$TMP_STATUS"
 python3 - <<'PY' "$TMP_STATUS"
 import json, sys
 data = json.load(open(sys.argv[1]))
@@ -57,7 +62,7 @@ PY
 
 echo
 echo "=== CHECK /agent-runtime/summary ==="
-curl -fsS "$BASE_URL/agent-runtime/summary" > "$TMP_SUMMARY"
+curl -fsS "${AUTH_HEADERS[@]}" "$BASE_URL/agent-runtime/summary" > "$TMP_SUMMARY"
 python3 - <<'PY' "$TMP_SUMMARY"
 import json, sys
 data = json.load(open(sys.argv[1]))
