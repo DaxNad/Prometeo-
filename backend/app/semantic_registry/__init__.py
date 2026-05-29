@@ -16,10 +16,16 @@ from .execution_readiness_registry import EXECUTION_READINESS_REGISTRY, get_exec
 from .explainability_registry import EXPLAINABILITY_REGISTRY, get_explainability_entry
 from .governance_registry import AUTHORITY_PRECEDENCE, GOVERNANCE_REGISTRY, get_governance_entry
 from .resolver import registry_lookup_boundaries, resolve_confidence
+from .registry_operational_preview import (
+    OperationalPilotReport,
+    build_registry_operational_pilot_report,
+)
 from .semantic_gate_registry import SEMANTIC_GATE_REGISTRY, get_semantic_gate_entry
 from .validation_registry import VALIDATION_REGISTRY, get_validation_entry
 
 __all__ = [
+    "build_registry_operational_pilot_report",
+    "OperationalPilotReport",
     "AUTHORITY_PRECEDENCE",
     "CONFIDENCE_REGISTRY",
     "ESCALATION_REGISTRY",
