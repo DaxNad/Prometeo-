@@ -28,6 +28,9 @@ Blocker prodotto:
 - manca un target canonico `make run`;
 - manca un target canonico `make doctor`;
 - startup script esistenti sono ancora legati a `$HOME/PROMETEO`;
+- `PRODUCT_001B` allinea i gate bootstrap al local mode SQLite valido:
+  Postgres non e obbligatorio quando `/health` dichiara `db_backend=sqlite`,
+  `postgres_configured=false` e `startup_db_init_ok=true`;
 - audit runtime esiste, ma non e ancora visibile come timeline prodotto per TL/admin;
 - planner e TL Board sono presenti, ma non ancora confezionati come workflow unico
   da reparto.
@@ -117,7 +120,8 @@ Osservazioni:
 - Esistono guard e runtime check, ma non un comando unico `make doctor`.
 - `goal-guard` predice merge/PR.
 - `goal-complete-v1` valida closure operativa.
-- `runtime_operational_goal_check.sh` valida backend/TL/frontend vivi.
+- `runtime_operational_goal_check.sh` valida backend/TL/frontend vivi e usa
+  header `X-API-Key` esplicito per TL smoke autenticati.
 - Questi comandi sono utili, ma non sono presentati come diagnostica prodotto
   unica per installazione cliente.
 
@@ -408,3 +412,8 @@ Per dichiarare `PRODUCT_LOCAL_EDGE_V1 = PASS` servono almeno:
 PROMETEO e gia un sistema locale governato e runtime-verificabile. Non e ancora
 un prodotto local-edge perche mancano installazione/run/doctor canonici,
 entrypoint TL unico e audit/failure state esposti come esperienza prodotto.
+
+Aggiornamento `PRODUCT_001B`: `make run` e `make doctor` devono accettare
+SQLite come local mode valido quando il backend dichiara health positiva e DB
+inizializzato; l'assenza di `PROMETEO_API_KEY` deve produrre verdict esplicito
+`PRODUCT_DOCTOR_AUTH_MISSING`, non un falso errore runtime.

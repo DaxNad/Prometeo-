@@ -6,6 +6,18 @@ BASE_URL="${PROMETEO_BASE_URL:-http://127.0.0.1:8000}"
 FRONTEND_URL="${PROMETEO_FRONTEND_URL:-http://localhost:5173}"
 
 fail_count=0
+auth_missing=0
+
+load_env_if_needed() {
+  if [ -n "${PROMETEO_API_KEY:-}" ]; then
+    return
+  fi
+
+  set -a
+  [ -f "$ROOT/backend/.env" ] && . "$ROOT/backend/.env" || true
+  [ -f "$ROOT/.env" ] && . "$ROOT/.env" || true
+  set +a
+}
 
 print_line() {
   printf "%-24s %s\n" "$1" "$2"
@@ -29,6 +41,7 @@ require_command python3
 require_command node
 require_command npm
 require_command curl
+load_env_if_needed
 
 echo
 echo "== Runtime smoke =="
@@ -59,7 +72,24 @@ fi
 echo
 echo "== TL Chat smoke =="
 
-if bash "$ROOT/tools/goal/runtime_operational_goal_check.sh"; then
+if [ -z "${PROMETEO_API_KEY:-}" ]; then
+  auth_required_response="$(curl --max-time 10 -s -w $'\n%{http_code}' \
+    -H "Content-Type: application/json" \
+    -d '{"question":"ZAW1 e ZAW2 sono intercambiabili?"}' \
+    "$BASE_URL/tl/chat" || true)"
+  auth_required_code="${auth_required_response##*$'\n'}"
+
+  if [ "$auth_required_code" = "401" ]; then
+    print_line "TL_AUTH_REQUIRED" "PASS"
+    print_line "TL_CHAT_SMOKE" "SKIPPED_AUTH_MISSING"
+    auth_missing=1
+  else
+    print_line "TL_AUTH_REQUIRED" "FAIL_HTTP_${auth_required_code}"
+    print_line "TL_CHAT_SMOKE" "SKIPPED_AUTH_MISSING"
+    fail_count=$((fail_count + 1))
+    auth_missing=1
+  fi
+elif bash "$ROOT/tools/goal/runtime_operational_goal_check.sh"; then
   print_line "TL_CHAT_SMOKE" "PASS"
 else
   print_line "TL_CHAT_SMOKE" "FAIL"
@@ -68,6 +98,10 @@ fi
 
 echo
 if [ "$fail_count" -eq 0 ]; then
+  if [ "$auth_missing" -eq 1 ]; then
+    print_line "VERDICT" "PRODUCT_DOCTOR_AUTH_MISSING"
+    exit 2
+  fi
   print_line "VERDICT" "PRODUCT_DOCTOR_PASS"
 else
   print_line "VERDICT" "PRODUCT_DOCTOR_PARTIAL"
