@@ -15,6 +15,7 @@ from app.semantic_registry import (
     resolve_semantic_gate,
     semantic_accessor_audit_as_dict,
     semantic_accessor_boundaries,
+    build_registry_operational_pilot_report,
 )
 
 
@@ -262,3 +263,66 @@ def test_semantic_accessor_audit_reports_conservative_unknown_fallbacks():
         "fallback_applied": True,
         "admitted": False,
     }
+
+
+def test_registry_operational_preview_ok_consultabile():
+    report = build_registry_operational_pilot_report(
+        code="12066",
+        sources=("TL_CONFIRMATION", "REAL_SPEC"),
+        contradictions=(),
+        risk="LOW",
+        explainability="fonti coerenti; route consultabile",
+        confidence="CERTO",
+    )
+
+    assert report.operational_verdict == "OK_CONSULTABILE"
+    assert report.preview_only is True
+    assert report.no_runtime_mutation is True
+    assert report.no_planner_behavior_change is True
+    assert report.no_smf_db_write is True
+
+
+def test_registry_operational_preview_reference_only():
+    report = build_registry_operational_pilot_report(
+        code="12402",
+        sources=("DOMAIN_STRUCTURE",),
+        contradictions=(),
+        risk="LOW",
+        explainability="fuori produzione standard ma producibile solo su richiesta cliente",
+        operational_class="CUSTOMER_REQUEST_ONLY",
+        confidence="REFERENCE_ONLY",
+    )
+
+    assert report.operational_verdict == "REFERENCE_ONLY"
+    assert report.preview_only is True
+    assert report.no_planner_behavior_change is True
+
+
+def test_registry_operational_preview_unknown_missing_code():
+    report = build_registry_operational_pilot_report(
+        code="",
+        sources=(),
+        contradictions=(),
+        risk="UNKNOWN",
+        explainability="codice assente",
+    )
+
+    assert report.code == "UNKNOWN"
+    assert report.operational_verdict == "UNKNOWN"
+    assert report.read_only is True
+
+
+def test_registry_operational_preview_contradiction_blocking():
+    report = build_registry_operational_pilot_report(
+        code="12100",
+        sources=("SMF_BOM_SPECS", "TL_CONFIRMATION"),
+        contradictions=("family says ZAW2; TL/domain says ZAW1",),
+        risk="HIGH",
+        explainability="nominal mismatch su postazione route; bloccare promozione automatica",
+        confidence="DA_VERIFICARE",
+    )
+
+    assert report.operational_verdict == "CONTRADDIZIONE_BLOCCANTE"
+    assert report.no_runtime_mutation is True
+    assert report.no_smf_db_write is True
+
