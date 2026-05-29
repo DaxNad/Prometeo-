@@ -90,8 +90,7 @@ PY
 post_tl_chat() {
   local question="$1"
   curl --max-time 10 -s -w $'\n%{http_code}' \
-    -H "Content-Type: application/json" \
-    -H "X-API-Key: ${PROMETEO_API_KEY:-}" \
+    "${TL_AUTH_HEADERS[@]}" \
     -d "{\"question\":\"$question\"}" \
     "$BASE_URL/tl/chat" || true
 }
@@ -119,6 +118,11 @@ if [ -z "${PROMETEO_API_KEY:-}" ]; then
   print_line "VERDICT" "BLOCKED_ENV"
   exit 2
 fi
+
+TL_AUTH_HEADERS=(
+  -H "Content-Type: application/json"
+  -H "X-API-Key: ${PROMETEO_API_KEY}"
+)
 
 auth_required_response="$(curl --max-time 10 -s -w $'\n%{http_code}' \
   -H "Content-Type: application/json" \

@@ -28,8 +28,20 @@ import json, sys
 data = json.load(open(sys.argv[1]))
 assert data["ok"] is True, "health.ok != true"
 assert data["agent_runtime_enabled"] is True, "agent_runtime_enabled != true"
-assert data["postgres_reachable"] is True, "postgres_reachable != true"
-print("health: OK")
+assert data.get("startup_db_init_ok") is True, "startup_db_init_ok != true"
+
+db_backend = data.get("db_backend")
+postgres_configured = data.get("postgres_configured")
+postgres_reachable = data.get("postgres_reachable")
+
+postgres_mode_ok = postgres_configured is True and postgres_reachable is True
+sqlite_local_mode_ok = postgres_configured is False and db_backend == "sqlite"
+
+assert postgres_mode_ok or sqlite_local_mode_ok, (
+    "database mode invalid: expected reachable postgres or sqlite local mode"
+)
+
+print(f"health: OK db_backend={db_backend}")
 PY
 
 echo
