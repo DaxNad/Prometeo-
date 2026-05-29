@@ -1,5 +1,15 @@
 
-.PHONY: tl-eval goal-complete-v1 goal-guard
+.PHONY: setup run doctor tl-eval goal-complete-v1 goal-guard
+setup:
+	bash scripts/setup_prometeo.sh
+
+run:
+	bash scripts/dev_start.sh
+	cd frontend && npm run dev -- --host 127.0.0.1 --port 5173
+
+doctor:
+	bash scripts/product_doctor.sh
+
 tl-eval:
 	./scripts/run_tl_eval.sh
 

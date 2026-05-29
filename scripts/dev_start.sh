@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-ROOT_DIR="$HOME/PROMETEO"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND_DIR="$ROOT_DIR/backend"
 GATE_SCRIPT="$ROOT_DIR/scripts/agent_runtime_gate.sh"
 
@@ -58,3 +58,6 @@ else
   echo "AGENT RUNTIME GATE: SKIPPED"
   echo "script non trovato o non eseguibile: $GATE_SCRIPT"
 fi
+
+echo
+echo "Backend avviato. Per frontend: cd \"$ROOT_DIR/frontend\" && npm run dev -- --host 127.0.0.1 --port 5173"
