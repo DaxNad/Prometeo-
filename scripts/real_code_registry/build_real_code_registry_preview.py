@@ -212,6 +212,28 @@ def apply_known_contradiction_rules(records: dict[str, dict]) -> None:
         rec["planner_safe"] = False
         rec["route_status"] = "DA_VERIFICARE"
 
+
+def build_contradiction_explainability(item: dict) -> dict:
+    return {
+        "rule": item.get("kind") or "UNKNOWN_CONTRADICTION",
+        "severity": item.get("severity") or "UNKNOWN",
+        "status": item.get("status") or "OBSERVATIONAL_ONLY",
+        "field": item.get("field") or "route_or_process_consistency",
+        "source_context": item.get("source_context") or "REGISTRY_PREVIEW",
+        "observed": item.get("observed") or item.get("reason") or "source mismatch or known source limitation",
+        "expected": item.get("expected") or "TL-confirmed or stronger source alignment",
+        "impact": item.get("impact") or "route_confidence_degraded",
+        "operator_action": item.get("operator_action") or "TL review required before planner-safe use",
+    }
+
+
+def apply_contradiction_explainability(records: dict[str, dict]) -> None:
+    for rec in records.values():
+        for item in rec.get("contradictions") or []:
+            if isinstance(item, dict):
+                item["explainability"] = build_contradiction_explainability(item)
+
+
 PROCESS_SIGNAL_ALIASES = {
     "ZAW1": {"ZAW1", "ZAW-1"},
     "ZAW2": {"ZAW2", "ZAW-2"},
@@ -463,6 +485,7 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
     apply_tl_real_spec_intake(records)
     apply_known_contradiction_rules(records)
     apply_cross_source_contradiction_detector(records)
+    apply_contradiction_explainability(records)
     apply_evidence_score(records)
     apply_evidence_pack(records)
     return records, excluded_candidates

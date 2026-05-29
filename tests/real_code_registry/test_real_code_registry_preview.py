@@ -211,3 +211,35 @@ def test_evidence_pack_does_not_promote_any_record_to_certo():
     assert all(record["confidence"] != "CERTO" for record in data["records"])
     assert all(record["evidence_pack"]["planner_allowed"] is False for record in data["records"])
 
+
+
+def test_contradictions_include_explainability_payload():
+    run_preview()
+    data = load_registry()
+    contradicted_records = [
+        record for record in data["records"]
+        if record.get("contradictions")
+    ]
+
+    assert contradicted_records
+
+    for record in contradicted_records:
+        for contradiction in record["contradictions"]:
+            explainability = contradiction.get("explainability")
+            assert explainability
+            assert explainability["rule"] == contradiction["kind"]
+            assert explainability["status"] == "OBSERVATIONAL_ONLY"
+            assert explainability["impact"] == "route_confidence_degraded"
+            assert explainability["operator_action"] == "TL review required before planner-safe use"
+
+
+def test_contradiction_explainability_is_preview_only_and_non_planner_promoting():
+    run_preview()
+    data = load_registry()
+
+    for record in data["records"]:
+        for contradiction in record.get("contradictions") or []:
+            explainability = contradiction["explainability"]
+            assert explainability["status"] == "OBSERVATIONAL_ONLY"
+            assert contradiction["planner_blocking"] is True
+            assert record["evidence_pack"]["planner_allowed"] is False
