@@ -956,6 +956,72 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
 
 
+def _question_asks_components(question: str) -> bool:
+    normalized = question.strip().lower()
+
+    return (
+        "component" in normalized
+        or "distinta" in normalized
+        or "bom" in normalized
+        or ("lista" in normalized and "codic" in normalized)
+    )
+
+
+def _response_for_components(article: str, metadata: dict[str, Any]) -> TLChatResponse:
+    components = metadata.get("components")
+
+    if not isinstance(components, list) or not components:
+        return TLChatResponse(
+            ok=True,
+            answer=f"{article} — componenti non disponibili nel metadata locale.",
+            confidence="DA_VERIFICARE",
+            risk=None,
+            recommended_action="Densificare o verificare metadata/components.",
+            requires_confirmation=False,
+            technical_details_hidden=True,
+        )
+
+    values: list[str] = []
+
+    for item in components:
+        if isinstance(item, dict):
+            code = _clean(
+                item.get("code")
+                or item.get("component")
+                or item.get("article")
+            )
+            if code:
+                values.append(code)
+        elif isinstance(item, str):
+            clean = _clean(item)
+            if clean:
+                values.append(clean)
+
+    values = list(dict.fromkeys(values))
+
+    if not values:
+        return TLChatResponse(
+            ok=True,
+            answer=f"{article} — componenti presenti ma non leggibili.",
+            confidence="DA_VERIFICARE",
+            risk=None,
+            recommended_action="Verificare struttura metadata/components.",
+            requires_confirmation=False,
+            technical_details_hidden=True,
+        )
+
+    return TLChatResponse(
+        ok=True,
+        answer=f"{article} — componenti: " + ", ".join(values) + ".",
+        confidence="CERTO",
+        risk=None,
+        recommended_action=None,
+        requires_confirmation=False,
+        technical_details_hidden=True,
+    )
+
+
+
 def _question_asks_zaw_interchangeability(question: str) -> bool:
     import re
 
@@ -1039,6 +1105,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     if article:
         local_specs_metadata = _load_local_specs_metadata(article)
         if local_specs_metadata:
+
+            if _question_asks_components(question):
+                return _response_for_components(
+                    article,
+                    local_specs_metadata,
+                )
             if _question_asks_if_article_needs_verification(question):
                 operational_verification = _response_for_article_operational_verification(
                     article,
