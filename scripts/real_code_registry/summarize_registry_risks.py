@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from collections import Counter
@@ -9,7 +10,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 BUILD_SCRIPT = ROOT / "scripts/real_code_registry/build_real_code_registry_preview.py"
-REGISTRY_JSON = ROOT / "data/local_reports/real_code_registry/real_code_registry_preview.json"
+REGISTRY_JSON = Path(
+    os.environ.get(
+        "PROMETEO_REAL_CODE_REGISTRY_OUT_DIR",
+        ROOT / "data/local_reports/real_code_registry",
+    )
+) / "real_code_registry_preview.json"
 
 
 def ensure_preview_exists() -> None:

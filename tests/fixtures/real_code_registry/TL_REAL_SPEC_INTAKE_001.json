@@ -1,0 +1,21 @@
+{
+  "planner_auto_allowed": false,
+  "database_write_allowed": false,
+  "smf_write_allowed": false,
+  "git_versioning_allowed": false,
+  "items": [
+    {
+      "article": "12511",
+      "initial_classification": "NEW_ENTRY_CANDIDATE_COMPLESSO",
+      "visible_processes": [
+        "ZAW1",
+        "COLLAUDO_A_PRESSIONE"
+      ],
+      "visible_components": [
+        "6429"
+      ],
+      "drawing": "SANITIZED-DRAWING-12511",
+      "sap_code": "SANITIZED-SAP-12511"
+    }
+  ]
+}

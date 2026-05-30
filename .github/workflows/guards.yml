@@ -42,7 +42,7 @@ jobs:
         run: |
           NEED_BACKEND=0
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            if grep -E '^(backend/|backend\\.pyproject\\.toml|backend/requirements\\.txt|backend/tests/)' changed_files.txt >/dev/null 2>&1; then
+            if grep -E '^(backend/|tests/real_code_registry/|scripts/real_code_registry/|data/local_reports/real_code_registry/|Makefile|\\.github/workflows/guards\\.yml)' changed_files.txt >/dev/null 2>&1; then
               NEED_BACKEND=1
             fi
           else
@@ -79,7 +79,7 @@ jobs:
 
       - name: Backend guards (conditional)
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/|backend\\.pyproject\\.toml|backend/requirements\\.txt|backend/tests/)' changed_files.txt >/dev/null 2>&1; then
+          if [ "${{ github.event_name }}" = "pull_request" ] && ! grep -E '^(backend/|tests/real_code_registry/|scripts/real_code_registry/|data/local_reports/real_code_registry/|Makefile|\\.github/workflows/guards\\.yml)' changed_files.txt >/dev/null 2>&1; then
             echo "No backend changes detected: skip backend guards"
           else
             bash backend/scripts/run_guards.sh
