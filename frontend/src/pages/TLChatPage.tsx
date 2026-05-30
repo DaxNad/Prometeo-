@@ -1,14 +1,6 @@
 import { useState } from "react";
 import { tlChat, type TLChatResponse } from "../lib/api/prometeo";
 
-const examples = [
-  "Il 12402 è da verificare?",
-  "Quali codici sono da verificare?",
-  "Quali codici sono new entry?",
-  "Quali codici sono fuori produzione?",
-  "Quali codici posso densificare?",
-];
-
 function extractArticle(question: string): string | undefined {
   const match = question.match(/\b\d{5}\b/);
   return match?.[0];
@@ -29,7 +21,7 @@ function normalizeError(err: unknown): string {
 }
 
 export default function TLChatPage() {
-  const [question, setQuestion] = useState("Quali codici posso densificare?");
+  const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<TLChatResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -99,7 +91,7 @@ export default function TLChatPage() {
             padding: 12,
             fontSize: 16,
           }}
-          placeholder="Esempio: Quali codici posso densificare?"
+          placeholder=""
         />
 
         <button
@@ -119,26 +111,6 @@ export default function TLChatPage() {
           {loading ? "Interrogo PROMETEO…" : "Chiedi a PROMETEO"}
         </button>
       </section>
-
-      <section style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        {examples.map((item) => (
-          <button
-            key={item}
-            onClick={() => submit(item)}
-            style={{
-              border: "1px solid #333",
-              background: "#111",
-              color: "#e5e7eb",
-              borderRadius: 999,
-              padding: "8px 12px",
-              cursor: "pointer",
-            }}
-          >
-            {item}
-          </button>
-        ))}
-      </section>
-
       {loading && (
         <section style={{ border: "1px solid #27272a", background: "#111", borderRadius: 12, padding: 12 }}>
           PROMETEO sta analizzando la richiesta…
