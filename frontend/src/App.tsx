@@ -21,11 +21,11 @@ export default function App() {
   return (
     <div style={{ padding: 12 }}>
       <nav style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-        <a href="/" onClick={(e) => { e.preventDefault(); nav("/"); }} style={{ color: path === "/" ? "#fff" : "#9ca3af" }}>Dashboard</a>
+        <a href="/" onClick={(e) => { e.preventDefault(); nav("/"); }} style={{ color: path === "/" ? "#fff" : "#9ca3af" }}>TL Chat</a>
         <a href="/tl-board" onClick={(e) => { e.preventDefault(); nav("/tl-board"); }} style={{ color: path === "/tl-board" ? "#fff" : "#9ca3af" }}>TL Board</a>
-        <a href="/tl-chat" onClick={(e) => { e.preventDefault(); nav("/tl-chat"); }} style={{ color: path === "/tl-chat" ? "#fff" : "#9ca3af" }}>TL Chat</a>
+        <a href="/dashboard" onClick={(e) => { e.preventDefault(); nav("/dashboard"); }} style={{ color: path === "/dashboard" ? "#fff" : "#9ca3af" }}>Dashboard</a>
       </nav>
-      {path === "/tl-chat" ? <TLChatPage /> : path === "/tl-board" ? <TLBoardPage /> : <ProductionDashboard />}
+      {path === "/tl-board" ? <TLBoardPage /> : path === "/dashboard" ? <ProductionDashboard /> : <TLChatPage />}
     </div>
   );
 }
