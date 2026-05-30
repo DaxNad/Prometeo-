@@ -29,8 +29,15 @@ def test_tl_eval_script_runs_successfully():
 
 def test_makefile_has_tl_eval_target():
     content = MAKEFILE_PATH.read_text()
+    lines = content.splitlines()
+    phony_targets = {
+        token
+        for line in lines
+        if line.startswith(".PHONY:")
+        for token in line.split(":", 1)[1].split()
+    }
 
-    assert ".PHONY: tl-eval" in content
+    assert "tl-eval" in phony_targets
     assert "tl-eval:" in content
     assert "./scripts/run_tl_eval.sh" in content
 

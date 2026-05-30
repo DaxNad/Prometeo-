@@ -3,18 +3,26 @@ from __future__ import annotations
 
 import csv
 import json
+import os
 import re
 from datetime import date
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-OUT_DIR = ROOT / "data/local_reports/real_code_registry"
+OUT_DIR = Path(
+    os.environ.get(
+        "PROMETEO_REAL_CODE_REGISTRY_OUT_DIR",
+        ROOT / "data/local_reports/real_code_registry",
+    )
+)
 OUT_JSON = OUT_DIR / "real_code_registry_preview.json"
 OUT_SUMMARY = OUT_DIR / "real_code_registry_summary.md"
+FIXTURE_DIR = ROOT / "tests/fixtures/real_code_registry"
 
-SCAN_DIRS = [
+SCAN_DIRS = [FIXTURE_DIR] if os.environ.get("PROMETEO_REAL_CODE_REGISTRY_FIXTURE_ONLY") == "1" else [
     ROOT / "data/local_reports/runtime_pilot",
     ROOT / "data/local_reports",
+    FIXTURE_DIR,
 ]
 
 CODE_RE = re.compile(r"\b\d{5}\b")
@@ -42,6 +50,21 @@ HIGH_SIGNAL_HINTS = {
     "cp",
 }
 
+def first_existing(paths: list[Path]) -> Path:
+    if os.environ.get("PROMETEO_REAL_CODE_REGISTRY_FIXTURE_ONLY") == "1":
+        for path in paths:
+            try:
+                path.relative_to(FIXTURE_DIR)
+            except ValueError:
+                continue
+            if path.exists():
+                return path
+
+    for path in paths:
+        if path.exists():
+            return path
+    return paths[0]
+
 def source_name(path: Path) -> str:
     ptxt = str(path)
     if "runtime_pilot" in ptxt:
@@ -58,7 +81,10 @@ def signal_quality(text: str) -> str:
     return "LOW"
 
 def apply_bom_specs(records: dict[str, dict]) -> None:
-    bom = ROOT / "data/local_smf/BOM_Specs.csv"
+    bom = first_existing([
+        ROOT / "data/local_smf/BOM_Specs.csv",
+        ROOT / "tests/fixtures/real_code_registry/BOM_Specs.csv",
+    ])
     if not bom.exists():
         return
 
@@ -104,7 +130,10 @@ def apply_bom_specs(records: dict[str, dict]) -> None:
             rec["route_status"] = rec.get("route_status") or "UNKNOWN"
 
 def apply_tl_real_spec_intake(records: dict[str, dict]) -> None:
-    src = ROOT / "data/local_reports/tl_real_spec_intake/TL_REAL_SPEC_INTAKE_001.json"
+    src = first_existing([
+        ROOT / "data/local_reports/tl_real_spec_intake/TL_REAL_SPEC_INTAKE_001.json",
+        ROOT / "tests/fixtures/real_code_registry/TL_REAL_SPEC_INTAKE_001.json",
+    ])
     if not src.exists():
         return
 
@@ -429,7 +458,13 @@ def scan_codes() -> tuple[dict[str, dict], list[dict]]:
                 continue
             if path.suffix.lower() not in {".md", ".txt", ".json", ".csv"}:
                 continue
-            if "real_code_registry" in str(path):
+            try:
+                path.relative_to(OUT_DIR)
+                continue
+            except ValueError:
+                pass
+
+            if "data/local_reports/real_code_registry" in str(path):
                 continue
 
             try:
