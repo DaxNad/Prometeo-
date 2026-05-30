@@ -1335,3 +1335,128 @@ def test_tl_chat_answers_turn_question_without_article_with_safe_checklist():
     assert "12066" not in data["answer"]
     assert "12100" not in data["answer"]
     assert "Nota:" not in data["answer"]
+
+
+def test_tl_chat_contract_turn_question_requires_operational_context():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Cosa faccio partire adesso?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+    text = (
+        data["answer"] + " " +
+        str(data.get("recommended_action") or "")
+    ).lower()
+
+    assert "non genero priorità automatica" in text
+    assert "codice articolo" in text
+    assert "ordine" in text
+    assert "lotto" in text
+
+
+def test_tl_chat_contract_zaw1_load_does_not_allow_auto_move_to_zaw2():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Ho ZAW1 piena, posso spostare su ZAW2?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+
+    text = (
+        data["answer"] + " " +
+        str(data.get("recommended_action") or "")
+    ).lower()
+
+    assert "zaw1" in text
+    assert "zaw2" in text
+    assert (
+        "non intercambiabili" in text
+        or "non usare zaw2 come alternativa automatica" in text
+        or "non spostare" in text
+    )
+
+
+def test_tl_chat_contract_zaw2_ambiguous_question_stays_safe():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Questo va su ZAW2?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+
+    text = (
+        data["answer"] + " " +
+        str(data.get("recommended_action") or "")
+    ).lower()
+
+    assert (
+        "codice articolo" in text
+        or "contesto" in text
+        or "ripetere la domanda" in text
+    )
+
+
+def test_tl_chat_contract_article_summary_preserves_core_domain_constraints(monkeypatch):
+    def fake_summary(article: str):
+        assert article == "12100"
+        return {
+            "ok": True,
+            "confidence": "CERTO",
+            "route": ["HENN", "ZAW1", "PIDMILL", "COLLAUDO_PRESSIONE"],
+            "planner_eligible": True,
+            "signals": {
+                "has_henn": True,
+                "primary_zaw_station": "ZAW1",
+                "zaw_passes": 1,
+                "has_zaw2": False,
+                "has_pidmill": True,
+                "cp_required": True,
+            },
+            "criticalities": [],
+            "tl_action": "Seguire route confermata.",
+        }
+
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", fake_summary)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "12100?",
+            "context": {"article": "12100"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+
+    text = data["answer"].lower()
+
+    assert "henn" in text
+    assert "zaw1" in text
+    assert "pidmill" in text
+    assert "cp" in text or "collaudo" in text
+    assert "zaw2 obbligatorio" not in text
