@@ -153,51 +153,10 @@ export default function TLChatPage() {
       )}
 
       {response && (
-        <section style={{ border: "1px solid #27272a", background: "#0b0b0c", borderRadius: 14, padding: 16, display: "grid", gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
-              Risposta
-            </div>
-            <div style={{ fontSize: 20, lineHeight: 1.35 }}>
-              {response.answer}
-            </div>
+        <section style={{ border: "1px solid #27272a", background: "#0b0b0c", borderRadius: 14, padding: 16 }}>
+          <div style={{ fontSize: 20, lineHeight: 1.35, whiteSpace: "pre-wrap" }}>
+            {response.answer}
           </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 10 }}>
-            <div style={{ border: "1px solid #222", borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                Confidence
-              </div>
-              <strong>{response.confidence}</strong>
-            </div>
-
-            <div style={{ border: "1px solid #222", borderRadius: 10, padding: 10 }}>
-              <div style={{ fontSize: 12, color: "#9ca3af" }}>
-                Conferma TL
-              </div>
-              <strong>
-                {response.requires_confirmation ? "Richiesta" : "Non richiesta"}
-              </strong>
-            </div>
-          </div>
-
-          {response.risk && (
-            <div>
-              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
-                Rischio
-              </div>
-              <div>{response.risk}</div>
-            </div>
-          )}
-
-          {response.recommended_action && (
-            <div>
-              <div style={{ fontSize: 12, color: "#9ca3af", textTransform: "uppercase" }}>
-                Azione consigliata
-              </div>
-              <div>{response.recommended_action}</div>
-            </div>
-          )}
         </section>
       )}
     </main>
