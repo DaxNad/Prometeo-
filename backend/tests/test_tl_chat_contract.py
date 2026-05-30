@@ -1460,3 +1460,69 @@ def test_tl_chat_contract_article_summary_preserves_core_domain_constraints(monk
     assert "pidmill" in text
     assert "cp" in text or "collaudo" in text
     assert "zaw2 obbligatorio" not in text
+
+
+def test_tl_chat_rendering_article_summary_uses_shift_trust_sections(monkeypatch):
+    def fake_summary(article: str):
+        assert article == "12100"
+        return {
+            "ok": True,
+            "confidence": "CERTO",
+            "route": ["HENN", "ZAW1", "PIDMILL", "COLLAUDO_PRESSIONE"],
+            "planner_eligible": True,
+            "signals": {
+                "has_henn": True,
+                "primary_zaw_station": "ZAW1",
+                "zaw_passes": 1,
+                "has_zaw2": False,
+                "has_pidmill": True,
+                "cp_required": True,
+            },
+            "criticalities": [],
+            "tl_action": "Seguire route confermata.",
+        }
+
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", fake_summary)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "12100?",
+            "context": {"article": "12100"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    answer = data["answer"]
+
+    assert "Azione:" in answer
+    assert "Vincoli:" in answer
+    assert "HENN" in answer
+    assert "ZAW1" in answer
+    assert "PIDMILL" in answer
+    assert "CP" in answer or "collaudo" in answer.lower()
+
+
+def test_tl_chat_rendering_turn_fallback_uses_non_decido_sections():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Cosa faccio partire adesso?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    answer = data["answer"]
+
+    assert "NON DECIDO" in answer
+    assert "DATO MANCANTE:" in answer
+    assert "DOMANDA TL:" in answer
+    assert "codice articolo" in answer.lower()
+    assert "ordine" in answer.lower()
+    assert "lotto" in answer.lower()

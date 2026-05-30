@@ -157,7 +157,7 @@ def _format_operational_answer(
     if route:
         parts.append(_sentence(f"Route: {route}"))
 
-    constraint_parts = list(constraints)
+    constraint_parts = [str(item).strip() for item in constraints if str(item).strip()]
     if note:
         constraint_parts.append(note)
 
@@ -166,6 +166,11 @@ def _format_operational_answer(
 
     if action:
         parts.append(_sentence(f"Azione: {action}"))
+
+    if confidence != "CERTO":
+        confirmation = "richiesta"
+        parts.append("Rischio: verificare stato operativo.")
+        parts.append(_sentence(f"Conferma: {confirmation}"))
 
     return " ".join(parts)
 
@@ -996,7 +1001,11 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
         answer=(
             "Domanda turno senza articolo o contesto operativo sufficiente. "
             "Non genero priorità automatica senza codice articolo, ordine, lotto, "
-            "stato board o evento aperto confermato."
+            "stato board o evento aperto confermato. "
+            "NON DECIDO: contesto operativo insufficiente. "
+            "MOTIVO: mancano dati minimi per una priorità affidabile. "
+            "DATO MANCANTE: codice articolo, ordine, lotto, stato board o evento aperto. "
+            "DOMANDA TL: quale codice articolo, ordine, lotto o evento devo valutare?"
         ),
         confidence="DA_VERIFICARE",
         risk=(
