@@ -18,6 +18,7 @@ LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.j
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
 TL_REAL_SPEC_INTAKE = ROOT / "data" / "local_reports" / "tl_real_spec_intake" / "TL_REAL_SPEC_INTAKE_001.json"
 ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "article_route_matrix.preview.json"
+FAMILY_REGISTRY = ROOT / "data" / "backend" / "app" / "registry" / "prometeo_famiglie.json"
 SPECS_ROOT = ROOT / "specs_finitura"
 
 
@@ -101,6 +102,66 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
             output[str(code).strip().upper()] = payload
 
     return output
+
+
+def _load_family_registry() -> dict[str, dict[str, Any]]:
+    if not FAMILY_REGISTRY.exists():
+        return {}
+
+    try:
+        data = json.loads(FAMILY_REGISTRY.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    if not isinstance(data, dict):
+        return {}
+
+    return {
+        str(k).strip().upper(): v
+        for k, v in data.items()
+        if isinstance(v, dict)
+    }
+
+
+def _extract_family_from_question(question: str) -> str:
+    normalized = question.strip().upper()
+    registry = _load_family_registry()
+
+    for family in registry:
+        if family in normalized:
+            return family
+
+    return ""
+
+
+def _response_from_family_registry(
+    family: str,
+    payload: dict[str, Any],
+) -> TLChatResponse:
+    descrizione = _clean(payload.get("descrizione"))
+    componenti = payload.get("componenti_comuni") or []
+    postazioni = payload.get("postazioni_abilitate") or []
+
+    componenti_txt = ", ".join(map(str, componenti)) or "nessuno"
+    postazioni_txt = ", ".join(map(str, postazioni)) or "nessuna"
+
+    answer = (
+        f"{family}"
+        + (f" — {descrizione}." if descrizione else ".")
+        + f" Componenti comuni: {componenti_txt}."
+        + f" Postazioni: {postazioni_txt}."
+    )
+
+    return TLChatResponse(
+        ok=True,
+        answer=answer,
+        confidence="CERTO",
+        risk=None,
+        recommended_action=None,
+        requires_confirmation=False,
+        technical_details_hidden=True,
+    )
+
 
 
 def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
@@ -569,7 +630,13 @@ def _response_for_densification_candidates(staging: dict[str, Any]) -> TLChatRes
 def _requested_lifecycle_status_from_question(question: str) -> str | None:
     normalized = question.strip().lower()
 
-    if "quali" not in normalized or "codici" not in normalized:
+    asks_codes = (
+        "codici" in normalized
+        or "lista" in normalized
+        or "elenco" in normalized
+    )
+
+    if not asks_codes:
         return None
 
     if (
@@ -956,6 +1023,104 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
 
 
+def _question_asks_pidmill_dima(question: str) -> bool:
+    normalized = question.strip().lower()
+
+    asks_dima = (
+        "dima" in normalized
+        or "dime" in normalized
+        or "tool" in normalized
+        or "sagoma" in normalized
+    )
+
+    return asks_dima and "pidmill" in normalized
+
+
+def _extract_pidmill_dime(metadata: dict[str, Any]) -> list[str]:
+    values: list[str] = []
+
+    linked_bom = metadata.get("linked_bom")
+    if isinstance(linked_bom, list):
+        for item in linked_bom:
+            if not isinstance(item, dict):
+                continue
+            code = _clean(item.get("component"))
+            description = _clean(item.get("description")).lower()
+            if code.upper().startswith("BAT") and (
+                "pidmill" in description
+                or "sagoma" in description
+                or "attrezzatura" in description
+            ):
+                values.append(code)
+
+    route_steps = metadata.get("route_steps")
+    if isinstance(route_steps, list):
+        for step in route_steps:
+            if not isinstance(step, dict):
+                continue
+
+            station = _clean(step.get("station")).upper()
+            note = _clean(step.get("note"))
+
+            if station != "PIDMILL":
+                continue
+
+            import re
+            match = re.search(r"\bsagoma\s+(\d{1,3})\b", note, flags=re.IGNORECASE)
+            if match:
+                values.append(f"BAT{int(match.group(1)):03d}")
+
+    components = metadata.get("components")
+    if isinstance(components, list):
+        for item in components:
+            code = ""
+            if isinstance(item, str):
+                code = _clean(item)
+            elif isinstance(item, dict):
+                code = _clean(item.get("code") or item.get("component") or item.get("article"))
+
+            if code.upper().startswith("BAT"):
+                values.append(code)
+
+    return list(dict.fromkeys(values))
+
+
+def _response_for_pidmill_dima(article: str, metadata: dict[str, Any]) -> TLChatResponse:
+    dime = _extract_pidmill_dime(metadata)
+
+    if not dime:
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"{article}\n\n"
+                "DIMA PIDMILL\n\n"
+                "NON DISPONIBILE NEL PROFILO ATTIVO."
+            ),
+            confidence="DA_VERIFICARE",
+            risk=None,
+            recommended_action=None,
+            requires_confirmation=False,
+            technical_details_hidden=True,
+        )
+
+    label = "DIMA PIDMILL" if len(dime) == 1 else "DIME PIDMILL"
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            f"{article}\n\n"
+            f"{label}:\n"
+            + ", ".join(dime)
+        ),
+        confidence="CERTO",
+        risk=None,
+        recommended_action=None,
+        requires_confirmation=False,
+        technical_details_hidden=True,
+    )
+
+
+
 def _question_asks_components(question: str) -> bool:
     normalized = question.strip().lower()
 
@@ -983,19 +1148,34 @@ def _response_for_components(article: str, metadata: dict[str, Any]) -> TLChatRe
 
     values: list[str] = []
 
+    excluded_prefixes = ("CRT", "CRM", "BAT")
+    excluded_exact = {"SUPPORTO", "A1"}
+
     for item in components:
+        code = None
+
         if isinstance(item, dict):
             code = _clean(
                 item.get("code")
                 or item.get("component")
                 or item.get("article")
             )
-            if code:
-                values.append(code)
+
         elif isinstance(item, str):
-            clean = _clean(item)
-            if clean:
-                values.append(clean)
+            code = _clean(item)
+
+        if not code:
+            continue
+
+        normalized = code.upper()
+
+        if normalized in excluded_exact:
+            continue
+
+        if normalized.startswith(excluded_prefixes):
+            continue
+
+        values.append(code)
 
     values = list(dict.fromkeys(values))
 
@@ -1106,6 +1286,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         local_specs_metadata = _load_local_specs_metadata(article)
         if local_specs_metadata:
 
+            if _question_asks_pidmill_dima(question):
+                return _response_for_pidmill_dima(
+                    article,
+                    local_specs_metadata,
+                )
+
             if _question_asks_components(question):
                 return _response_for_components(
                     article,
@@ -1136,12 +1322,26 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
         return TLChatResponse(
             ok=True,
-            answer=f"Il codice {article} non è presente nel lifecycle registry della memoria reparto.",
+            answer=(
+                f"{article}\n\n"
+                "NON DISPONIBILE NEL PROFILO ATTIVO."
+            ),
             confidence="DA_VERIFICARE",
-            risk="Stato vita articolo non noto alla TL Chat.",
-            recommended_action="Verificare articolo tramite preview Codici, lifecycle registry o profilo articolo.",
+            risk=None,
+            recommended_action=None,
             requires_confirmation=True,
         )
+
+    family = _extract_family_from_question(question)
+    if family:
+        registry = _load_family_registry()
+        payload = registry.get(family)
+
+        if payload:
+            return _response_from_family_registry(
+                family,
+                payload,
+            )
 
     if not article and _question_asks_zaw_interchangeability(question):
         return TLChatResponse(

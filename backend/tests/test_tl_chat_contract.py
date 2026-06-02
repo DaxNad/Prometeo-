@@ -125,7 +125,7 @@ def test_tl_chat_contract_unknown_article_stays_da_verificare(monkeypatch, tmp_p
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
-    assert "non è presente nel lifecycle registry" in data["answer"]
+    assert "NON DISPONIBILE NEL PROFILO ATTIVO" in data["answer"]
     assert "git" not in data["answer"].lower()
     assert "pytest" not in data["answer"].lower()
     assert "guard" not in data["answer"].lower()
