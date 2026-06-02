@@ -1126,6 +1126,8 @@ def _question_asks_components(question: str) -> bool:
 
     return (
         "component" in normalized
+        or "manicotto" in normalized
+        or "manicotti" in normalized
         or "distinta" in normalized
         or "bom" in normalized
         or ("lista" in normalized and "codic" in normalized)
@@ -1190,13 +1192,18 @@ def _response_for_components(article: str, metadata: dict[str, Any]) -> TLChatRe
             technical_details_hidden=True,
         )
 
+    confidence = _resolve_tl_chat_confidence(
+        metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
+    )
+    requires_confirmation = confidence != "CERTO"
+
     return TLChatResponse(
         ok=True,
         answer=f"{article} — componenti: " + ", ".join(values) + ".",
-        confidence="CERTO",
+        confidence=confidence,
         risk=None,
         recommended_action=None,
-        requires_confirmation=False,
+        requires_confirmation=requires_confirmation,
         technical_details_hidden=True,
     )
 
