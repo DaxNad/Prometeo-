@@ -1023,6 +1023,136 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
 
 
+
+def _question_asks_why(question: str) -> bool:
+    normalized = question.strip().lower()
+
+    return (
+        "perché" in normalized
+        or "perche" in normalized
+        or "motivo" in normalized
+        or "come mai" in normalized
+        or normalized.startswith("why ")
+    )
+
+
+def _response_for_article_why_question(
+    article: str,
+    question: str,
+    metadata: dict[str, Any],
+) -> TLChatResponse | None:
+    normalized = question.strip().lower()
+
+    confidence = _resolve_tl_chat_confidence(
+        metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
+    )
+    route_status = str(metadata.get("route_status") or "DA_VERIFICARE").upper()
+    operational_class = str(metadata.get("operational_class") or "DA_VERIFICARE").upper()
+    planner_eligible = bool(metadata.get("planner_eligible"))
+    planner_admission_status = _clean(metadata.get("planner_admission_status")).upper()
+
+    constraints = metadata.get("constraints") if isinstance(metadata.get("constraints"), dict) else {}
+    primary_zaw = _clean(constraints.get("primary_zaw_station")).upper()
+    has_zaw2 = constraints.get("has_zaw2")
+    zaw_passes = constraints.get("zaw_passes")
+    zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
+
+    asks_zaw2 = "zaw2" in normalized or "zaw 2" in normalized
+    asks_zaw1 = "zaw1" in normalized or "zaw 1" in normalized
+    asks_planner = (
+        "planner_eligible" in normalized
+        or "planner eligible" in normalized
+        or "planner" in normalized
+        or "pianific" in normalized
+    )
+
+    if asks_zaw2 or asks_zaw1:
+        if primary_zaw or has_zaw2 is False:
+            reasons: list[str] = []
+
+            if primary_zaw:
+                reasons.append(f"il metadata articolo indica primary_zaw_station={primary_zaw}")
+
+            if isinstance(zaw_passes, int) and zaw_passes > 1:
+                reasons.append(
+                    f"sono indicati {zaw_passes} passaggi su {primary_zaw or 'ZAW1'}; doppio passaggio non significa ZAW2"
+                )
+
+            if has_zaw2 is False:
+                reasons.append("il metadata articolo indica has_zaw2=false")
+
+            if zaw_specificity == "DA_VERIFICARE":
+                reasons.append("la specificità ZAW è marcata DA_VERIFICARE, quindi non va promossa a certezza automatica")
+
+            if not reasons:
+                reasons.append("il profilo attivo non contiene evidenza sufficiente per usare ZAW2")
+
+            return TLChatResponse(
+                ok=True,
+                answer=(
+                    f"{article} — ZAW2 non va usata come alternativa automatica perché "
+                    + "; ".join(reasons)
+                    + "."
+                ),
+                confidence=confidence,
+                risk=(
+                    "ZAW1 e ZAW2 non sono intercambiabili: usare ZAW2 senza evidenza esplicita "
+                    "può alterare la route reale."
+                ),
+                recommended_action=(
+                    f"Usare {primary_zaw or 'la ZAW indicata dal profilo'}; chiedere conferma TL solo se "
+                    "serve cambiare postazione o se emerge una fonte reale discordante."
+                ),
+                requires_confirmation=confidence != "CERTO" or zaw_specificity == "DA_VERIFICARE",
+                technical_details_hidden=True,
+            )
+
+    if asks_planner:
+        if planner_eligible is False:
+            reason_bits = [
+                f"classe operativa={operational_class}",
+                f"route_status={route_status}",
+            ]
+
+            if planner_admission_status:
+                reason_bits.append(f"planner_admission_status={planner_admission_status}")
+
+            return TLChatResponse(
+                ok=True,
+                answer=(
+                    f"{article} — planner_eligible=false perché "
+                    + "; ".join(reason_bits)
+                    + ". Route confermata e ammissione planner sono due cose diverse: "
+                    "un articolo può essere consultabile o avere route nota senza generare priorità automatica."
+                ),
+                confidence=confidence,
+                risk=(
+                    "Non promuovere automaticamente un articolo in pianificazione solo perché la route è leggibile."
+                ),
+                recommended_action=(
+                    "Usare il profilo come riferimento operativo; pianificare solo con ordine attivo, richiesta esplicita "
+                    "o conferma TL coerente con le regole planner."
+                ),
+                requires_confirmation=True,
+                technical_details_hidden=True,
+            )
+
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"{article} — planner_eligible=true perché il profilo attivo è ammesso al planner "
+                f"con classe operativa={operational_class} e route_status={route_status}. "
+                "Questo non significa produzione automatica: serve comunque ordine attivo o richiesta operativa."
+            ),
+            confidence=confidence,
+            risk="Planner eligibility non equivale ad avvio automatico della produzione.",
+            recommended_action="Usare solo dentro il normale flusso ordine/turno e con override TL tracciabile se necessario.",
+            requires_confirmation=False,
+            technical_details_hidden=True,
+        )
+
+    return None
+
 def _question_asks_pidmill_dima(question: str) -> bool:
     normalized = question.strip().lower()
 
@@ -1292,6 +1422,15 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     if article:
         local_specs_metadata = _load_local_specs_metadata(article)
         if local_specs_metadata:
+
+            if _question_asks_why(question):
+                why_response = _response_for_article_why_question(
+                    article,
+                    question,
+                    local_specs_metadata,
+                )
+                if why_response:
+                    return why_response
 
             if _question_asks_pidmill_dima(question):
                 return _response_for_pidmill_dima(
