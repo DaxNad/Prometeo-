@@ -290,7 +290,17 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         else:
             constraints_text.append(f"{primary_zaw} obbligatorio; non usare ZAW2 come alternativa automatica")
 
-    if has_zaw2 is False:
+    should_emit_zaw2_excluded = (
+        has_zaw2 is False
+        and (
+            bool(primary_zaw)
+            or constraints.get("has_zaw") is True
+            or constraints.get("has_zaw1") is True
+            or constraints.get("do_not_infer_zaw2") is True
+        )
+    )
+
+    if should_emit_zaw2_excluded:
         constraints_text.append("ZAW2 esclusa")
 
     zaw_specificity = _clean(constraints.get("zaw_station_specificity")).upper()
