@@ -268,3 +268,96 @@ def test_practical_q7_12402_verification_respects_customer_request_only(isolated
     assert "fuori produzione standard" in data["answer"]
     assert "richiesta cliente" in _combined(data).lower()
     assert "non pianificare automaticamente" in data["risk"]
+
+
+def test_practical_q_why_zaw2_excluded_uses_metadata_reason(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "12100"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "12100",
+                "confidence": "CERTO",
+                "route_status": "CERTO",
+                "operational_class": "STANDARD",
+                "planner_eligible": True,
+                "constraints": {
+                    "primary_zaw_station": "ZAW1",
+                    "has_zaw2": False,
+                    "zaw_passes": 1,
+                },
+                "route_steps": [
+                    {"station": "GUAINA"},
+                    {"station": "MARCATURA"},
+                    {"station": "HENN"},
+                    {"station": "ZAW1"},
+                    {"station": "PIDMILL"},
+                    {"station": "CP"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("perché ZAW2 è esclusa per 12100?")
+    _assert_operational_shape(data)
+
+    combined = _combined(data).lower()
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "12100" in data["answer"]
+    assert "perché" in data["answer"]
+    assert "primary_zaw_station=zaw1" in combined
+    assert "has_zaw2=false" in combined
+    assert "non va usata come alternativa automatica" in combined
+    assert "route:" not in data["answer"].lower()
+
+
+def test_practical_q_why_planner_false_explains_admission_not_profile_dump(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "12097"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "12097",
+                "confidence": "CERTO",
+                "route_status": "CERTO",
+                "operational_class": "STANDARD",
+                "planner_eligible": False,
+                "planner_admission_status": "BLOCKED",
+                "constraints": {
+                    "primary_zaw_station": "ZAW1",
+                    "has_zaw2": False,
+                    "has_pidmill": True,
+                    "cp_required": True,
+                },
+                "route_steps": [
+                    {"station": "LAVAGGIO"},
+                    {"station": "CONTROLLO_VISIVO"},
+                    {"station": "GUAINA"},
+                    {"station": "MARCATURA"},
+                    {"station": "HENN"},
+                    {"station": "ZAW1"},
+                    {"station": "PIDMILL"},
+                    {"station": "CP"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("perché planner_eligible=false per 12097?")
+    _assert_operational_shape(data)
+
+    combined = _combined(data).lower()
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "12097" in data["answer"]
+    assert "planner_eligible=false" in combined
+    assert "route confermata e ammissione planner sono due cose diverse" in combined
+    assert "route:" not in data["answer"].lower()
+
