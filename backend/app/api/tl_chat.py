@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
+from app.domain.human_checkpoint import consultation
 from app.semantic_registry import resolve_confidence
 from app.services.pattern_learning_registry import find_patterns_by_station
 
@@ -459,6 +460,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
     status = _clean(payload.get("status")).upper() or "SCONOSCIUTO"
     note = _clean(payload.get("note"))
     source = _clean(payload.get("source"))
+    checkpoint = consultation()
 
     if status == "NEW_ENTRY":
         return TLChatResponse(
@@ -467,7 +469,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="INFERITO",
             risk="Codice nuovo: va densificato con priorità ma confermato prima dello staging.",
             recommended_action="Verifica TL e poi priorità alta di densificazione.",
-            requires_confirmation=True,
+            requires_confirmation=checkpoint.requires_confirmation,
         )
 
     if status == "FUORI_PRODUZIONE":
@@ -477,7 +479,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="INFERITO",
             risk="Codice non prioritario per densificazione operativa; evitare promozione automatica.",
             recommended_action="Non portare in staging salvo conferma TL esplicita.",
-            requires_confirmation=True,
+            requires_confirmation=checkpoint.requires_confirmation,
         )
 
     if _is_customer_request_only_status(status):
@@ -490,7 +492,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="INFERITO",
             risk="Codice non standard: non pianificare automaticamente senza ordine o richiesta cliente.",
             recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
-            requires_confirmation=True,
+            requires_confirmation=checkpoint.requires_confirmation,
         )
 
     if status == "ATTIVO":
@@ -500,7 +502,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="INFERITO",
             risk="Stato reparto presente ma da incrociare con BOM, Codici e route prima di scritture.",
             recommended_action="Procedere con preview e conferma TL prima dello staging.",
-            requires_confirmation=True,
+            requires_confirmation=checkpoint.requires_confirmation,
         )
 
     if status == "DA_VERIFICARE":
@@ -512,7 +514,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
             confidence="DA_VERIFICARE",
             risk="Lifecycle articolo non confermato: non è ancora classificato come attivo, fuori produzione o new entry.",
             recommended_action="Verifica TL richiesta prima di staging.",
-            requires_confirmation=True,
+            requires_confirmation=checkpoint.requires_confirmation,
         )
 
     return TLChatResponse(
@@ -521,7 +523,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
         confidence="DA_VERIFICARE",
         risk="Stato lifecycle non interpretabile.",
         recommended_action="Correggere o confermare lo stato articolo nel registry reparto.",
-        requires_confirmation=True,
+        requires_confirmation=checkpoint.requires_confirmation,
     )
 
 
