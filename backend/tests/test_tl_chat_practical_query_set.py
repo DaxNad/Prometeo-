@@ -361,3 +361,99 @@ def test_practical_q_why_planner_false_explains_admission_not_profile_dump(isola
     assert "route confermata e ammissione planner sono due cose diverse" in combined
     assert "route:" not in data["answer"].lower()
 
+
+def test_practical_q_wintec_article_does_not_emit_zaw_noise(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50042"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50042",
+                "confidence": "DA_VERIFICARE",
+                "route_status": "DA_VERIFICARE",
+                "operational_class": "DA_VERIFICARE",
+                "planner_eligible": False,
+                "famiglia_tecnica": "WINTEC_FORNO_PLASTICA_AMG_MARCATURA",
+                "components": ["468772", "917377"],
+                "packaging": {
+                    "imballo": "50563",
+                    "sacchetto": "917377",
+                    "quantita_per_imballo": 120
+                },
+                "constraints": {
+                    "has_wintec": True,
+                    "has_forno_plastica_amg": True,
+                    "has_henn": False,
+                    "has_pidmill": False,
+                    "has_zaw1": False,
+                    "has_zaw2": False,
+                    "do_not_infer_zaw": True,
+                    "cp_required": False
+                },
+                "route_steps": [
+                    {"seq": 1, "station": "CONTROLLO_VISIVO", "status": "CERTO_DA_SPECIFICA"},
+                    {"seq": 2, "station": "FORNO", "status": "CERTO_DA_SPECIFICA"},
+                    {"seq": 3, "station": "WINTEC", "status": "CERTO_DA_SPECIFICA"},
+                    {"seq": 4, "station": "MARCATURA", "status": "CERTO_DA_SPECIFICA"},
+                    {"seq": 5, "station": "ASSEMBLAGGIO", "status": "CERTO_DA_SPECIFICA"},
+                    {"seq": 6, "station": "SACCHETTO", "status": "CERTO_DA_SPECIFICA"}
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("50042?")
+    _assert_operational_shape(data)
+
+    assert "50042" in data["answer"]
+    assert "WINTEC" in data["answer"]
+    assert "ZAW2 esclusa" not in data["answer"]
+    assert "ZAW2" not in data["answer"]
+
+
+def test_practical_q_zaw_article_still_emits_zaw2_excluded_when_relevant(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "12100"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "12100",
+                "confidence": "CERTO",
+                "route_status": "CERTO",
+                "operational_class": "STANDARD",
+                "planner_eligible": True,
+                "constraints": {
+                    "has_henn": True,
+                    "has_pidmill": True,
+                    "has_zaw": True,
+                    "has_zaw1": True,
+                    "has_zaw2": False,
+                    "primary_zaw_station": "ZAW1",
+                    "do_not_infer_zaw2": True,
+                    "cp_required": True
+                },
+                "route_steps": [
+                    {"seq": 1, "station": "GUAINA", "status": "CERTO"},
+                    {"seq": 2, "station": "MARCATURA", "status": "CERTO"},
+                    {"seq": 3, "station": "HENN", "status": "CERTO"},
+                    {"seq": 4, "station": "ZAW1", "status": "CERTO"},
+                    {"seq": 5, "station": "PIDMILL", "status": "CERTO"},
+                    {"seq": 6, "station": "CP", "status": "CERTO"}
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("12100?")
+    _assert_operational_shape(data)
+
+    assert "12100" in data["answer"]
+    assert "ZAW1" in data["answer"]
+    assert "ZAW2 esclusa" in data["answer"]
+
