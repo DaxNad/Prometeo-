@@ -1881,3 +1881,42 @@ Funzione: mantenere visibili rischio di deriva nicchia, rischio di overengineeri
 
 Questo documento è uno specchio, non una roadmap, non una nuova governance e non un backlog automatico.
 <!-- PROMETEO_SUMMA_REFLECTION_FIRST_VIEW_END -->
+
+---
+
+# PROMETEO — PRIMA LETTURA OBBLIGATORIA
+
+Ogni lavoro PROMETEO deve iniziare leggendo e rispettando questi documenti:
+
+1. `docs/PROMETEO_MASTER.md`
+2. `docs/LLM_GOVERNANCE_PROMETEO.md`
+3. `docs/AI_STUDY_BACKLOG.md`
+4. documento capability/eval corrente, se presente
+
+## Gate operativo iniziale
+
+Prima di proporre modifiche:
+
+- definire capability target
+- preservare Order → Route → Station → ProductionEvent
+- una capability alla volta
+- no nuova architettura non necessaria
+- no workaround temporanei
+- no fine-tuning prematuro
+- no agenti liberi
+- retrieval, regole, guardrail ed eval prima dell’AI libera
+- proteggere dati reali, specs_finitura, SMF, `.env`
+- nessun push diretto su main
+- branch dedicato, PR, check verdi
+
+## Formula operativa
+
+Contesto locale autorevole
+→ retrieval minimo
+→ output controllato
+→ validazione
+→ eval
+→ audit
+→ conferma umana quando serve
+
+---
