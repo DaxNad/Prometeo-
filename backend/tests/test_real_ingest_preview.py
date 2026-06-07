@@ -499,3 +499,126 @@ def test_real_article_profile_endpoint_does_not_bootstrap_missing_smf_dir(tmp_pa
     assert "missing_bom_specs" in data["discrepancies"]
     assert not missing_dir.exists()
 
+
+def test_real_ingest_order_preview_default_does_not_commit():
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order",
+        json={
+            "order_id": "REAL-PREVIEW-COMMIT-GUARD-001",
+            "cliente": "TEST",
+            "codice": "12056",
+            "qta": 10,
+            "due_date": "2026-05-10",
+            "priority": "MEDIA",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["validated"] is True
+    assert data["committed"] is False
+    assert data["write"] is None
+    assert "nessuna scrittura" in data["note"]
+
+
+def test_real_ingest_order_commit_true_blocks_invalid_payload_without_write(monkeypatch):
+    called = {"value": False}
+
+    def _fake_write_extracted_order_to_smf(payload):
+        called["value"] = True
+        return {"ok": True}
+
+    monkeypatch.setattr(
+        real_ingest_api,
+        "write_extracted_order_to_smf",
+        _fake_write_extracted_order_to_smf,
+    )
+
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order?commit=true",
+        json={
+            "order_id": "REAL-PREVIEW-COMMIT-GUARD-002",
+            "cliente": "TEST",
+            "codice": "12056",
+            "qta": 0,
+            "due_date": "2026-05-10",
+            "priority": "MEDIA",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is False
+    assert data["validated"] is True
+    assert data["committed"] is False
+    assert data["write"] is None
+    assert "qta_not_positive" in data["validation"]["blocking_errors"]
+    assert data["note"] == "Scrittura bloccata: SMFRow non valida"
+    assert called["value"] is False
+
+
+def test_real_ingest_order_commit_true_calls_controlled_writer(monkeypatch):
+    captured = {}
+
+    def _fake_write_extracted_order_to_smf(payload):
+        captured["payload"] = payload
+        return {
+            "ok": True,
+            "write_mode": "append_order",
+            "smf_write": {
+                "ok": True,
+                "mode": "append_order",
+                "result_type": "update_not_found_fallback_append",
+            },
+        }
+
+    monkeypatch.setattr(
+        real_ingest_api,
+        "write_extracted_order_to_smf",
+        _fake_write_extracted_order_to_smf,
+    )
+
+    client = _client_with_code_registry()
+
+    response = client.post(
+        "/real/ingest-order?commit=true",
+        json={
+            "order_id": "REAL-PREVIEW-COMMIT-GUARD-003",
+            "cliente": "TEST",
+            "codice": "12056",
+            "qta": 10,
+            "due_date": "2026-05-10",
+            "priority": "ALTA",
+            "route": ["ZAW-1", "CP"],
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["validated"] is True
+    assert data["committed"] is True
+    assert data["write"]["write_mode"] == "append_order"
+    assert data["note"] == "Scrittura SMF eseguita tramite writer controllato"
+
+    assert captured["payload"] == {
+        "order_id": "REAL-PREVIEW-COMMIT-GUARD-003",
+        "cliente": "TEST",
+        "codice": "12056",
+        "qta": 10.0,
+        "due_date": "2026-05-10",
+        "priority": "ALTA",
+        "postazione": "ZAW-1",
+        "source_type": "real_ingest",
+        "note": "route=['ZAW-1', 'CP']; origine=REAL_INGEST_PREVIEW",
+    }

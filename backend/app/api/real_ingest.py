@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.db.session import get_db
 from app.domain.article_pilot_profile import build_article_pilot_profile_from_reader
+from app.ingest.ocr_ingest import write_extracted_order_to_smf
 from app.smf.smf_adapter import MASTER_NAME, _default_smf_dir
 from app.smf.smf_reader import SMFReader
 
@@ -64,10 +65,12 @@ class RealIngestCodeValidation(BaseModel):
 class RealIngestPreviewResponse(BaseModel):
     ok: bool
     validated: bool = True
+    committed: bool = False
     error: str | None = None
     smf_row_preview: SMFRowPreview | None = None
     validation: RealIngestValidation | None = None
     code_validation: RealIngestCodeValidation | None = None
+    write: dict | None = None
     note: str = "Preview SMFRow — nessuna scrittura su SMF/database"
 
 
@@ -315,6 +318,7 @@ def _clean_route(route: list[str] | None) -> list[str]:
 @router.post("/real/ingest-order", response_model=RealIngestPreviewResponse)
 def ingest_real_order(
     payload: RealIngestOrderIn,
+    commit: bool = False,
     db: Session = Depends(get_db),  # noqa: ARG001 - reserved for future controlled write phase
     smf_reader: SMFReader = Depends(_get_smf_reader),
 ) -> RealIngestPreviewResponse:
@@ -402,12 +406,51 @@ def ingest_real_order(
     if route and route[-1] != "CP":
         validation.warnings.append("route_without_final_CP")
 
+    if commit:
+        if not validation.is_valid:
+            return RealIngestPreviewResponse(
+                ok=False,
+                validated=True,
+                committed=False,
+                smf_row_preview=smf_row_preview,
+                validation=validation,
+                code_validation=code_validation,
+                write=None,
+                note="Scrittura bloccata: SMFRow non valida",
+            )
+
+        write_payload = {
+            "order_id": smf_row_preview.id,
+            "cliente": smf_row_preview.cliente,
+            "codice": smf_row_preview.codice_articolo,
+            "qta": smf_row_preview.quantita,
+            "due_date": smf_row_preview.data_scadenza,
+            "priority": smf_row_preview.priorita,
+            "postazione": smf_row_preview.postazione_principale,
+            "source_type": "real_ingest",
+            "note": f"route={smf_row_preview.route}; origine={smf_row_preview.origine}",
+        }
+        write_result = write_extracted_order_to_smf(write_payload)
+
+        return RealIngestPreviewResponse(
+            ok=bool(write_result.get("ok")),
+            validated=True,
+            committed=bool(write_result.get("ok")),
+            smf_row_preview=smf_row_preview,
+            validation=validation,
+            code_validation=code_validation,
+            write=write_result,
+            note="Scrittura SMF eseguita tramite writer controllato",
+        )
+
     return RealIngestPreviewResponse(
         ok=validation.is_valid,
         validated=True,
+        committed=False,
         smf_row_preview=smf_row_preview,
         validation=validation,
         code_validation=code_validation,
+        write=None,
     )
 
 @router.get("/real/article-profile/{article}")
