@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import json
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 from datetime import datetime
 
-SRC = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_007/OCR_007_SPEC_DENSIFICATION_PREVIEW.json")
-OUT_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_parser_001")
+SRC = PROJECT_ROOT / "data/local_reports/ocr_007/OCR_007_SPEC_DENSIFICATION_PREVIEW.json"
+OUT_DIR = PROJECT_ROOT / "data/local_reports/ocr_parser_001"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 data = json.loads(SRC.read_text(encoding="utf-8"))
