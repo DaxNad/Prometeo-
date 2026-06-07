@@ -2,8 +2,10 @@
 import json
 from pathlib import Path
 
-SRC = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_004/OCR_004_GOVERNED_REPORT.json")
-OUT_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_005")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+SRC = PROJECT_ROOT / "data/local_reports/ocr_004/OCR_004_GOVERNED_REPORT.json"
+OUT_DIR = PROJECT_ROOT / "data/local_reports/ocr_005"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 report = json.loads(SRC.read_text(encoding="utf-8"))

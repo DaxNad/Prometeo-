@@ -1,15 +1,17 @@
 #!/bin/bash
 set -euo pipefail
 
-OUT_DIR="/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_002"
+PROJECT_ROOT="${PROMETEO_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
+
+OUT_DIR="${PROJECT_ROOT}/data/local_reports/ocr_002"
 mkdir -p "$OUT_DIR"
 
 FILES=(
-"/Users/davidepiangiolino/PROMETEO/specs_finitura/50036/50036_A1675009702_rev4.png"
-"/Users/davidepiangiolino/PROMETEO/specs_finitura/12056/12056_A2145013001_rev10.png"
-"/Users/davidepiangiolino/PROMETEO/specs_finitura/12066/12066_A2145013301_rev13.png"
-"/Users/davidepiangiolino/PROMETEO/specs_finitura/12102/12102_A2368305500_rev9.png"
-"/Users/davidepiangiolino/PROMETEO/specs_finitura/50034/50034_A1675017504_rev4.png"
+"${PROJECT_ROOT}/specs_finitura/50036/50036_A1675009702_rev4.png"
+"${PROJECT_ROOT}/specs_finitura/12056/12056_A2145013001_rev10.png"
+"${PROJECT_ROOT}/specs_finitura/12066/12066_A2145013301_rev13.png"
+"${PROJECT_ROOT}/specs_finitura/12102/12102_A2368305500_rev9.png"
+"${PROJECT_ROOT}/specs_finitura/50034/50034_A1675017504_rev4.png"
 )
 
 echo "OCR_002 batch preview"
@@ -28,9 +30,9 @@ for IMG in "${FILES[@]}"; do
 
   echo "PROCESS: $IMG"
 
-  swift /Users/davidepiangiolino/PROMETEO/tools/ocr/ocr_vision.swift "$IMG" > "$OCR_JSON"
+  swift ${PROJECT_ROOT}/tools/ocr/ocr_vision.swift "$IMG" > "$OCR_JSON"
 
-  /Users/davidepiangiolino/PROMETEO/tools/ocr/parse_ocr_spec_001.py "$OCR_JSON" >/dev/null
+  ${PROJECT_ROOT}/tools/ocr/parse_ocr_spec_001.py "$OCR_JSON" >/dev/null
 
   echo "OK: ${OCR_JSON}"
 done

@@ -2,7 +2,9 @@
 import json
 from pathlib import Path
 
-p = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_parser_001/OCR_PARSER_001_DOMAIN_PREVIEW.json")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+p = PROJECT_ROOT / "data/local_reports/ocr_parser_001/OCR_PARSER_001_DOMAIN_PREVIEW.json"
 data = json.loads(p.read_text(encoding="utf-8"))
 
 items = {str(x["article_code"]): x for x in data["items"]}

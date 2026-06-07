@@ -2,7 +2,9 @@
 import json
 from pathlib import Path
 
-base = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_002")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+base = PROJECT_ROOT / "data/local_reports/ocr_002"
 files = sorted(base.glob("*_structured.json"))
 
 def score(data):

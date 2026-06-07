@@ -4,9 +4,11 @@ import re
 import shlex
 import sys
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 from datetime import datetime
 
-OUT_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_010")
+OUT_DIR = PROJECT_ROOT / "data/local_reports/ocr_010"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_COMMANDS = {"CONFERMO", "CORREGGO", "SKIP", "DA_VERIFICARE"}

@@ -2,8 +2,10 @@
 import json
 from pathlib import Path
 
-SRC_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_003")
-OUT_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_004")
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+SRC_DIR = PROJECT_ROOT / "data/local_reports/ocr_003"
+OUT_DIR = PROJECT_ROOT / "data/local_reports/ocr_004"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def verdict(data):

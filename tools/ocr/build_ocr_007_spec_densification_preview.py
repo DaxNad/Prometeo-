@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 import json
 from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
 from datetime import datetime
 
-QUEUE = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_005/OCR_005_TL_REVIEW_QUEUE.json")
-STRUCTURED_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_003")
-OUT_DIR = Path("/Users/davidepiangiolino/PROMETEO/data/local_reports/ocr_007")
+QUEUE = PROJECT_ROOT / "data/local_reports/ocr_005/OCR_005_TL_REVIEW_QUEUE.json"
+STRUCTURED_DIR = PROJECT_ROOT / "data/local_reports/ocr_003"
+OUT_DIR = PROJECT_ROOT / "data/local_reports/ocr_007"
 OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 queue = json.loads(QUEUE.read_text(encoding="utf-8"))
