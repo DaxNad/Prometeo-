@@ -1,0 +1,32 @@
+{
+  "capability": "LOCAL_ASSIST_BRIDGE_001",
+  "mode": "read_only_proposal_only",
+  "default_model": "llama3.2:3b",
+  "allowed_actions": [
+    "summarize_terminal_output",
+    "classify_failure",
+    "suggest_next_command",
+    "draft_pr_body",
+    "draft_commit_message",
+    "explain_check_result"
+  ],
+  "forbidden_actions": [
+    "write_files",
+    "modify_repo",
+    "commit",
+    "push",
+    "merge_pr",
+    "access_secrets",
+    "read_env_files",
+    "read_real_specs",
+    "read_private_documents",
+    "execute_shell_commands"
+  ],
+  "required_output_contract": {
+    "verdict": "PASS|FAIL|DA_VERIFICARE",
+    "risk": "LOW|MEDIUM|HIGH",
+    "summary": "string",
+    "suggested_next_command": "string|null",
+    "requires_human_confirmation": true
+  }
+}
