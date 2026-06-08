@@ -110,3 +110,20 @@ def test_deterministic_fallback_all_checks_successful():
 
 def test_command_forbidden_rejects_non_string_command():
     assert local_assist.command_is_forbidden(["git", "push"]) is True
+
+
+def test_build_auto_context_text_returns_v2_context_pack_json():
+    raw = local_assist.build_auto_context_text()
+    import json
+    data = json.loads(raw)
+    assert data["capability"] == "LOCAL_ASSIST_BRIDGE_002"
+    assert data["mode"] == "safe_context_pack"
+    assert "git_status" in data["commands"]
+
+
+def test_missing_input_and_no_context_pack_returns_code_2(monkeypatch, capsys):
+    monkeypatch.setattr("sys.argv", ["local_assist.py", "--task", "test"])
+    code = local_assist.main()
+    captured = capsys.readouterr().out
+    assert code == 2
+    assert "Serve --input-file oppure --context-pack-auto" in captured
