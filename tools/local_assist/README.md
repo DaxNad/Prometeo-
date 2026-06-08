@@ -40,3 +40,18 @@ Known limitations:
 - Il fallback deterministico ha priorità sui casi noti.
 - Ogni comando suggerito richiede conferma umana.
 - Il bridge non esegue azioni: propone soltanto.
+
+## Provider abstraction
+
+LOCAL_ASSIST_BRIDGE_003 introduce provider intercambiabili mantenendo lo stesso contratto JSON.
+
+Provider attivi:
+- ollama
+- dummy
+
+Provider pianificati:
+- mlx
+- llama.cpp
+- lm-studio
+
+Il provider non può cambiare il contratto di output, non può eseguire comandi e non può bypassare i guard.

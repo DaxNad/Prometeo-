@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
-import subprocess
 import sys
 from pathlib import Path
 
@@ -13,6 +12,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICY_PATH = REPO_ROOT / "tools" / "local_assist" / "policy.json"
 SYSTEM_PROMPT_PATH = REPO_ROOT / "tools" / "local_assist" / "prompts" / "system.txt"
 CONTEXT_PACK_PATH = REPO_ROOT / "tools" / "local_assist" / "context_pack.py"
+PROVIDER_PATH = REPO_ROOT / "tools" / "local_assist" / "provider.py"
 
 
 def load_text(path: Path) -> str:
@@ -21,6 +21,15 @@ def load_text(path: Path) -> str:
 
 def load_policy() -> dict:
     return json.loads(load_text(POLICY_PATH))
+
+
+def load_provider_module():
+    spec = importlib.util.spec_from_file_location("provider", PROVIDER_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("provider module not loadable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def load_context_pack_module():
@@ -113,20 +122,9 @@ def deterministic_fallback(task: str, terminal_text: str) -> dict | None:
     return None
 
 
-def call_ollama(model: str, prompt: str) -> str:
-    result = subprocess.run(
-        ["ollama", "run", model],
-        input=prompt,
-        text=True,
-        capture_output=True,
-        check=False,
-        timeout=60,
-    )
-
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "ollama failed")
-
-    return result.stdout.strip()
+def call_model(provider: str, model: str, prompt: str) -> str:
+    module = load_provider_module()
+    return module.run_provider(provider=provider, model=model, prompt=prompt)
 
 
 FORBIDDEN_COMMAND_PATTERNS = (
@@ -217,12 +215,14 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="PROMETEO local assist bridge proposal-only CLI")
     parser.add_argument("--task", required=True)
     parser.add_argument("--model", default=None)
+    parser.add_argument("--provider", default=None)
     parser.add_argument("--input-file", required=False)
     parser.add_argument("--context-pack-auto", action="store_true")
     args = parser.parse_args()
 
     policy = load_policy()
     model = args.model or policy["default_model"]
+    provider = args.provider or policy.get("default_provider", "ollama")
     if args.context_pack_auto:
         terminal_text = build_auto_context_text()
     elif args.input_file:
@@ -244,7 +244,7 @@ def main() -> int:
 
     prompt = build_prompt(args.task, terminal_text)
     try:
-        raw = call_ollama(model, prompt)
+        raw = call_model(provider, model, prompt)
         validated = validate_output(raw)
     except Exception as exc:
         validated = {
