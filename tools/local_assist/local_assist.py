@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import subprocess
 import sys
@@ -11,6 +12,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 POLICY_PATH = REPO_ROOT / "tools" / "local_assist" / "policy.json"
 SYSTEM_PROMPT_PATH = REPO_ROOT / "tools" / "local_assist" / "prompts" / "system.txt"
+CONTEXT_PACK_PATH = REPO_ROOT / "tools" / "local_assist" / "context_pack.py"
 
 
 def load_text(path: Path) -> str:
@@ -19,6 +21,21 @@ def load_text(path: Path) -> str:
 
 def load_policy() -> dict:
     return json.loads(load_text(POLICY_PATH))
+
+
+def load_context_pack_module():
+    spec = importlib.util.spec_from_file_location("context_pack", CONTEXT_PACK_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError("context_pack module not loadable")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def build_auto_context_text() -> str:
+    module = load_context_pack_module()
+    pack = module.build_context_pack(include_diff_stats=True)
+    return json.dumps(pack, ensure_ascii=False, indent=2)
 
 
 def build_prompt(task: str, terminal_text: str) -> str:
@@ -62,6 +79,34 @@ def deterministic_fallback(task: str, terminal_text: str) -> dict | None:
             "risk": "HIGH",
             "summary": "Privacy Guard risulta fallito. Leggere il log fallito prima di qualunque patch.",
             "suggested_next_command": "gh run view <RUN_ID> --log-failed",
+            "requires_human_confirmation": True,
+        }
+
+    try:
+        pack = json.loads(terminal_text)
+    except json.JSONDecodeError:
+        pack = None
+
+    if isinstance(pack, dict) and pack.get("capability") == "LOCAL_ASSIST_BRIDGE_002":
+        git_status = (
+            pack.get("commands", {})
+            .get("git_status", {})
+            .get("stdout", "")
+            .strip()
+        )
+        if not git_status:
+            return {
+                "verdict": "PASS",
+                "risk": "LOW",
+                "summary": "Context pack generato. Working tree pulito.",
+                "suggested_next_command": None,
+                "requires_human_confirmation": True,
+            }
+        return {
+            "verdict": "DA_VERIFICARE",
+            "risk": "MEDIUM",
+            "summary": "Context pack generato. Working tree contiene modifiche: fare review diff prima di staging o commit.",
+            "suggested_next_command": "git status --short && git diff -- tools/local_assist",
             "requires_human_confirmation": True,
         }
 
@@ -172,12 +217,25 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="PROMETEO local assist bridge proposal-only CLI")
     parser.add_argument("--task", required=True)
     parser.add_argument("--model", default=None)
-    parser.add_argument("--input-file", required=True)
+    parser.add_argument("--input-file", required=False)
+    parser.add_argument("--context-pack-auto", action="store_true")
     args = parser.parse_args()
 
     policy = load_policy()
     model = args.model or policy["default_model"]
-    terminal_text = load_text(Path(args.input_file))
+    if args.context_pack_auto:
+        terminal_text = build_auto_context_text()
+    elif args.input_file:
+        terminal_text = load_text(Path(args.input_file))
+    else:
+        print(json.dumps({
+            "verdict": "DA_VERIFICARE",
+            "risk": "HIGH",
+            "summary": "Serve --input-file oppure --context-pack-auto.",
+            "suggested_next_command": None,
+            "requires_human_confirmation": True,
+        }, ensure_ascii=False, indent=2))
+        return 2
 
     fallback = deterministic_fallback(args.task, terminal_text)
     if fallback is not None:
