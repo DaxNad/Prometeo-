@@ -1,315 +1,95 @@
-# PROMETEO SYSTEM MAP v1.0
-
-## 1. Visione generale
-
-PROMETEO è una piattaforma modulare composta da backend operativo, frontend dashboard, persistenza dati, governance di sviluppo e layer AI.
-
-L’obiettivo è trasformare il sistema in una piattaforma reale di monitoraggio e orchestrazione reparto.
-
----
-
-## 2. Mappa moduli
-
-```text
-PROMETEO
-│
-├── BACKEND CORE
-│   ├── FastAPI app
-│   ├── API routers
-│   ├── business rules
-│   ├── repository layer
-│   ├── schemas
-│   └── config / db
-│
-├── EVENT ENGINE
-│   ├── event model
-│   ├── event service
-│   ├── events endpoints
-│   └── future persistence
-│
-├── SEARCH ENGINE
-│   ├── search endpoint
-│   ├── search logic
-│   ├── JSON dataset loader
-│   └── future DB search
-│
-├── FRONTEND
-│   ├── dashboard web
-│   ├── mobile / PWA layer
-│   ├── KPI views
-│   └── eventi aperti / storico
-│
-├── DATABASE LAYER
-│   ├── PostgreSQL
-│   ├── event persistence
-│   ├── KPI source data
-│   └── future operational records
-│
-├── DEVELOPMENT OS
-│   ├── master control
-│   ├── task board
-│   ├── system log
-│   ├── ADR decisions
-│   └── AI protocols
-│
-└── AI LAYER
-    ├── ATLAS Engine
-    ├── supporto decisionale
-    ├── spiegazione eventi
-    └── analisi produzione
-3. Backend Core
+# PROMETEO_SYSTEM_MAP
 
-Percorso principale:
+## 1. Visione
 
-backend/app/
+PROMETEO e un sistema human-in-the-loop di supporto decisionale operativo per Team Leader in ambiente produttivo ad alta variabilita.
 
-Componenti principali:
+PROMETEO non e un MES, non e una dashboard enterprise pesante, non e un agente autonomo, non e un planner libero.
 
-backend/app/
-├── api/
-├── data/
-├── models/
-├── services/
-├── config.py
-├── db.py
-├── main.py
-├── repository.py
-├── rules.py
-├── schemas.py
-├── search.py
-└── events.py
+PROMETEO deve aiutare il TL a interrogare il sistema, riconoscere vincoli, conflitti, rischi e priorita operative, lasciando la decisione finale al Team Leader.
 
-Funzione:
+## 2. Obiettivo finale
 
-esporre API
+Domanda TL -> recupero fonti autorizzate -> interpretazione dominio -> segnalazione vincoli/rischi/conflitti -> risposta breve e verificabile -> decisione umana tracciabile.
 
-coordinare logica applicativa
+Interfaccia primaria: TL Chat.
 
-collegare servizi, modelli e persistenza
+## 3. Architettura stabile
 
-4. Event Engine
+Architettura dominio stabile: Order -> Route -> Station -> ProductionEvent.
 
-Componenti noti:
+Architettura operativa: Specifiche / SMF / Conoscenza TL / Eventi -> Retrieval governato -> Domain Model -> ATLAS Engine -> Planner deterministico -> TL Chat -> Audit / Eval / Guardrail.
 
-backend/app/events.py
-backend/app/models/event.py
-backend/app/services/event_service.py
+ATLAS Engine segnala, confronta e spiega. Planner suggerisce. TL decide.
 
-Endpoint:
+## 4. Modello dominio
 
-/events
-/events?limit=100
-/events?open_only=true
+Entita centrali: Order, Article, Drawing, Route, Station, Phase, ProductionEvent, Component, Constraint, Family, Rule, Source, TLConfirmation.
 
-Funzione:
+Dato operativo = fonte + confidence + motivo.
 
-registrare eventi produzione
+Confidence ammessa: CERTO, INFERITO, DA_VERIFICARE.
 
-filtrare eventi aperti
+## 5. Moduli runtime
 
-preparare base per storico e KPI
+Moduli osservati: backend/app/api, backend/app/domain, backend/app/services, backend/app/repositories, backend/app/smf, backend/app/executor, backend/app/ingest, api_production, api_smf, api/tl_chat.
 
-Evoluzione prevista:
+Responsabilita: API espongono funzioni operative; Domain interpreta articoli, route, stati e vincoli; Services orchestrano logiche applicative; Repositories gestiscono accesso dati; SMF collega dati produzione; Executor resta controllato e non decisionale; Ingest/OCR acquisisce dati in modo controllato.
 
-persistenza database
+## 6. Moduli AI
 
-severità/priorità
+Moduli osservati: backend/app/atlas_engine, backend/app/ai_router, backend/app/ai_adapters, backend/app/semantic_registry, backend/app/agent_mod, backend/app/agent_runtime.
 
-assegnazione stato
+Regola: AI = supporto contestuale e spiegazione. AI != fonte autorevole. AI != planner autonomo. AI != decisore operativo.
 
-cronologia completa
+## 7. Moduli dati
 
-5. Search Engine
+Fonti dati principali: specifiche reali, metadata normalizzati, SMF, registry locali, eventi produzione, test/eval, documentazione dominio.
 
-Componenti noti:
+Gerarchia fonti: Specifica reale + conferma TL > metadata normalizzato > SMF > registry locali > BOM/cache/export/preview > inferenza modello.
 
-backend/app/api_search.py
-backend/app/search.py
-backend/app/data/
+## 8. Flussi principali
 
-Endpoint:
+TL Chat: domanda TL -> estrazione articolo/stazione/famiglia -> lettura fonti locali autorizzate -> normalizzazione confidence -> risposta breve.
 
-/search?q=...
+Planner: ordini/eventi/componenti/stazioni -> vincoli -> priorita suggerita -> azione consigliata. Il planner non decide automaticamente.
 
-Funzione:
+ATLAS Engine: contesto -> segnali -> rischi -> conflitti -> spiegazione. ATLAS Engine resta separato dal planner deterministico.
 
-interrogare dataset locali
+## 9. Autorita delle fonti
 
-restituire risultati normalizzati
+Fonte autorevole primaria: specifica di finitura reale + conferma TL.
 
-Stato attuale:
+Fonti derivate: BOM, preview, cache, export, registry temporanei, dati inferiti.
 
-endpoint attivo
+Regola: una fonte derivata non puo prevalere su specifica reale o conferma TL.
 
-cartella dati ancora vuota o non popolata operativamente
+## 10. Stato capability
 
-risultati attuali limitati o nulli
+Dominio produttivo: avanzato. Backend FastAPI: operativo. TL Chat: operativa ma da rafforzare. Planner: operativo ma da alimentare meglio. Retrieval: incompleto. Conflict Detection: debole. Eval operativo: iniziale. Documentazione sistema: da consolidare. Knowledge Graph logico: non ancora implementato come capability dedicata.
 
-Evoluzione prevista:
+## 11. Gap aperti
 
-popolamento JSON reale
+Gap principali: mappa sistema non stabilizzata; retrieval governato non centralizzato; conflict detection non primaria; eval operativo non continuo; knowledge graph logico non formalizzato; distinzione runtime/legacy/preview da rafforzare; autorita delle fonti da rendere visibile in TL Chat.
 
-successiva migrazione a fonte database
+## 12. Roadmap completamento
 
-6. Frontend / Dashboard
+Sequenza corretta: MAPPARE -> UNIFICARE -> RETRIEVAL -> CONFLICT DETECTION -> EVAL -> KNOWLEDGE GRAPH CODE.
 
-Percorsi presenti nel repository:
+Capability immediate: PROMETEO_SYSTEM_MAP_001, GOVERNED_RETRIEVAL_001, CONFLICT_DETECTION_001, TL_CHAT_EVIDENCE_MODE_001, OPERATIONAL_EVAL_LOOP_001, KNOWLEDGE_GRAPH_LOGICAL_001.
 
-frontend/
-ui/
-mobile
+## 13. Regole invarianti
 
-Funzione:
+ZAW1 e ZAW2 non sono intercambiabili. ZAW1_2 non e ZAW2. ZAW2 non va inferito da doppio passaggio ZAW. CP finale obbligatorio quando cp_required=true. COLLAUDO_VERTICALE e modalita macchina CP, non postazione separata. HENN non va inferito senza fonte confermata. Specifica reale + TL prevalgono su fonti incomplete. Non inventare route, componenti, stati o comportamenti. Planner suggerisce, TL decide. ATLAS Engine segnala e spiega, non muta il dominio direttamente.
 
-visualizzare eventi aperti
+## 14. Regole anti-regressione
 
-mostrare KPI stazioni
+Vietato: push diretto su main; modificare dati reali senza preview/diff/conferma; esporre .env o segreti; versionare immagini o specifiche private; introdurre database/UI/AI nuova senza capability chiara; confondere ATLAS Engine con Atlas Browser; trasformare TL Chat in dashboard pesante; trattare AI come fonte autorevole; espandere scope durante hardening; introdurre Knowledge Graph implementativo prima di completare la mappa logica.
 
-offrire dashboard operativa
+## 15. Come usare questa mappa
 
-Stato attuale:
+Questo file e la prima lettura obbligatoria per ChatGPT, Codex, Claude, MiMo, Agent Mod e futuri agenti PROMETEO.
 
-presente ma parziale
+Uso previsto: leggere questa mappa -> capire architettura e vincoli -> identificare capability target -> limitare scope -> proporre patch/test solo se coerenti.
 
-alcune chiamate API ancora da stabilizzare
-
-asset PWA ancora incompleti
-
-Evoluzione prevista:
-
-dashboard stabile
-
-route mobile reale
-
-icone/manifest completi
-
-PWA installabile
-
-7. Database Layer
-
-Tecnologia prevista:
-
-PostgreSQL
-
-Ruolo:
-
-persistenza eventi
-
-supporto ricerche
-
-storico operativo
-
-base dati per KPI reali
-
-Stato attuale:
-
-configurato a livello progetto
-
-non ancora sorgente primaria del sistema
-
-Obiettivo:
-
-spostare PROMETEO da logica volatile / dataset statici a persistenza reale
-
-8. Development OS
-
-Documenti chiave:
-
-board/master_control.md
-board/task_board.md
-board/system_log.md
-docs/decisions/
-ai/protocols/
-
-Ruolo:
-
-governance progetto
-
-controllo avanzamento
-
-storicizzazione decisioni
-
-protocollo operativo sviluppo
-
-Funzione architetturale:
-il Development OS non è supporto accessorio; è il layer di coordinamento del progetto.
-
-9. AI Layer — ATLAS
-
-Modulo previsto per:
-
-spiegazione eventi
-
-supporto decisionale
-
-correlazione anomalie
-
-lettura contesto produzione
-
-Ruolo futuro:
-trasformare PROMETEO da semplice backend operativo a sistema assistito da logica AI.
-
-10. Flusso logico del sistema
-Operatore / Frontend
-        ↓
-   API FastAPI
-        ↓
-Servizi applicativi
-        ↓
-Event Engine / Search Engine / KPI logic
-        ↓
-Repository / Database
-        ↓
-Dashboard / AI / storico
-11. Flusso di sviluppo
-TASK
-↓
-DECISIONE
-↓
-CODICE
-↓
-TEST
-↓
-LOG
-↓
-DEPLOY
-
-Questo flusso deve essere registrato nel Development OS.
-
-12. Priorità architetturali correnti
-
-stabilizzare search con dati reali
-
-stabilizzare frontend dashboard
-
-collegare PostgreSQL
-
-completare registri Development OS
-
-consolidare Event Engine
-
-preparare integrazione AI
-
-13. Stato del sistema
-Backend API      = ATTIVO
-Deploy Railway   = ATTIVO
-Swagger          = ATTIVO
-Event Engine     = ATTIVO
-Search Engine    = ATTIVO MA VUOTO
-Frontend         = PARZIALE
-Database         = NON ANCORA OPERATIVO
-AI Layer         = PREVISTO
-Development OS   = IMPOSTATO, DA CONSOLIDARE
-14. Ruolo del documento
-
-Questo file rappresenta la mappa architetturale ufficiale di PROMETEO.
-
-Serve per:
-
-onboarding rapido
-
-continuità tra sessioni AI
-
-controllo struttura progetto
-
-prevenzione deriva architetturale
+Criterio di successo: un agente nuovo deve capire PROMETEO in meno di 30 minuti senza ricostruire tutto da zero.
