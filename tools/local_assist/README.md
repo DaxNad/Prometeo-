@@ -55,3 +55,22 @@ Provider pianificati:
 - lm-studio
 
 Il provider non può cambiare il contratto di output, non può eseguire comandi e non può bypassare i guard.
+
+## OpenAI-compatible local provider
+
+Provider: openai-local
+
+Endpoint default:
+http://127.0.0.1:1234/v1/chat/completions
+
+Può essere usato con server locali compatibili OpenAI API, per esempio LM Studio o llama.cpp server.
+
+Variabile opzionale:
+PROMETEO_OPENAI_LOCAL_URL
+
+Nota:
+- resta provider locale
+- nessuna API esterna
+- stesso output contract
+- stesso validate_output
+- stesso fail-closed

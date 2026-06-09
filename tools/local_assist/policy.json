@@ -1,5 +1,5 @@
 {
-  "capability": "LOCAL_ASSIST_BRIDGE_003",
+  "capability": "LOCAL_ASSIST_PROVIDER_004",
   "mode": "read_only_proposal_only",
   "default_model": "llama3.2:3b",
   "allowed_actions": [
@@ -32,11 +32,11 @@
   "default_provider": "ollama",
   "supported_providers": [
     "ollama",
-    "dummy"
+    "dummy",
+    "openai-local"
   ],
   "planned_providers": [
     "mlx",
-    "llama.cpp",
-    "lm-studio"
+    "llama.cpp-native"
   ]
 }
