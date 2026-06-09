@@ -250,7 +250,7 @@ def main() -> int:
         validated = {
             "verdict": "DA_VERIFICARE",
             "risk": "HIGH",
-            "summary": f"Ollama non disponibile o errore runtime: {exc}",
+            "summary": f"Provider non disponibile o errore runtime: {exc}",
             "suggested_next_command": None,
             "requires_human_confirmation": True,
         }
