@@ -28,4 +28,50 @@ def test_unknown_provider_is_rejected():
 
 
 def test_supported_providers_are_explicit():
-    assert provider.SUPPORTED_PROVIDERS == {"ollama", "dummy"}
+    assert provider.SUPPORTED_PROVIDERS == {"ollama", "dummy", "openai-local"}
+
+
+def test_openai_local_provider_parses_compatible_response(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"choices":[{"message":{"content":"{\\"verdict\\":\\"PASS\\",\\"risk\\":\\"LOW\\",\\"summary\\":\\"ok\\",\\"suggested_next_command\\":null,\\"requires_human_confirmation\\":true}"}}]}'
+
+    def fake_urlopen(request, timeout):
+        return FakeResponse()
+
+    monkeypatch.setattr(provider.urllib.request, "urlopen", fake_urlopen)
+
+    raw = provider.run_provider("openai-local", "local-model", "prompt")
+    data = json.loads(raw)
+    assert data["verdict"] == "PASS"
+    assert data["risk"] == "LOW"
+
+
+def test_openai_local_provider_rejects_invalid_response_shape(monkeypatch):
+    class FakeResponse:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b'{"unexpected": true}'
+
+    def fake_urlopen(request, timeout):
+        return FakeResponse()
+
+    monkeypatch.setattr(provider.urllib.request, "urlopen", fake_urlopen)
+
+    try:
+        provider.run_provider("openai-local", "local-model", "prompt")
+    except RuntimeError as exc:
+        assert "openai-local invalid response shape" in str(exc)
+    else:
+        raise AssertionError("invalid response shape should fail")
