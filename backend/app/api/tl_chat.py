@@ -1276,7 +1276,32 @@ def _question_asks_components(question: str) -> bool:
     )
 
 
-def _response_for_components(article: str, metadata: dict[str, Any]) -> TLChatResponse:
+
+KNOWN_MANICOTTO_TUBE_CODES = frozenset({"12201"})
+
+
+def _question_asks_manicotto(question: str) -> bool:
+    return "manicotto" in str(question or "").strip().lower()
+
+
+def _response_for_manicotto_component(article: str, values: list[str]) -> TLChatResponse | None:
+    matches = [value for value in values if value in KNOWN_MANICOTTO_TUBE_CODES]
+
+    if not matches:
+        return None
+
+    return TLChatResponse(
+        ok=True,
+        answer=f"{article} — manicotto: {matches[0]}.",
+        confidence="CERTO",
+        risk="Fonte locale metadata/components; interpretazione TL: manicotto = tubo in gomma.",
+        recommended_action="Usare il codice manicotto indicato; verificare fisicamente solo in caso di discrepanza con specifica reale.",
+        requires_confirmation=False,
+        technical_details_hidden=True,
+    )
+
+
+def _response_for_components(article: str, metadata: dict[str, Any], question: str = "") -> TLChatResponse:
     components = metadata.get("components")
 
     if not isinstance(components, list) or not components:
@@ -1333,6 +1358,11 @@ def _response_for_components(article: str, metadata: dict[str, Any]) -> TLChatRe
             requires_confirmation=False,
             technical_details_hidden=True,
         )
+
+    if _question_asks_manicotto(question):
+        manicotto_response = _response_for_manicotto_component(article, values)
+        if manicotto_response is not None:
+            return manicotto_response
 
     confidence = _resolve_tl_chat_confidence(
         metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
@@ -1454,6 +1484,7 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
                 return _response_for_components(
                     article,
                     local_specs_metadata,
+                    question,
                 )
             if _question_asks_if_article_needs_verification(question):
                 operational_verification = _response_for_article_operational_verification(
