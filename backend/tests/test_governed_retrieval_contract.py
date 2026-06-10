@@ -62,3 +62,12 @@ def test_system_map_evidence_is_not_dropped_by_limit():
         and item["source_id"] == "docs/prometeo_system_map.md"
         for item in pack["evidence"]
     )
+
+def test_zero_limit_keeps_evidence_empty():
+    pack = build_governed_retrieval_pack(
+        "ZAW1 ZAW2 planner retrieval fonti autorizzate",
+        limit=0,
+    )
+
+    assert pack["mode"] == "GOVERNED_RETRIEVAL_001"
+    assert pack["evidence"] == []
