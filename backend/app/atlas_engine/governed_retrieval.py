@@ -54,7 +54,7 @@ def _system_map_evidence(question: str) -> list[dict[str, Any]]:
     if not normalized or not SYSTEM_MAP.exists():
         return []
 
-    text = SYSTEM_MAP.read_text(encoding="ascii")
+    text = SYSTEM_MAP.read_text(encoding="utf-8")
     wanted_terms = ("zaw", "zaw1", "zaw2", "cp", "atlas", "planner", "fonte", "retrieval")
     if not any(term in normalized for term in wanted_terms):
         return []
