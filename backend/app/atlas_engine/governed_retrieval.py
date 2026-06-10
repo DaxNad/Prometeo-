@@ -108,15 +108,19 @@ def build_governed_retrieval_pack(question: str, article: str | None = None, lim
     safe_limit = max(0, min(int(limit), 10))
 
     evidence: list[dict[str, Any]] = []
-    if normalized_question:
-        evidence.extend(_tl_memory_evidence(normalized_question, safe_limit))
-        evidence.extend(_system_map_evidence(normalized_question))
+    if normalized_question and safe_limit > 0:
+        system_map_evidence = _system_map_evidence(normalized_question)
+        tl_memory_evidence = _tl_memory_evidence(normalized_question, safe_limit)
+
+        evidence.extend(system_map_evidence[:safe_limit])
+        remaining_slots = max(0, safe_limit - len(evidence))
+        evidence.extend(tl_memory_evidence[:remaining_slots])
 
     return {
         "mode": MODE,
         "question": normalized_question,
         "article": (article or None),
-        "evidence": evidence[:safe_limit or 0],
+        "evidence": evidence,
         "constraints": list(CONSTRAINTS),
         "allowed_sources": list(ALLOWED_SOURCES),
         "blocked_sources": list(BLOCKED_SOURCES),
