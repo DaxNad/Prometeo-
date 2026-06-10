@@ -49,3 +49,16 @@ def test_governed_retrieval_does_not_import_tl_chat_runtime():
     sys.modules.pop("backend.app.api.tl_chat", None)
     build_governed_retrieval_pack("ZAW1 ZAW2")
     assert "backend.app.api.tl_chat" not in sys.modules
+
+def test_system_map_evidence_is_not_dropped_by_limit():
+    pack = build_governed_retrieval_pack(
+        "ZAW1 ZAW2 planner retrieval fonti autorizzate",
+        limit=5,
+    )
+
+    assert pack["mode"] == "GOVERNED_RETRIEVAL_001"
+    assert any(
+        item["source_type"] == "system_map"
+        and item["source_id"] == "docs/prometeo_system_map.md"
+        for item in pack["evidence"]
+    )
