@@ -457,3 +457,28 @@ def test_practical_q_zaw_article_still_emits_zaw2_excluded_when_relevant(isolate
     assert "ZAW1" in data["answer"]
     assert "ZAW2 esclusa" in data["answer"]
 
+def test_practical_q_component_intent_manicotto_50036_resolves_tube_code(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50036"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50036",
+                "confidence": "CERTO",
+                "components": ["468783", "468772", "12201"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50036?")
+    _assert_operational_shape(data)
+
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "50036" in data["answer"]
+    assert "manicotto: 12201" in data["answer"].lower()
+    assert "468772" not in data["answer"].lower()
+
