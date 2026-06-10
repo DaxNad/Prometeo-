@@ -2,9 +2,17 @@
 import json
 from pathlib import Path
 
+import pytest
+
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 
 p = PROJECT_ROOT / "data/local_reports/ocr_parser_001/OCR_PARSER_001_DOMAIN_PREVIEW.json"
+if not p.exists():
+    pytest.skip(
+        "OCR_PARSER_001 local preview report not present; run tools/ocr/build_ocr_parser_001_domain_preview.py first.",
+        allow_module_level=True,
+    )
+
 data = json.loads(p.read_text(encoding="utf-8"))
 
 items = {str(x["article_code"]): x for x in data["items"]}
