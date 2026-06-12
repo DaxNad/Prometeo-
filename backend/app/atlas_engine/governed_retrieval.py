@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.app.atlas_engine.context_retrieval import build_context_pack
+from backend.app.semantic_registry.confidence_registry import confidence_registry_as_dict
 
 MODE = "GOVERNED_RETRIEVAL_001"
 PREVIEW_CONFIDENCE = "PREVIEW_ONLY"
@@ -103,6 +104,62 @@ def _tl_memory_evidence(question: str, limit: int) -> list[dict[str, Any]]:
     return evidence
 
 
+def _semantic_confidence_evidence(question: str) -> list[dict[str, Any]]:
+    normalized = (question or "").strip().upper()
+    if not normalized:
+        return []
+
+    trigger_terms = (
+        "CONFIDENCE",
+        "CERTO",
+        "INFERITO",
+        "DA_VERIFICARE",
+        "DA VERIFICARE",
+        "BLOCCATO",
+        "STANDARD",
+        "REFERENCE_ONLY",
+        "REFERENCE",
+        "CERTEZZA",
+        "VERIFICA",
+        "VERIFICARE",
+    )
+    if not any(term in normalized for term in trigger_terms):
+        return []
+
+    registry = confidence_registry_as_dict()
+    wanted_keys = ("CERTO", "INFERITO", "DA_VERIFICARE")
+    evidence: list[dict[str, Any]] = []
+
+    for key in wanted_keys:
+        entry = registry.get(key)
+        if not entry:
+            continue
+
+        meaning = str(entry.get("meaning") or "").strip()
+        execution_admissibility = str(entry.get("execution_admissibility") or "").strip()
+        obligations = entry.get("obligations") or ()
+        obligations_text = "; ".join(str(item) for item in obligations if item)
+
+        parts = [f"{key}: {meaning}"]
+        if execution_admissibility:
+            parts.append(f"Admissibility: {execution_admissibility}")
+        if obligations_text:
+            parts.append(f"Obligations: {obligations_text}")
+
+        evidence.append(
+            _evidence_item(
+                source_id=f"semantic_registry_confidence:{key}",
+                source_type="semantic_registry_confidence",
+                authority_rank=15,
+                confidence=PREVIEW_CONFIDENCE,
+                text=" ".join(parts),
+                reason="Canonical confidence semantics from semantic registry.",
+            )
+        )
+
+    return evidence
+
+
 def build_governed_retrieval_pack(question: str, article: str | None = None, limit: int = 5) -> dict[str, Any]:
     normalized_question = (question or "").strip()
     safe_limit = max(0, min(int(limit), 10))
@@ -110,9 +167,12 @@ def build_governed_retrieval_pack(question: str, article: str | None = None, lim
     evidence: list[dict[str, Any]] = []
     if normalized_question and safe_limit > 0:
         system_map_evidence = _system_map_evidence(normalized_question)
+        semantic_confidence_evidence = _semantic_confidence_evidence(normalized_question)
         tl_memory_evidence = _tl_memory_evidence(normalized_question, safe_limit)
 
         evidence.extend(system_map_evidence[:safe_limit])
+        remaining_slots = max(0, safe_limit - len(evidence))
+        evidence.extend(semantic_confidence_evidence[:remaining_slots])
         remaining_slots = max(0, safe_limit - len(evidence))
         evidence.extend(tl_memory_evidence[:remaining_slots])
 
