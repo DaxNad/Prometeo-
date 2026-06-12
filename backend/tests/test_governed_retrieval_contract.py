@@ -71,3 +71,34 @@ def test_zero_limit_keeps_evidence_empty():
 
     assert pack["mode"] == "GOVERNED_RETRIEVAL_001"
     assert pack["evidence"] == []
+
+
+def test_confidence_question_uses_semantic_registry_confidence_source():
+    pack = build_governed_retrieval_pack(
+        "Spiegami confidence CERTO INFERITO DA_VERIFICARE",
+        limit=5,
+    )
+
+    assert any(
+        item["source_type"] == "semantic_registry_confidence"
+        and item["source_id"] == "semantic_registry_confidence:CERTO"
+        for item in pack["evidence"]
+    )
+
+    joined = " ".join(item["text"] for item in pack["evidence"])
+    assert "CERTO" in joined
+    assert "INFERITO" in joined
+    assert "DA_VERIFICARE" in joined
+
+
+def test_semantic_registry_confidence_is_preview_only_evidence():
+    pack = build_governed_retrieval_pack("confidence CERTO", limit=3)
+
+    semantic_items = [
+        item for item in pack["evidence"]
+        if item["source_type"] == "semantic_registry_confidence"
+    ]
+
+    assert semantic_items
+    assert all(item["confidence"] == "PREVIEW_ONLY" for item in semantic_items)
+    assert all(item["authority_rank"] == 15 for item in semantic_items)
