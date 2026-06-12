@@ -9,6 +9,7 @@ from fastapi import APIRouter
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
 from app.domain.human_checkpoint import consultation
+from app.atlas_engine.governed_retrieval import build_governed_retrieval_pack
 from app.semantic_registry import resolve_confidence
 from app.services.pattern_learning_registry import find_patterns_by_station
 
@@ -47,6 +48,7 @@ class TLChatResponse(BaseModel):
     recommended_action: str | None = None
     requires_confirmation: bool = False
     technical_details_hidden: bool = True
+    evidence_pack: dict[str, Any] | None = None
 
 
 def _normalize_article(value: str | None) -> str:
@@ -1572,4 +1574,11 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     - no executor
     - no technical noise in response
     """
-    return _build_contract_response(payload)
+    response = _build_contract_response(payload)
+    article = _normalize_article(payload.context.article) or _extract_article_from_question(payload.question)
+    response.evidence_pack = build_governed_retrieval_pack(
+        payload.question,
+        article=article or None,
+        limit=5,
+    )
+    return response

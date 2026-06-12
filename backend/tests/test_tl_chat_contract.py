@@ -1526,3 +1526,34 @@ def test_tl_chat_rendering_turn_fallback_uses_non_decido_sections():
     assert "codice articolo" in answer.lower()
     assert "ordine" in answer.lower()
     assert "lotto" in answer.lower()
+
+
+def test_tl_chat_attaches_governed_evidence_pack_preview_only():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Spiegami confidence CERTO INFERITO DA_VERIFICARE"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["mode"] == "TL_CHAT_CONTRACT_V1"
+    assert data["technical_details_hidden"] is True
+
+    evidence_pack = data["evidence_pack"]
+    assert evidence_pack["mode"] == "GOVERNED_RETRIEVAL_001"
+    assert evidence_pack["question"] == "Spiegami confidence CERTO INFERITO DA_VERIFICARE"
+    assert evidence_pack["article"] is None
+    assert "no LLM calls" in evidence_pack["constraints"]
+    assert "no DB writes" in evidence_pack["constraints"]
+    assert "no SMF writes" in evidence_pack["constraints"]
+
+    semantic_items = [
+        item for item in evidence_pack["evidence"]
+        if item["source_type"] == "semantic_registry_confidence"
+    ]
+    assert semantic_items
+    assert all(item["confidence"] == "PREVIEW_ONLY" for item in semantic_items)
