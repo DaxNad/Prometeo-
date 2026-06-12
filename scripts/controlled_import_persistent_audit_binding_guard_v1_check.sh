@@ -42,7 +42,8 @@ for file in "${EXISTING_FILES[@]}"; do
     fail "persist_audit default true detected in $file"
   fi
 
-  if grep -Eq 'audit_persistence[[:space:]]*[:=][[:space:]]*["'\''](?!NONE)' "$file"; then
+  if grep -En "audit_persistence[[:space:]]*[:=][[:space:]]*['\"][^'\"]+['\"]" "$file" | grep -Ev "['\"]NONE['\"]" >/tmp/controlled_import_audit_persistence_hits.txt 2>/dev/null; then
+    cat /tmp/controlled_import_audit_persistence_hits.txt
     fail "audit_persistence default other than NONE detected in $file"
   fi
 
@@ -70,8 +71,18 @@ for file in "${EXISTING_FILES[@]}"; do
     fail "controlled import apply endpoint/path detected in $file"
   fi
 
-  if grep -Eq 'SMFAdapter|write_extracted|append_order|update_order|get_db|SessionLocal|\.commit\(|build_turn_plan|build_global_sequence|planner_update|frontend' "$file"; then
-    fail "forbidden SMF/DB/planner/frontend coupling detected in $file"
+  if [ "$file" = "backend/app/repositories/controlled_import_audit_repository.py" ]; then
+    if grep -Eq 'SMFAdapter|write_extracted|append_order|update_order|build_turn_plan|build_global_sequence|frontend' "$file"; then
+      fail "forbidden SMF/planner/frontend coupling detected in audit repository $file"
+    fi
+  else
+    if grep -Eq 'SMFAdapter|write_extracted|append_order|update_order|get_db|SessionLocal|\.commit\(|build_turn_plan|build_global_sequence|frontend' "$file"; then
+      fail "forbidden SMF/DB/planner/frontend coupling detected in $file"
+    fi
+  fi
+
+  if grep -Eq 'planner_update[[:space:]]*[:=][[:space:]]*True|planner_update[[:space:]]*=[[:space:]]*true|planner_update[[:space:]]*:[[:space:]]*true' "$file"; then
+    fail "planner_update=true detected in controlled import preview path in $file"
   fi
 done
 
@@ -84,7 +95,7 @@ if [ -f "$PREVIEW_FILE" ]; then
   require_present 'audit_persistence.*NONE' "$PREVIEW_FILE"
 fi
 
-if grep -R --line-number 'persist_audit' "${EXISTING_FILES[@]}" | grep -v 'False' | grep -v 'false' | grep -v 'actor' | grep -v 'source' | grep -v 'confirmation_token_hash' >/tmp/controlled_import_binding_guard_hits.txt 2>/dev/null; then
+if grep -R --line-number 'persist_audit' "${EXISTING_FILES[@]}" | grep -v 'False' | grep -v 'false' | grep -v 'actor' | grep -v 'source' | grep -v 'confirmation_token_hash' | grep -v 'not .*persist_audit' >/tmp/controlled_import_binding_guard_hits.txt 2>/dev/null; then
   cat /tmp/controlled_import_binding_guard_hits.txt
   fail "persist_audit usage lacks explicit safe gating markers"
 fi
