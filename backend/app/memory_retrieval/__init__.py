@@ -9,6 +9,11 @@ from backend.app.memory_retrieval.runtime_preview import (
     MemoryRetrievalRuntimeResponse,
     build_memory_retrieval_preview,
 )
+from backend.app.memory_retrieval.superior_binding import (
+    MemorySuperiorBindingRequest,
+    MemorySuperiorBindingResponse,
+    build_memory_superior_binding_preview,
+)
 
 __all__ = [
     "ContextPack",
@@ -16,7 +21,10 @@ __all__ = [
     "EvidenceItem",
     "MemoryRetrievalRuntimeRequest",
     "MemoryRetrievalRuntimeResponse",
+    "MemorySuperiorBindingRequest",
+    "MemorySuperiorBindingResponse",
     "build_memory_retrieval_preview",
+    "build_memory_superior_binding_preview",
     "build_context_pack",
     "collect_memory_evidence",
 ]
