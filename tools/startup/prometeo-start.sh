@@ -8,13 +8,14 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 : "${PROMETEO_API_KEY:?ERRORE: esporta PROMETEO_API_KEY prima di avviare PROMETEO}"
 export DATABASE_URL="${DATABASE_URL:-postgresql://localhost/prometeo}"
+export PYTHONPATH="${REPO_ROOT}:${REPO_ROOT}/backend:${PYTHONPATH:-}"
 
-if lsof -i :"${BACKEND_PORT}" >/dev/null 2>&1; then
+if lsof -nP -iTCP:"${BACKEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "ERRORE: porta ${BACKEND_PORT} già occupata. Esegui prima: prometeo-stop"
   exit 1
 fi
 
-if lsof -i :"${FRONTEND_PORT}" >/dev/null 2>&1; then
+if lsof -nP -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "ERRORE: porta ${FRONTEND_PORT} già occupata. Esegui prima: prometeo-stop"
   exit 1
 fi
@@ -33,7 +34,7 @@ if ! curl -sf -H "X-API-Key: ${PROMETEO_API_KEY}" "http://127.0.0.1:${BACKEND_PO
   exit 1
 fi
 
-if ! lsof -i :"${FRONTEND_PORT}" >/dev/null 2>&1; then
+if ! lsof -nP -iTCP:"${FRONTEND_PORT}" -sTCP:LISTEN >/dev/null 2>&1; then
   echo "ERRORE: frontend non risulta in ascolto. Log:"
   echo "/tmp/prometeo-frontend.log"
   exit 1
