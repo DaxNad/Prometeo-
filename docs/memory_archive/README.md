@@ -11,6 +11,7 @@ Questo archivio serve per conservare materiale storico, strategico o collaborati
 |---|---|---|
 | PROMETEO_COLLABORAZIONE_TEMPO_PROGETTO.md | Nota su collaborazione uomo-AI, durata progetto, valutazione tempo/risorse/risultato | Archiviato |
 | PROMETEO_OCR_GOVERNED_CYCLE_CLOSURE.md | Chiusura ciclo OCR governato, PR #281/#282, capability integrate e prossimo ciclo separato | Archiviato |
+| PROMETEO_CODEX_GOVERNED_LAUNCH_PROMPT.md | Regole operative per avvio Codex governato su PROMETEO e sicurezza tool | Archiviato |
 
 ## Regola d'uso
 
