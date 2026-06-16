@@ -55,6 +55,41 @@ Esito atteso:
 - `/health`: OK
 - PostgreSQL raggiungibile
 
+### Nota Swagger / OpenAPI
+
+Swagger o OpenAPI raggiungibile non basta per dichiarare il backend sano.
+
+La pagina /docs dimostra solo che:
+
+- il processo FastAPI risponde;
+- lo schema OpenAPI e pubblicato;
+- i router risultano almeno esposti a livello documentale.
+
+Non dimostra da sola che:
+
+- PostgreSQL sia raggiungibile;
+- il database sia inizializzato correttamente;
+- SMF o servizi interni siano disponibili;
+- AI locale sia raggiungibile;
+- agent runtime sia sano;
+- gli endpoint operativi restituiscano dati validi.
+
+Checklist minima backend sano:
+
+1. /ping risponde.
+2. /health risponde e non segnala errori critici.
+3. /db/ping risponde quando previsto.
+4. /postgres/ping risponde quando il runtime usa PostgreSQL.
+5. /production/board-state restituisce JSON valido quando richiesto dal flusso TL.
+6. /agent-runtime/status risponde se agent runtime e abilitato.
+7. /ai/local/health risponde solo se il test riguarda AI locale.
+
+Regola operativa:
+
+/docs aperto equivale a OpenAPI esposto, non a backend pienamente verificato.
+
+Per dichiarare PROMETEO operativo usare sempre health endpoint, endpoint dominio e verifiche runtime coerenti con lo scenario.
+
 ## Avvio frontend
 
 Aprire un terminale dedicato al frontend.
