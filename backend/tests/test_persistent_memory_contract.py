@@ -58,6 +58,10 @@ def _read_repo_file(path: Path) -> str:
     return (ROOT / path).read_text(encoding="utf-8")
 
 
+def _relative_memory_path(path: Path) -> Path:
+    return path.relative_to(ROOT)
+
+
 def _front_matter(text: str, path: Path) -> dict[str, str]:
     lines = text.splitlines()
     assert lines, f"{path} is empty"
@@ -77,6 +81,27 @@ def _front_matter(text: str, path: Path) -> dict[str, str]:
         fields[key.strip()] = value.strip()
 
     return fields
+
+
+def _front_matter_for_path(path: Path) -> dict[str, str]:
+    return _front_matter(path.read_text(encoding="utf-8"), _relative_memory_path(path))
+
+
+def _memory_index_entries() -> dict[Path, str]:
+    entries: dict[Path, str] = {}
+    for line in _read_repo_file(Path("memory/index.md")).splitlines():
+        stripped = line.strip()
+        if not stripped.startswith("| `memory/"):
+            continue
+
+        columns = [column.strip() for column in stripped.strip("|").split("|")]
+        assert len(columns) >= 2, f"invalid memory/index.md row: {line}"
+
+        file_path = columns[0].strip("`")
+        memory_id = columns[1].strip("`")
+        entries[Path(file_path)] = memory_id
+
+    return entries
 
 
 def test_required_memory_files_exist():
@@ -131,3 +156,39 @@ def test_memory_index_lists_all_required_memory_files():
     index_text = _read_repo_file(Path("memory/index.md"))
     for path in REQUIRED_MEMORY_FILES:
         assert str(path) in index_text, f"memory/index.md does not list {path}"
+
+
+def test_memory_ids_are_unique_across_memory_files():
+    memory_ids: dict[str, Path] = {}
+    for path in _memory_markdown_files():
+        fields = _front_matter_for_path(path)
+        memory_id = fields["memory_id"]
+
+        assert memory_id not in memory_ids, (
+            f"duplicate memory_id {memory_id}: "
+            f"{memory_ids[memory_id]} and {_relative_memory_path(path)}"
+        )
+        memory_ids[memory_id] = _relative_memory_path(path)
+
+
+def test_every_governed_memory_file_is_listed_in_memory_index():
+    index_entries = _memory_index_entries()
+    indexed_paths = set(index_entries)
+
+    for path in _memory_markdown_files():
+        relative_path = _relative_memory_path(path)
+        assert relative_path in indexed_paths, f"memory/index.md does not list {relative_path}"
+
+
+def test_every_memory_index_entry_points_to_existing_file():
+    for path in _memory_index_entries():
+        assert (ROOT / path).is_file(), f"memory/index.md points to missing file: {path}"
+
+
+def test_memory_index_memory_ids_match_front_matter():
+    for path, indexed_memory_id in _memory_index_entries().items():
+        fields = _front_matter_for_path(ROOT / path)
+        assert fields["memory_id"] == indexed_memory_id, (
+            f"memory/index.md memory_id mismatch for {path}: "
+            f"index={indexed_memory_id}, front_matter={fields['memory_id']}"
+        )
