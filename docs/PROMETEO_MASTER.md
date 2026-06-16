@@ -74,6 +74,13 @@ PROMETEO è governato da due documenti primari:
 
 Qualunque sviluppo futuro deve allinearsi prima a questi due documenti.
 
+Riferimento di disciplina per la chiusura dello sviluppo:
+`docs/PROMETEO_DEVELOPMENT_CLOSURE_CANON_001.md`.
+
+Questo canone non sostituisce il MASTER e non introduce autorità semantica di dominio.
+Serve a valutare scope creep, anti-entropia, chiusura capability, agenti governati,
+eval, output strutturato e fine-tuning prematuro.
+
 ---
 
 # PROMETEO MASTER

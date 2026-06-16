@@ -4,6 +4,10 @@
 
 Questo documento è prima lettura obbligatoria per ogni lavoro PROMETEO che coinvolge AI, TL Chat, ATLAS Engine, retrieval, eval o agenti.
 
+Per la disciplina di chiusura, anti-entropia, no fine-tuning prematuro, output strutturato,
+eval prima della fiducia e tool piccoli prima di agenti, usare anche:
+`docs/PROMETEO_DEVELOPMENT_CLOSURE_CANON_001.md`.
+
 ## Architettura da preservare
 
 Order

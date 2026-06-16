@@ -260,6 +260,10 @@ Un agente deve fermarsi e chiedere review umana quando:
 
 `docs/prometeo_system_map.md` e la prima lettura obbligatoria per ogni agente.
 
+Per verificare chiusura capability, scope creep, anti-entropia, no agenti liberi,
+tool piccoli prima di agenti e criterio di stop, ogni agente deve usare anche:
+`docs/PROMETEO_DEVELOPMENT_CLOSURE_CANON_001.md`.
+
 Il System Map definisce:
 
 - visione human-in-the-loop;
