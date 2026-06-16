@@ -1,3 +1,67 @@
+# PROMETEO — PRINCIPIO FONDAMENTALE
+
+## Legge Fondativa
+
+PROMETEO esiste per trasformare conoscenza operativa reale in conoscenza strutturata, recuperabile, verificabile e riutilizzabile.
+
+Lo scopo primario del sistema non è costruire componenti AI, planner, agenti, knowledge graph o altre funzionalità avanzate.
+
+Lo scopo primario è permettere al sistema di:
+
+- acquisire nuova conoscenza;
+- classificarla;
+- collegarla al dominio;
+- conservarla;
+- recuperarla;
+- utilizzarla per rispondere correttamente alle domande operative.
+
+## Test di Priorità
+
+Ogni nuova capability, modulo, refactor, integrazione, agente, sistema AI, retrieval, planner o modifica architetturale deve essere valutata attraverso la seguente domanda:
+
+> Questa modifica aumenta la capacità di PROMETEO di acquisire, organizzare, recuperare o utilizzare conoscenza operativa reale?
+
+Se la risposta è NO, la modifica non è prioritaria.
+
+## Ciclo Fondamentale
+
+Tutte le capability devono contribuire direttamente o indirettamente al seguente ciclo:
+
+Conoscenza reale
+→ Acquisizione
+→ Classificazione
+→ Collegamento
+→ Memoria
+→ Retrieval
+→ Risposta TL
+
+## Criterio di Successo
+
+PROMETEO sarà considerato maturo quando una nuova conoscenza operativa — specifica, processo, route, regola o informazione TL:
+
+- verrà acquisita una sola volta;
+- sarà collegata al dominio corretto;
+- sarà recuperabile in modo affidabile;
+- sarà utilizzabile dal TL senza reinserimento manuale;
+- conserverà fonte, confidence e tracciabilità.
+
+## Regola Anti-Deriva
+
+In caso di conflitto tra:
+
+- nuova architettura;
+- nuova capability;
+- nuova tecnologia;
+- nuova integrazione AI;
+- nuovo refactor;
+- e il Principio Fondamentale;
+
+prevale sempre il Principio Fondamentale.
+
+La complessità è ammessa solo se aumenta la capacità del sistema di apprendere, conservare e recuperare conoscenza operativa reale.
+
+---
+
 # PRIMARY PROJECT IMPERATIVES
 
 PROMETEO è governato da due documenti primari:
