@@ -1,0 +1,297 @@
+{
+  "schema": "PROMETEO_CONTEXT_SOURCE_INDEX_001",
+  "created_on": "2026-06-16",
+  "runtime_enabled": false,
+  "status": "documental_index_only",
+  "scope": {
+    "allowed_paths": [
+      "docs/",
+      "memory/"
+    ],
+    "read_only_support_paths": [
+      "data/local_reports/"
+    ],
+    "forbidden_paths": [
+      "backend/",
+      "frontend/",
+      "runtime/",
+      "planner",
+      "database",
+      "SMF reale",
+      "specs_finitura",
+      ".env",
+      "node_modules",
+      "venv",
+      "cache operative non classificate"
+    ]
+  },
+  "authority_rules": [
+    "Real specification plus explicit Team Leader confirmation remain primary operational authority.",
+    "LLM is not an authoritative source.",
+    "ATLAS Engine signals and explains but does not mutate domain state.",
+    "Planner remains deterministic and must not read this index as runtime decision source yet.",
+    "Derived reports, previews, exports and cache files are support material, not primary truth."
+  ],
+  "domain_invariants": [
+    "Order -> Route -> Station -> ProductionEvent",
+    "LLM supports, does not decide.",
+    "Retrieval before fine-tuning.",
+    "Eval before trust.",
+    "Structured output before free text.",
+    "TL decides; system records."
+  ],
+  "sources": [
+    {
+      "id": "context_access_binding",
+      "path": "docs/PROMETEO_CONTEXT_ACCESS_BINDING_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Defines authorized context access, source hierarchy, allowed and forbidden paths.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "tl_chat_context_policy",
+        "atlas_engine_context_policy"
+      ],
+      "exists": true,
+      "bytes": 7757
+    },
+    {
+      "id": "system_map",
+      "path": "docs/PROMETEO_SYSTEM_MAP.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Primary system map and architecture orientation.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "architecture_context",
+        "tl_chat_context_policy",
+        "atlas_engine_context_policy"
+      ],
+      "exists": true,
+      "bytes": 5542
+    },
+    {
+      "id": "agent_operating_model",
+      "path": "docs/PROMETEO_AGENT_OPERATING_MODEL.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Governed agent operating model. Agents are constrained roles, not free autonomous actors.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "agent_policy",
+        "development_governance"
+      ],
+      "exists": true,
+      "bytes": 9663
+    },
+    {
+      "id": "development_closure_canon",
+      "path": "docs/PROMETEO_DEVELOPMENT_CLOSURE_CANON_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Anti-entropy canon for capability closure and governed AI/software development.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "development_governance",
+        "capability_closure"
+      ],
+      "exists": true,
+      "bytes": 7873
+    },
+    {
+      "id": "llm_governance",
+      "path": "docs/LLM_GOVERNANCE_PROMETEO.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Governance rules for LLM usage inside PROMETEO.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "llm_policy",
+        "tl_chat_context_policy",
+        "atlas_engine_context_policy"
+      ],
+      "exists": true,
+      "bytes": 2637
+    },
+    {
+      "id": "governed_retrieval",
+      "path": "docs/GOVERNED_RETRIEVAL_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Base governed retrieval direction.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval"
+      ],
+      "exists": true,
+      "bytes": 2090
+    },
+    {
+      "id": "memory_retrieval_binding_contract",
+      "path": "docs/MEMORY_RETRIEVAL_BINDING_CONTRACT_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high",
+      "role": "Contract for memory and retrieval binding.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "memory_policy"
+      ],
+      "exists": true,
+      "bytes": 5532
+    },
+    {
+      "id": "memory_retrieval_consolidation",
+      "path": "docs/MEMORY_RETRIEVAL_CONSOLIDATION_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "medium_high",
+      "role": "Memory/retrieval consolidation context.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "memory_policy"
+      ],
+      "exists": true,
+      "bytes": 3203
+    },
+    {
+      "id": "memory_retrieval_runtime_contract",
+      "path": "docs/MEMORY_RETRIEVAL_RUNTIME_CONTRACT_001.md",
+      "kind": "document",
+      "tier": "B",
+      "authority": "high_but_runtime_inactive",
+      "role": "Runtime retrieval contract. Document only in this phase.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_runtime_design_only"
+      ],
+      "exists": true,
+      "bytes": 6054
+    },
+    {
+      "id": "memory_active_context",
+      "path": "memory/active_context.md",
+      "kind": "memory_file",
+      "tier": "B",
+      "authority": "medium_high",
+      "role": "Reduced active context for PROMETEO.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "tl_chat_context_policy"
+      ],
+      "exists": true,
+      "bytes": 1415
+    },
+    {
+      "id": "memory_project_state",
+      "path": "memory/project_state.md",
+      "kind": "memory_file",
+      "tier": "B",
+      "authority": "medium_high",
+      "role": "Persistent project state snapshot.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "project_state_context"
+      ],
+      "exists": true,
+      "bytes": 1353
+    },
+    {
+      "id": "memory_domain_invariants",
+      "path": "memory/domain/invariants.md",
+      "kind": "memory_file",
+      "tier": "A_support",
+      "authority": "high_if_consistent_with_spec_and_tl",
+      "role": "Domain invariants mirror. Must never override real specification or explicit TL confirmation.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "domain_context"
+      ],
+      "exists": true,
+      "bytes": 1219
+    },
+    {
+      "id": "memory_retrieval_policy",
+      "path": "memory/retrieval/retrieval_policy.md",
+      "kind": "memory_file",
+      "tier": "B",
+      "authority": "high",
+      "role": "Memory retrieval policy.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval"
+      ],
+      "exists": true,
+      "bytes": 1241
+    },
+    {
+      "id": "memory_capability_status",
+      "path": "memory/capabilities/capability_status.md",
+      "kind": "memory_file",
+      "tier": "C",
+      "authority": "medium",
+      "role": "Capability status context. Useful for orientation, not source of domain truth.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "capability_status_context"
+      ],
+      "exists": true,
+      "bytes": 1370
+    },
+    {
+      "id": "memory_index",
+      "path": "memory/index.md",
+      "kind": "memory_file",
+      "tier": "B",
+      "authority": "medium_high",
+      "role": "Memory index.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "memory_navigation"
+      ],
+      "exists": true,
+      "bytes": 1773
+    },
+    {
+      "id": "memory_readme",
+      "path": "memory/README_MEMORY.md",
+      "kind": "memory_file",
+      "tier": "B",
+      "authority": "medium_high",
+      "role": "Memory folder documentation.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "memory_navigation"
+      ],
+      "exists": true,
+      "bytes": 1728
+    }
+  ]
+}
