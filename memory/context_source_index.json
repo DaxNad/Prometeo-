@@ -292,6 +292,34 @@
       ],
       "exists": true,
       "bytes": 1728
+    },
+    {
+      "id": "mimo_minimax_m3_binding",
+      "path": "docs/PROMETEO_MIMO_MINIMAX_M3_BINDING_001.md",
+      "kind": "document",
+      "tier": "operational_model_binding",
+      "authority": "derived_from_local_validation_report",
+      "role": "Read-only binding for MiMo MiniMax M3 validated usage rules, limits, JSON output contract, lifecycle method, and non-autonomous operating constraints.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "context_orientation",
+        "mimo_usage_guidance",
+        "model_selection",
+        "structured_output_policy",
+        "guardrail_design",
+        "source_lifecycle_method"
+      ],
+      "lifecycle_status": "active",
+      "topic_key": "mimo_minimax_m3_usage",
+      "supersedes": [],
+      "superseded_by": null,
+      "review_policy": "replace_when_newer_validation_exists",
+      "review_date": "2026-09-17",
+      "retention_rule": "delete_when_obsolete_and_replaced",
+      "obsolescence_rule": "same_topic_newer_data_supersedes_old",
+      "exists": true,
+      "bytes": 5088
     }
   ]
 }
