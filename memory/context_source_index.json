@@ -56,7 +56,9 @@
         "atlas_engine_context_policy"
       ],
       "exists": true,
-      "bytes": 7757
+      "bytes": 7757,
+      "source_id": "context_access_binding",
+      "summary": "Binding documentale minimo per accesso governato alle fonti locali PROMETEO."
     },
     {
       "id": "system_map",
@@ -73,7 +75,9 @@
         "atlas_engine_context_policy"
       ],
       "exists": true,
-      "bytes": 5542
+      "bytes": 5542,
+      "source_id": "system_map",
+      "summary": "Mappa sintetica dei componenti principali e dei confini architetturali PROMETEO."
     },
     {
       "id": "agent_operating_model",
@@ -89,7 +93,9 @@
         "development_governance"
       ],
       "exists": true,
-      "bytes": 9663
+      "bytes": 9663,
+      "source_id": "agent_operating_model",
+      "summary": "Modello operativo degli agenti PROMETEO con regole di intervento e limiti."
     },
     {
       "id": "development_closure_canon",
@@ -105,7 +111,9 @@
         "capability_closure"
       ],
       "exists": true,
-      "bytes": 7873
+      "bytes": 7873,
+      "source_id": "development_closure_canon",
+      "summary": "Principi di chiusura progressiva delle capability e riduzione scope creep."
     },
     {
       "id": "llm_governance",
@@ -122,7 +130,9 @@
         "atlas_engine_context_policy"
       ],
       "exists": true,
-      "bytes": 2637
+      "bytes": 2637,
+      "source_id": "llm_governance",
+      "summary": "Regole di governance LLM per uso controllato, retrieval, eval e guardrail."
     },
     {
       "id": "governed_retrieval",
@@ -137,7 +147,9 @@
         "future_governed_retrieval"
       ],
       "exists": true,
-      "bytes": 2090
+      "bytes": 2090,
+      "source_id": "governed_retrieval",
+      "summary": "Specifica documentale del retrieval governato e dei relativi limiti operativi."
     },
     {
       "id": "memory_retrieval_binding_contract",
@@ -153,7 +165,9 @@
         "memory_policy"
       ],
       "exists": true,
-      "bytes": 5532
+      "bytes": 5532,
+      "source_id": "memory_retrieval_binding_contract",
+      "summary": "Contratto documentale per binding tra memoria locale e retrieval controllato."
     },
     {
       "id": "memory_retrieval_consolidation",
@@ -168,7 +182,9 @@
         "memory_policy"
       ],
       "exists": true,
-      "bytes": 3203
+      "bytes": 3203,
+      "source_id": "memory_retrieval_consolidation",
+      "summary": "Consolidamento documentale delle regole di memoria e retrieval PROMETEO."
     },
     {
       "id": "memory_retrieval_runtime_contract",
@@ -183,7 +199,9 @@
         "future_runtime_design_only"
       ],
       "exists": true,
-      "bytes": 6054
+      "bytes": 6054,
+      "source_id": "memory_retrieval_runtime_contract",
+      "summary": "Contratto runtime documentale per retrieval memoria, non autorizzazione operativa."
     },
     {
       "id": "memory_active_context",
@@ -199,7 +217,9 @@
         "tl_chat_context_policy"
       ],
       "exists": true,
-      "bytes": 1415
+      "bytes": 1415,
+      "source_id": "memory_active_context",
+      "summary": "Contesto attivo sintetico e verificabile da usare come riferimento operativo corrente."
     },
     {
       "id": "memory_project_state",
@@ -215,7 +235,9 @@
         "project_state_context"
       ],
       "exists": true,
-      "bytes": 1353
+      "bytes": 1353,
+      "source_id": "memory_project_state",
+      "summary": "Stato progetto PROMETEO con capability, decisioni e avanzamento sintetico."
     },
     {
       "id": "memory_domain_invariants",
@@ -231,7 +253,9 @@
         "domain_context"
       ],
       "exists": true,
-      "bytes": 1219
+      "bytes": 1219,
+      "source_id": "memory_domain_invariants",
+      "summary": "Invarianti dominio PROMETEO da preservare nelle evoluzioni architetturali."
     },
     {
       "id": "memory_retrieval_policy",
@@ -246,7 +270,9 @@
         "future_governed_retrieval"
       ],
       "exists": true,
-      "bytes": 1241
+      "bytes": 1241,
+      "source_id": "memory_retrieval_policy",
+      "summary": "Policy locale per retrieval, limiti di accesso e uso controllato delle fonti."
     },
     {
       "id": "memory_capability_status",
@@ -261,7 +287,9 @@
         "capability_status_context"
       ],
       "exists": true,
-      "bytes": 1370
+      "bytes": 1370,
+      "source_id": "memory_capability_status",
+      "summary": "Registro sintetico dello stato capability PROMETEO e delle chiusure operative."
     },
     {
       "id": "memory_index",
@@ -276,7 +304,9 @@
         "memory_navigation"
       ],
       "exists": true,
-      "bytes": 1773
+      "bytes": 1773,
+      "source_id": "memory_index",
+      "summary": "Indice umano della memoria locale PROMETEO e dei principali file di riferimento."
     },
     {
       "id": "memory_readme",
@@ -291,7 +321,9 @@
         "memory_navigation"
       ],
       "exists": true,
-      "bytes": 1728
+      "bytes": 1728,
+      "source_id": "memory_readme",
+      "summary": "Descrizione della struttura memoria locale PROMETEO e delle sue regole d’uso."
     },
     {
       "id": "mimo_minimax_m3_binding",
@@ -319,7 +351,9 @@
       "retention_rule": "delete_when_obsolete_and_replaced",
       "obsolescence_rule": "same_topic_newer_data_supersedes_old",
       "exists": true,
-      "bytes": 5088
+      "bytes": 5088,
+      "source_id": "mimo_minimax_m3_binding",
+      "summary": "Binding documentale per uso controllato di MiMo MiniMax M3 nel perimetro PROMETEO."
     }
   ]
 }
