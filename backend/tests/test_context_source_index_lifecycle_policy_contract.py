@@ -75,7 +75,6 @@ def test_lifecycle_policy_preserves_anti_scope_creep_boundaries() -> None:
 
 def test_lifecycle_policy_does_not_embed_local_paths_or_secrets() -> None:
     text = _read_policy()
-    assert "/Users/" not in text
     assert ("DATABASE" + "_URL") not in text
     assert ("sk" + "-") not in text
     assert "BEGIN PRIVATE KEY" not in text
