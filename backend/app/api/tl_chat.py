@@ -22,6 +22,7 @@ TL_REAL_SPEC_INTAKE = ROOT / "data" / "local_reports" / "tl_real_spec_intake" / 
 ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "article_route_matrix.preview.json"
 FAMILY_REGISTRY = ROOT / "data" / "backend" / "app" / "registry" / "prometeo_famiglie.json"
 SPECS_ROOT = ROOT / "specs_finitura"
+SPEC_INTAKE_PREVIEW_ROOT = ROOT / "data" / "local_reports" / "spec_intake_preview"
 
 
 class TLChatContext(BaseModel):
@@ -798,6 +799,83 @@ def _response_for_lifecycle_status_list(
     )
 
 
+
+def _load_spec_intake_preview(article: str) -> dict[str, Any] | None:
+    """
+    Read-only spec intake preview loader.
+
+    Contract:
+    - reads local PREVIEW_ONLY spec intake metadata if present
+    - does not write files
+    - does not touch SMF/database/planner
+    - does not promote preview data to active profile
+    """
+    safe_article = _normalize_article(article)
+    if not safe_article:
+        return None
+
+    metadata_path = SPEC_INTAKE_PREVIEW_ROOT / f"{safe_article}_metadata_preview.json"
+    if not metadata_path.exists():
+        return None
+
+    try:
+        data = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+
+    if not isinstance(data, dict):
+        return None
+
+    if _clean(data.get("status")).upper() != "PREVIEW_ONLY":
+        return None
+
+    article_payload = data.get("article") if isinstance(data.get("article"), dict) else {}
+    if _normalize_article(article_payload.get("articolo")) != safe_article:
+        return None
+
+    return data
+
+
+def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) -> TLChatResponse:
+    article_payload = payload.get("article") if isinstance(payload.get("article"), dict) else {}
+
+    confidence = _resolve_tl_chat_confidence(payload.get("confidence") or "DA_VERIFICARE")
+    status = _clean(payload.get("status")).upper() or "PREVIEW_ONLY"
+    planner_eligible = bool(payload.get("planner_eligible"))
+    requires_tl_confirmation = bool(payload.get("requires_tl_confirmation", True))
+
+    codice = _clean(article_payload.get("codice"))
+    disegno = _clean(article_payload.get("disegno"))
+    rev = _clean(article_payload.get("rev") or article_payload.get("revision"))
+
+    details: list[str] = [
+        f"{article} trovato come {status} locale.",
+        "Non è nel profilo attivo.",
+        f"confidence {confidence}.",
+        f"planner_eligible={str(planner_eligible).lower()}.",
+        f"requires_tl_confirmation={str(requires_tl_confirmation).lower()}.",
+    ]
+
+    if codice:
+        details.append(f"Codice cliente: {codice}.")
+
+    if disegno:
+        drawing_text = f"Disegno: {disegno}"
+        if rev:
+            drawing_text += f" rev {rev}"
+        details.append(drawing_text + ".")
+
+    return TLChatResponse(
+        ok=True,
+        answer=" ".join(details),
+        confidence=confidence,
+        risk="Spec intake preview-only: non usare per pianificazione o profilo attivo senza conferma TL.",
+        recommended_action="Confermare con TL prima di promuovere il dato in un profilo operativo.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
+
 def _load_article_route_matrix_preview() -> dict[str, Any]:
     """
     Read-only preview matrix loader.
@@ -1506,6 +1584,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
         if lifecycle_payload:
             return _response_from_lifecycle(article, lifecycle_payload)
+
+        spec_intake_preview = _load_spec_intake_preview(article)
+        if spec_intake_preview:
+            return _response_from_spec_intake_preview(article, spec_intake_preview)
 
         preview_response = _response_from_preview_profile(article)
         if preview_response:

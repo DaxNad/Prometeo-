@@ -1557,3 +1557,56 @@ def test_tl_chat_attaches_governed_evidence_pack_preview_only():
     ]
     assert semantic_items
     assert all(item["confidence"] == "PREVIEW_ONLY" for item in semantic_items)
+
+
+def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, tmp_path):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True, exist_ok=True)
+
+    preview_file = preview_root / "12514_metadata_preview.json"
+    preview_file.write_text(
+        json.dumps(
+            {
+                "capability": "SPEC_INTAKE_12514_PREVIEW_001",
+                "status": "PREVIEW_ONLY",
+                "runtime_impact": "NONE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "confidence": "DA_VERIFICARE",
+                "article": {
+                    "articolo": "12514",
+                    "codice": "7056055000A0",
+                    "disegno": "A1675003603",
+                    "rev": "6",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "12514"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+
+    assert "12514 trovato come PREVIEW_ONLY locale" in data["answer"]
+    assert "Non è nel profilo attivo" in data["answer"]
+    assert "planner_eligible=false" in data["answer"]
+    assert "requires_tl_confirmation=true" in data["answer"]
+    assert "7056055000A0" in data["answer"]
+    assert "A1675003603" in data["answer"]
+
+    assert "pianificazione" in data["risk"].lower()
+    assert "confermare con tl" in data["recommended_action"].lower()
