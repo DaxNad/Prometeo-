@@ -69,6 +69,24 @@ def test_reads_real_context_source_index_as_metadata_only():
     assert all("content" not in source for source in result["sources"])
 
 
+def test_reads_full_real_context_source_index_without_rejections_or_payload():
+    result = read_context_source_index(REAL_INDEX)
+
+    assert result["ok"] is True
+    assert result["errors"] == []
+    assert result["warnings"] == []
+    assert result["rejected"] == []
+    assert len(result["sources"]) >= 1
+
+    for source in result["sources"]:
+        assert source["access_mode"] == "read_only"
+        assert source["runtime_enabled"] is False
+        assert source["path"].startswith(("docs/", "memory/"))
+        assert "text" not in source
+        assert "content" not in source
+        assert "bytes" not in source
+
+
 def test_missing_index_is_blocked(tmp_path):
     result = read_context_source_index(tmp_path / "missing.json")
 
