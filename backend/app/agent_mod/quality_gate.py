@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -28,14 +30,35 @@ def _run_pytest_quiet() -> Tuple[bool, Optional[str]]:
             project_root = here.parents[2]  # fallback to backend dir
 
         env = os.environ.copy()  # preserve current environment/venv
-        proc = subprocess.run(
-            [sys.executable, "-m", "pytest", "-q"],
-            cwd=str(project_root),
-            env=env,
-            capture_output=True,
-            text=True,
-            check=False,
+        tmp_root = Path(
+            env.get(
+                "PROMETEO_GUARD_TMPDIR",
+                str(Path(tempfile.gettempdir()) / "prometeo_quality_gate"),
+            )
         )
+        tmp_root.mkdir(parents=True, exist_ok=True)
+        pytest_basetemp = Path(tempfile.mkdtemp(prefix="pytest.", dir=str(tmp_root)))
+        try:
+            proc = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "pytest",
+                    "-q",
+                    "-c",
+                    str(project_root / "pytest.ini"),
+                    "tests",
+                    "--basetemp",
+                    str(pytest_basetemp),
+                ],
+                cwd=str(project_root),
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+        finally:
+            shutil.rmtree(pytest_basetemp, ignore_errors=True)
         ok = proc.returncode == 0
         if ok:
             return True, None
