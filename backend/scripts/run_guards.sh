@@ -11,6 +11,7 @@ export TMPDIR="$GUARD_TMP_ROOT"
 export TEMP="$GUARD_TMP_ROOT"
 export TMP="$GUARD_TMP_ROOT"
 export PYTHONDONTWRITEBYTECODE="${PYTHONDONTWRITEBYTECODE:-1}"
+export PYTHONPATH="$ROOT_DIR/backend:${PYTHONPATH:-}"
 PYTEST_BASETEMP="$(mktemp -d "$GUARD_TMP_ROOT/pytest.XXXXXX")"
 trap 'rm -rf "$PYTEST_BASETEMP"' EXIT
 
@@ -20,7 +21,7 @@ echo "========================================"
 
 echo
 echo "STEP 1 — pytest (backend config)"
-"$PYTHON_BIN" -m pytest -q -c backend/pytest.ini --basetemp "$PYTEST_BASETEMP/backend"
+"$PYTHON_BIN" -m pytest -q -c backend/pytest.ini backend/tests backend/app/atlas_engine/tests --basetemp "$PYTEST_BASETEMP/backend"
 
 echo
 echo "STEP 1B — real_code_registry preview tests"
