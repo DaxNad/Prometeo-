@@ -1,5 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { tlChat, type TLChatResponse } from "../lib/api/prometeo";
+
+type ChatMessage = {
+  id: number;
+  role: "user" | "assistant";
+  content: string;
+};
 
 function extractArticle(question: string): string | undefined {
   const match = question.match(/\b\d{5}\b/);
@@ -14,123 +20,219 @@ function normalizeError(err: unknown): string {
     message.includes("NetworkError") ||
     message.includes("POST /tl/chat failed")
   ) {
-    return "PROMETEO non è raggiungibile. Riprovare o verificare il runtime locale.";
+    return "PROMETEO non è raggiungibile. Verificare il runtime locale e riprovare.";
   }
 
   return "Errore durante l'interrogazione TL Chat. Riprovare.";
 }
 
+function nextMessageId(): number {
+  return Date.now() + Math.floor(Math.random() * 1000);
+}
+
 export default function TLChatPage() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<TLChatResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const bottomRef = useRef<HTMLDivElement | null>(null);
 
-  async function submit(nextQuestion = question) {
-    const cleanQuestion = nextQuestion.trim();
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages, loading]);
 
-    if (!cleanQuestion) {
-      setResponse(null);
-      setError("Inserisci una domanda TL prima di interrogare PROMETEO.");
-      return;
-    }
+  async function submit() {
+    const cleanQuestion = question.trim();
 
-    setQuestion(cleanQuestion);
+    if (!cleanQuestion || loading) return;
+
+    const userMessage: ChatMessage = {
+      id: nextMessageId(),
+      role: "user",
+      content: cleanQuestion,
+    };
+
+    setMessages((current) => [...current, userMessage]);
+    setQuestion("");
     setLoading(true);
-    setError(null);
 
     try {
       const article = extractArticle(cleanQuestion);
 
-      const data = await tlChat({
+      const data: TLChatResponse = await tlChat({
         question: cleanQuestion,
         context: article ? { article } : {},
       });
 
-      setResponse(data);
+      const assistantMessage: ChatMessage = {
+        id: nextMessageId(),
+        role: "assistant",
+        content: data.answer,
+      };
+
+      setMessages((current) => [...current, assistantMessage]);
     } catch (err) {
-      setResponse(null);
-      setError(normalizeError(err));
+      const assistantMessage: ChatMessage = {
+        id: nextMessageId(),
+        role: "assistant",
+        content: normalizeError(err),
+      };
+
+      setMessages((current) => [...current, assistantMessage]);
     } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main style={{ maxWidth: 900, margin: "0 auto", padding: 16, display: "grid", gap: 16 }}>
+    <main
+      style={{
+        minHeight: "calc(100vh - 72px)",
+        display: "grid",
+        gridTemplateRows: "auto 1fr auto",
+        gap: 16,
+        maxWidth: 980,
+        margin: "0 auto",
+        padding: "12px 16px 20px",
+      }}
+    >
       <header style={{ display: "grid", gap: 4 }}>
-        <h1 style={{ margin: 0 }}>PROMETEO TL Chat</h1>
-        <p style={{ margin: 0, color: "#9ca3af" }}>
-          Interfaccia operativa interrogabile. Nessun dettaglio tecnico, nessun radar, nessuna scrittura.
+        <h1 style={{ margin: 0, fontSize: 22 }}>TL Chat</h1>
+        <p style={{ margin: 0, color: "#9ca3af", fontSize: 14 }}>
+          Scrivi una richiesta operativa come in un prompt. PROMETEO risponde senza modificare dati.
         </p>
       </header>
 
-      <section style={{ display: "grid", gap: 8 }}>
-        <label htmlFor="tl-question" style={{ fontWeight: 700 }}>
-          Domanda TL
-        </label>
+      <section
+        aria-label="Cronologia conversazione TL"
+        style={{
+          minHeight: 360,
+          display: "grid",
+          alignContent: messages.length === 0 ? "center" : "start",
+          gap: 14,
+          overflowY: "auto",
+          padding: "8px 0 24px",
+        }}
+      >
+        {messages.length === 0 && (
+          <div
+            style={{
+              justifySelf: "center",
+              maxWidth: 680,
+              textAlign: "center",
+              color: "#d4d4d8",
+              display: "grid",
+              gap: 10,
+            }}
+          >
+            <div style={{ fontSize: 28, fontWeight: 800 }}>Come posso aiutarti nel turno?</div>
+            <div style={{ color: "#9ca3af" }}>
+              Esempio: “Che criticità ha il 12066?” oppure “Spiegami la sequenza per questo articolo.”
+            </div>
+          </div>
+        )}
 
+        {messages.map((message) => (
+          <article
+            key={message.id}
+            style={{
+              justifySelf: message.role === "user" ? "end" : "start",
+              maxWidth: message.role === "user" ? "72%" : "86%",
+              border: "1px solid #27272a",
+              background: message.role === "user" ? "#1f2937" : "#0b0b0c",
+              color: "#fff",
+              borderRadius: 18,
+              padding: "12px 14px",
+              whiteSpace: "pre-wrap",
+              lineHeight: 1.45,
+            }}
+          >
+            {message.content}
+          </article>
+        ))}
+
+        {loading && (
+          <article
+            style={{
+              justifySelf: "start",
+              maxWidth: "86%",
+              border: "1px solid #27272a",
+              background: "#0b0b0c",
+              color: "#9ca3af",
+              borderRadius: 18,
+              padding: "12px 14px",
+              lineHeight: 1.45,
+            }}
+          >
+            PROMETEO sta rispondendo…
+          </article>
+        )}
+
+        <div ref={bottomRef} />
+      </section>
+
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          submit();
+        }}
+        style={{
+          position: "sticky",
+          bottom: 0,
+          display: "grid",
+          gap: 8,
+          border: "1px solid #27272a",
+          background: "#09090b",
+          borderRadius: 22,
+          padding: 12,
+          boxShadow: "0 -12px 30px rgba(0, 0, 0, 0.22)",
+        }}
+      >
         <textarea
-          id="tl-question"
+          aria-label="Prompt TL"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+            if (e.key === "Enter" && !e.shiftKey) {
               e.preventDefault();
               submit();
             }
           }}
-          rows={4}
+          rows={3}
           style={{
             width: "100%",
             boxSizing: "border-box",
-            borderRadius: 10,
-            border: "1px solid #333",
-            background: "#080808",
+            resize: "vertical",
+            border: 0,
+            outline: "none",
+            background: "transparent",
             color: "#fff",
-            padding: 12,
+            padding: "6px 4px",
             fontSize: 16,
+            lineHeight: 1.4,
           }}
-          placeholder=""
+          placeholder="Scrivi un prompt TL..."
         />
 
-        <button
-          onClick={() => submit()}
-          disabled={loading}
-          style={{
-            width: "fit-content",
-            border: "1px solid #444",
-            background: loading ? "#222" : "#fff",
-            color: loading ? "#aaa" : "#000",
-            borderRadius: 10,
-            padding: "10px 16px",
-            fontWeight: 700,
-            cursor: loading ? "not-allowed" : "pointer",
-          }}
-        >
-          {loading ? "Interrogo PROMETEO…" : "Chiedi a PROMETEO"}
-        </button>
-      </section>
-      {loading && (
-        <section style={{ border: "1px solid #27272a", background: "#111", borderRadius: 12, padding: 12 }}>
-          PROMETEO sta analizzando la richiesta…
-        </section>
-      )}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+          <span style={{ color: "#71717a", fontSize: 13 }}>Invio per mandare · Shift+Invio per andare a capo</span>
 
-      {error && (
-        <section style={{ border: "1px solid #7f1d1d", background: "#1f0a0a", borderRadius: 12, padding: 12 }}>
-          <strong>Errore</strong>
-          <div style={{ color: "#fca5a5", marginTop: 6 }}>{error}</div>
-        </section>
-      )}
-
-      {response && (
-        <section style={{ border: "1px solid #27272a", background: "#0b0b0c", borderRadius: 14, padding: 16 }}>
-          <div style={{ fontSize: 20, lineHeight: 1.35, whiteSpace: "pre-wrap" }}>
-            {response.answer}
-          </div>
-        </section>
-      )}
+          <button
+            type="submit"
+            disabled={loading || !question.trim()}
+            style={{
+              border: "1px solid #444",
+              background: loading || !question.trim() ? "#18181b" : "#fff",
+              color: loading || !question.trim() ? "#71717a" : "#000",
+              borderRadius: 999,
+              padding: "9px 15px",
+              fontWeight: 800,
+              cursor: loading || !question.trim() ? "not-allowed" : "pointer",
+            }}
+          >
+            Invia
+          </button>
+        </div>
+      </form>
     </main>
   );
 }
