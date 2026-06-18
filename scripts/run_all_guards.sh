@@ -10,7 +10,7 @@ backend/scripts/run_guards.sh
 echo "==> Frontend UI structural guard"
 (
   cd frontend
-  ../frontend/scripts/guard_tl_board.sh
+  bash ../frontend/scripts/guard_tl_board.sh
 )
 
 echo "ALL GUARDS (backend+frontend) PASS"
