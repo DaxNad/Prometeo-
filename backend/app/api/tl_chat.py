@@ -11,6 +11,10 @@ from app.domain.assembly_progression import summarize_assembly_progression
 from app.domain.human_checkpoint import consultation
 from app.atlas_engine.governed_retrieval import build_governed_retrieval_pack
 from app.semantic_registry import resolve_confidence
+from app.services.tl_chat_context_resolver import (
+    TLChatContextCandidate,
+    resolve_tl_chat_context,
+)
 from app.services.pattern_learning_registry import find_patterns_by_station
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
@@ -839,10 +843,29 @@ def _load_spec_intake_preview(article: str) -> dict[str, Any] | None:
 def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) -> TLChatResponse:
     article_payload = payload.get("article") if isinstance(payload.get("article"), dict) else {}
 
-    confidence = _resolve_tl_chat_confidence(payload.get("confidence") or "DA_VERIFICARE")
-    status = _clean(payload.get("status")).upper() or "PREVIEW_ONLY"
-    planner_eligible = bool(payload.get("planner_eligible"))
-    requires_tl_confirmation = bool(payload.get("requires_tl_confirmation", True))
+    raw_confidence = _resolve_tl_chat_confidence(payload.get("confidence") or "DA_VERIFICARE")
+    raw_status = _clean(payload.get("status")).upper() or "PREVIEW_ONLY"
+    raw_planner_eligible = bool(payload.get("planner_eligible"))
+    raw_requires_tl_confirmation = bool(payload.get("requires_tl_confirmation", True))
+
+    resolved_context = resolve_tl_chat_context(
+        article=article,
+        candidates=[
+            TLChatContextCandidate(
+                source_name="spec_intake_preview",
+                source_status=raw_status,
+                confidence=raw_confidence,
+                planner_eligible=raw_planner_eligible,
+                requires_tl_confirmation=raw_requires_tl_confirmation,
+                payload=payload,
+            )
+        ],
+    )
+
+    confidence = resolved_context.confidence
+    status = resolved_context.source_status
+    planner_eligible = resolved_context.planner_eligible
+    requires_tl_confirmation = resolved_context.requires_tl_confirmation
 
     codice = _clean(article_payload.get("codice"))
     disegno = _clean(article_payload.get("disegno"))
@@ -851,9 +874,11 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
     details: list[str] = [
         f"{article} trovato come {status} locale.",
         "Non è nel profilo attivo.",
+        f"selected_source={resolved_context.selected_source}.",
         f"confidence {confidence}.",
         f"planner_eligible={str(planner_eligible).lower()}.",
         f"requires_tl_confirmation={str(requires_tl_confirmation).lower()}.",
+        f"can_promote={str(resolved_context.can_promote).lower()}.",
     ]
 
     if codice:
