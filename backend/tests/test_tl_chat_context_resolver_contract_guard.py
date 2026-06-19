@@ -1,6 +1,7 @@
 from pathlib import Path
 
-CONTRACT_PATH = Path("docs/TL_CHAT_CONTEXT_RESOLVER_CONTRACT_001.md")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+CONTRACT_PATH = REPO_ROOT / "docs/TL_CHAT_CONTEXT_RESOLVER_CONTRACT_001.md"
 
 
 def _contract_text() -> str:
