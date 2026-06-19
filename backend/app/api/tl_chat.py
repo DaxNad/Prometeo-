@@ -1550,6 +1550,72 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
         technical_details_hidden=True,
     )
 
+
+def _is_generic_missing_context_response(response: TLChatResponse) -> bool:
+    answer = str(response.answer or "")
+    return (
+        "richiede almeno un articolo nel context" in answer
+        or "NON DISPONIBILE NEL PROFILO ATTIVO" in answer
+    )
+
+
+def _question_can_use_governed_evidence(question: str) -> bool:
+    normalized = str(question or "").strip().lower()
+    governed_terms = (
+        "confidence",
+        "certo",
+        "inferito",
+        "da_verificare",
+        "zaw",
+        "zaw1",
+        "zaw2",
+        "atlas",
+        "planner",
+        "retrieval",
+        "fonte",
+        "fonti",
+    )
+    return any(term in normalized for term in governed_terms)
+
+
+def _response_from_governed_evidence_pack(
+    *,
+    evidence_pack: dict[str, Any],
+) -> TLChatResponse | None:
+    evidence = evidence_pack.get("evidence")
+    if not isinstance(evidence, list) or not evidence:
+        return None
+
+    first = evidence[0]
+    if not isinstance(first, dict):
+        return None
+
+    source_id = _clean(first.get("source_id"))
+    source_type = _clean(first.get("source_type"))
+    confidence = _clean(first.get("confidence")).upper() or "DA_VERIFICARE"
+    text = _clean(first.get("text"))
+
+    if not source_id or not text:
+        return None
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            f"Fonte governata read-only: {source_id}. "
+            f"Tipo fonte: {source_type or 'governed_source'}. "
+            f"Confidence fonte: {confidence}. "
+            f"{text} "
+            "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO, "
+            "nessuna scrittura e nessuna decisione automatica."
+        ),
+        confidence="DA_VERIFICARE",
+        risk="Risposta basata su retrieval governato preview-only.",
+        recommended_action="Usare come orientamento; conferma TL richiesta prima di decisioni operative.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
@@ -1683,9 +1749,23 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     """
     response = _build_contract_response(payload)
     article = _normalize_article(payload.context.article) or _extract_article_from_question(payload.question)
-    response.evidence_pack = build_governed_retrieval_pack(
+    evidence_pack = build_governed_retrieval_pack(
         payload.question,
         article=article or None,
         limit=5,
     )
+
+    governed_response = None
+    if (
+        _is_generic_missing_context_response(response)
+        and _question_can_use_governed_evidence(payload.question)
+    ):
+        governed_response = _response_from_governed_evidence_pack(
+            evidence_pack=evidence_pack,
+        )
+
+    if governed_response is not None:
+        response = governed_response
+
+    response.evidence_pack = evidence_pack
     return response
