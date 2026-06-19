@@ -81,6 +81,15 @@ Questo canone non sostituisce il MASTER e non introduce autorità semantica di d
 Serve a valutare scope creep, anti-entropia, chiusura capability, agenti governati,
 eval, output strutturato e fine-tuning prematuro.
 
+Riferimento Fase 2 per retrieval TL Chat pre-runtime:
+- `docs/TL_CONTEXT_RETRIEVAL_MINIMAL_001.md`
+- `docs/TL_CONTEXT_RETRIEVAL_MINIMAL_TEST_CONTRACT_001.md`
+- `docs/TL_CONTEXT_RETRIEVAL_READER_ADAPTER_CONTRACT_001.md`
+- `docs/TL_CONTEXT_RETRIEVAL_READER_ADAPTER_TEST_CONTRACT_001.md`
+
+Questi documenti definiscono il percorso minimo per consentire a TL Chat di recuperare conoscenza operativa autorizzata in sola lettura, con fonte, confidence, missing data e next safe action.
+Non abilitano runtime, planner, mutazione dati, accesso SMF reale o comportamento autonomo.
+
 ---
 
 # PROMETEO MASTER
