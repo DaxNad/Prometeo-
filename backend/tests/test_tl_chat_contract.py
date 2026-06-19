@@ -1612,3 +1612,28 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
 
     assert "pianificazione" in data["risk"].lower()
     assert "confermare con tl" in data["recommended_action"].lower()
+
+def test_tl_chat_uses_governed_retrieval_when_no_article_context():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Spiegami confidence CERTO INFERITO DA_VERIFICARE"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["mode"] == "TL_CHAT_CONTRACT_V1"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "Fonte governata read-only" in data["answer"]
+    assert "semantic_registry_confidence" in data["answer"]
+    assert "Limite:" in data["answer"]
+    assert data["evidence_pack"]["mode"] == "GOVERNED_RETRIEVAL_001"
+    assert data["evidence_pack"]["article"] is None
+    assert "no LLM calls" in data["evidence_pack"]["constraints"]
+    assert "no DB writes" in data["evidence_pack"]["constraints"]
+    assert "no SMF writes" in data["evidence_pack"]["constraints"]
