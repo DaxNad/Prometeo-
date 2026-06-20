@@ -57,6 +57,7 @@ def test_tl_chat_phase2_governed_retrieval_runtime_fallback():
 
 def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(monkeypatch, tmp_path):
     import json
+    from app.api import tl_chat as tl_chat_api
     from app.atlas_engine import governed_retrieval
 
     preview_root = tmp_path / "spec_intake_preview"
@@ -81,6 +82,11 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
 
     monkeypatch.setattr(
         governed_retrieval,
+        "SPEC_INTAKE_PREVIEW_ROOT",
+        preview_root,
+    )
+    monkeypatch.setattr(
+        tl_chat_api,
         "SPEC_INTAKE_PREVIEW_ROOT",
         preview_root,
     )
@@ -128,8 +134,13 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
         for item in evidence
     )
 
-    assert "Fonte governata read-only: spec_intake_preview:12514" in data["answer"]
-    assert "Tipo fonte: spec_intake_preview" in data["answer"]
+    assert "Articolo 12514" in data["answer"]
+    assert "fonte preview spec_intake_preview" in data["answer"]
+    assert "Codice cliente: 7056055000A0" in data["answer"]
+    assert "Disegno: A1675003603" in data["answer"]
+    assert "Stato: PREVIEW_ONLY" in data["answer"]
+    assert "Confidence: DA_VERIFICARE" in data["answer"]
+    assert "conferma TL richiesta" in data["answer"]
     assert "nessuna promozione a CERTO" in data["answer"]
-    assert "nessuna scrittura" in data["answer"]
-    assert "nessuna decisione automatica" in data["answer"]
+    assert "planner_eligible=false" in data["answer"]
+    assert "can_promote=false" in data["answer"]

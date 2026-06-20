@@ -872,10 +872,12 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
     rev = _clean(article_payload.get("rev") or article_payload.get("revision"))
 
     details: list[str] = [
-        f"{article} trovato come {status} locale.",
+        f"Articolo {article}: dati disponibili da fonte preview spec_intake_preview.",
+        f"Stato: {status}.",
+        f"Confidence: {confidence}.",
         "Non è nel profilo attivo.",
-        f"selected_source={resolved_context.selected_source}.",
-        f"confidence {confidence}.",
+        "conferma TL richiesta.",
+        "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO.",
         f"planner_eligible={str(planner_eligible).lower()}.",
         f"requires_tl_confirmation={str(requires_tl_confirmation).lower()}.",
         f"can_promote={str(resolved_context.can_promote).lower()}.",
