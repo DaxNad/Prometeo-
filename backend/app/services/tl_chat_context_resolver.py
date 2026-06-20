@@ -10,8 +10,46 @@ SOURCE_PRIORITY: dict[str, int] = {
     "lifecycle_registry": 30,
     "spec_intake_preview": 40,
     "route_matrix_preview": 50,
+    "context_source_reader_adapter": 60,
+    "context_source_index": 70,
     "missing": 999,
 }
+
+TL_CONTEXT_RETRIEVAL_SOURCE_STATUSES = frozenset(
+    {
+        "SOURCE_FOUND",
+        "SOURCE_MISSING",
+        "SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+        "SOURCE_FORBIDDEN",
+        "SOURCE_AMBIGUOUS",
+        "PATH_TRAVERSAL_BLOCKED",
+    }
+)
+
+LEGACY_SOURCE_STATUSES = frozenset(
+    {
+        "CERTO",
+        "ATTIVO",
+        "PREVIEW_ONLY",
+        "DA_VERIFICARE",
+        "INFERITO",
+        "MISSING",
+    }
+)
+
+UNCERTAIN_SOURCE_STATUSES = frozenset(
+    {
+        "PREVIEW_ONLY",
+        "DA_VERIFICARE",
+        "INFERITO",
+        "MISSING",
+        "SOURCE_MISSING",
+        "SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+        "SOURCE_FORBIDDEN",
+        "SOURCE_AMBIGUOUS",
+        "PATH_TRAVERSAL_BLOCKED",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -46,13 +84,22 @@ def _normalize_text(value: Any, fallback: str) -> str:
     return text or fallback
 
 
+def _normalize_source_status(value: Any) -> str:
+    source_status = _normalize_text(value, "DA_VERIFICARE")
+    if source_status in TL_CONTEXT_RETRIEVAL_SOURCE_STATUSES:
+        return source_status
+    if source_status in LEGACY_SOURCE_STATUSES:
+        return source_status
+    return "DA_VERIFICARE"
+
+
 def _priority(candidate: TLChatContextCandidate) -> int:
     return SOURCE_PRIORITY.get(candidate.source_name, SOURCE_PRIORITY["missing"])
 
 
 def _is_preview_or_uncertain(candidate: TLChatContextCandidate) -> bool:
     return (
-        candidate.source_status in {"PREVIEW_ONLY", "DA_VERIFICARE", "MISSING"}
+        _normalize_source_status(candidate.source_status) in UNCERTAIN_SOURCE_STATUSES
         or candidate.confidence in {"PREVIEW_ONLY", "DA_VERIFICARE", "INFERITO"}
         or candidate.requires_tl_confirmation
     )
@@ -97,7 +144,7 @@ def resolve_tl_chat_context(
 
     selected = sorted(valid_candidates, key=_priority)[0]
 
-    source_status = _normalize_text(selected.source_status, "DA_VERIFICARE")
+    source_status = _normalize_source_status(selected.source_status)
     confidence = _normalize_text(selected.confidence, "DA_VERIFICARE")
 
     can_promote = (
