@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.app.atlas_engine.context_retrieval import build_context_pack
+from backend.app.atlas_engine.spec_intake_preview_reader import read_spec_intake_preview
 from backend.app.semantic_registry.confidence_registry import confidence_registry_as_dict
 
 MODE = "GOVERNED_RETRIEVAL_001"
@@ -24,6 +25,7 @@ ALLOWED_SOURCES = (
     "tl_memory_rules",
     "docs/prometeo_system_map.md",
     "semantic_registry_confidence",
+    "spec_intake_preview",
 )
 
 BLOCKED_SOURCES = (
@@ -37,6 +39,7 @@ BLOCKED_SOURCES = (
 
 ROOT = Path(__file__).resolve().parents[3]
 SYSTEM_MAP = ROOT / "docs" / "prometeo_system_map.md"
+SPEC_INTAKE_PREVIEW_ROOT = ROOT / "data" / "local_reports" / "spec_intake_preview"
 
 
 def _evidence_item(*, source_id: str, source_type: str, authority_rank: int, confidence: str, text: str, reason: str) -> dict[str, Any]:
@@ -104,6 +107,40 @@ def _tl_memory_evidence(question: str, limit: int) -> list[dict[str, Any]]:
     return evidence
 
 
+def _spec_intake_preview_evidence(article: str | None) -> list[dict[str, Any]]:
+    normalized_article = str(article or "").strip().upper()
+    if not normalized_article:
+        return []
+
+    result = read_spec_intake_preview(
+        article=normalized_article,
+        root=SPEC_INTAKE_PREVIEW_ROOT,
+    )
+
+    if result.get("source_status") != "SOURCE_FOUND":
+        return []
+
+    excerpt = str(result.get("excerpt") or "").strip()
+    limitation = str(result.get("limitation") or "").strip()
+    if not excerpt:
+        return []
+
+    text = excerpt
+    if limitation:
+        text = f"{text} Limite: {limitation}."
+
+    return [
+        _evidence_item(
+            source_id=f"spec_intake_preview:{normalized_article}",
+            source_type="spec_intake_preview",
+            authority_rank=12,
+            confidence=PREVIEW_CONFIDENCE,
+            text=text,
+            reason="Retrieved by governed local spec intake preview reader; preview-only and not planner eligible.",
+        )
+    ]
+
+
 def _semantic_confidence_evidence(question: str) -> list[dict[str, Any]]:
     normalized = (question or "").strip().upper()
     if not normalized:
@@ -166,11 +203,14 @@ def build_governed_retrieval_pack(question: str, article: str | None = None, lim
 
     evidence: list[dict[str, Any]] = []
     if normalized_question and safe_limit > 0:
+        spec_intake_preview_evidence = _spec_intake_preview_evidence(article)
         system_map_evidence = _system_map_evidence(normalized_question)
         semantic_confidence_evidence = _semantic_confidence_evidence(normalized_question)
         tl_memory_evidence = _tl_memory_evidence(normalized_question, safe_limit)
 
-        evidence.extend(system_map_evidence[:safe_limit])
+        evidence.extend(spec_intake_preview_evidence[:safe_limit])
+        remaining_slots = max(0, safe_limit - len(evidence))
+        evidence.extend(system_map_evidence[:remaining_slots])
         remaining_slots = max(0, safe_limit - len(evidence))
         evidence.extend(semantic_confidence_evidence[:remaining_slots])
         remaining_slots = max(0, safe_limit - len(evidence))
