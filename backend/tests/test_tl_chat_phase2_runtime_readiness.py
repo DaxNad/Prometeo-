@@ -128,7 +128,8 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
         for item in evidence
     )
 
-    assert "selected_source=spec_intake_preview" in data["answer"]
-    assert "planner_eligible=false" in data["answer"]
-    assert "requires_tl_confirmation=true" in data["answer"]
-    assert "can_promote=false" in data["answer"]
+    assert "Fonte governata read-only: spec_intake_preview:12514" in data["answer"]
+    assert "Tipo fonte: spec_intake_preview" in data["answer"]
+    assert "nessuna promozione a CERTO" in data["answer"]
+    assert "nessuna scrittura" in data["answer"]
+    assert "nessuna decisione automatica" in data["answer"]
