@@ -102,3 +102,51 @@ def test_semantic_registry_confidence_is_preview_only_evidence():
     assert semantic_items
     assert all(item["confidence"] == "PREVIEW_ONLY" for item in semantic_items)
     assert all(item["authority_rank"] == 15 for item in semantic_items)
+
+
+def test_governed_retrieval_includes_spec_intake_preview_when_article_is_present(monkeypatch, tmp_path):
+    import json
+    from backend.app.atlas_engine import governed_retrieval
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True, exist_ok=True)
+    (preview_root / "12514_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "status": "PREVIEW_ONLY",
+                "runtime_impact": "NONE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "confidence": "DA_VERIFICARE",
+                "article": {
+                    "articolo": "12514",
+                    "codice": "7056055000A0",
+                    "disegno": "A1675003603",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        governed_retrieval,
+        "SPEC_INTAKE_PREVIEW_ROOT",
+        preview_root,
+        raising=False,
+    )
+
+    pack = build_governed_retrieval_pack(
+        "Recupera contesto articolo da spec intake preview.",
+        article="12514",
+        limit=5,
+    )
+
+    assert "spec_intake_preview" in pack["allowed_sources"]
+    assert any(
+        item["source_type"] == "spec_intake_preview"
+        and item["source_id"] == "spec_intake_preview:12514"
+        and item["confidence"] == "PREVIEW_ONLY"
+        and "12514 trovato in spec_intake_preview" in item["text"]
+        and "no planner eligibility" in item["text"]
+        for item in pack["evidence"]
+    )
