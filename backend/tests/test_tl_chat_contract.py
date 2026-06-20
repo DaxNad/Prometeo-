@@ -1601,9 +1601,9 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
 
-    assert "12514 trovato come PREVIEW_ONLY locale" in data["answer"]
+    assert "Articolo 12514" in data["answer"]
+    assert "fonte preview spec_intake_preview" in data["answer"]
     assert "Non è nel profilo attivo" in data["answer"]
-    assert "selected_source=spec_intake_preview" in data["answer"]
     assert "planner_eligible=false" in data["answer"]
     assert "requires_tl_confirmation=true" in data["answer"]
     assert "can_promote=false" in data["answer"]
