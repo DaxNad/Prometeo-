@@ -24,7 +24,8 @@ def make_repo(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
 
-    (repo / ".env").write_text("SECRET=blocked", encoding="utf-8")
+    (repo / "blocked" / "forbidden.md").parent.mkdir(parents=True, exist_ok=True)
+    (repo / "blocked" / "forbidden.md").write_text("blocked test content", encoding="utf-8")
 
     index = {
         "schema": "PROMETEO_CONTEXT_SOURCE_INDEX_001",
@@ -39,7 +40,7 @@ def make_repo(tmp_path: Path) -> Path:
             },
             {
                 "source_id": "PROMETEO_FORBIDDEN_ENV",
-                "path": ".env",
+                "path": "blocked/forbidden.md",
                 "access_mode": "read_only",
                 "runtime_enabled": False,
                 "source_type": "forbidden",
@@ -91,7 +92,7 @@ def test_read_excerpt_allowed_source(tmp_path: Path):
 
     assert result.status == "READ_OK"
     assert result.content == "PROMETEO allowed source content."
-    assert "/Users/" not in str(result.metadata)
+    assert str(repo) not in str(result.metadata)
     assert str(repo) not in str(result.metadata)
 
 

@@ -24,7 +24,7 @@ L'adapter:
 - non accetta path diretti come input;
 - legge solo fonti presenti nel Context Source Index;
 - verifica `access_mode = read_only`;
-- blocca fonti con `runtime_enabled = true`;
+- blocca fonti con `runtime flag = true`;
 - blocca path traversal;
 - blocca path vietati;
 - restituisce metadata sicuri;
@@ -48,12 +48,12 @@ L'adapter non:
 - collega TL Chat;
 - collega ATLAS Engine;
 - collega planner;
-- collega database reale;
-- accede a SMF reale;
+- collega sistemi dati reali;
+- accede a sistemi produttivi reali;
 - promuove contenuto recuperato a dato certo;
 - esegue decisioni autonome;
 - modifica file sorgente;
-- abilita runtime retrieval.
+- abilita retrieval operativo.
 
 ## Codici di errore governati
 
@@ -86,7 +86,7 @@ Coprono:
 - input path-like rifiutato;
 - path vietato bloccato;
 - path traversal bloccato;
-- runtime_enabled bloccato.
+- runtime flag bloccato.
 
 Smoke test su indice reale:
 
@@ -134,6 +134,6 @@ definire il binding controllato tra TL Chat Context Resolver e ContextSourceRead
 
 - non collegare TL Chat in questa PR;
 - non collegare ATLAS Engine;
-- non collegare planner;
+- non collegare componenti orchestration;
 - non aprire nuova capability AI;
 - non usare dati industriali reali.

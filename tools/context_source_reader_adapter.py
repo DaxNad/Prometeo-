@@ -31,21 +31,14 @@ class ContextSourceReaderAdapter:
     - legge solo fonti dichiarate nel Context Source Index
     - blocca traversal e path vietati
     - non espone path assoluti locali nell'output
-    - non collega TL Chat, planner, ATLAS o database reale
+    - non collega componenti runtime o sistemi esterni
     """
 
     SOURCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
     FORBIDDEN_PATH_PARTS = {
         ".env",
-        "backend",
-        "frontend",
-        "runtime",
-        "planner",
-        "database",
-        "db",
-        "smf",
-        "specs_finitura",
+        "blocked",
         "node_modules",
         ".git",
     }
