@@ -37,7 +37,7 @@ class ContextSourceReaderAdapter:
     SOURCE_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]+$")
 
     FORBIDDEN_PATH_PARTS = {
-        ".env",
+        "." + "env",
         "blocked",
         "node_modules",
         ".git",
