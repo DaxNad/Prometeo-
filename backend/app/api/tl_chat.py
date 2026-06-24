@@ -16,6 +16,7 @@ from app.services.tl_chat_context_resolver import (
     resolve_tl_chat_context,
 )
 from app.services.pattern_learning_registry import find_patterns_by_station
+from tools.context_source_reader_adapter import ContextSourceReaderAdapter
 from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
@@ -1621,9 +1622,15 @@ def _response_from_governed_evidence_pack(
 
 
 def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
+    adapter = ContextSourceReaderAdapter(
+        index_path=ROOT / "memory" / "context_source_index.json",
+        repo_root=ROOT,
+        max_chars=500,
+    )
     candidate = build_context_reader_candidate(
         source_id="context_access_binding",
         article=article,
+        adapter=adapter,
         include_excerpt=True,
         max_chars=500,
     )
