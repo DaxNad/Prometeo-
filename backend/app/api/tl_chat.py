@@ -1667,20 +1667,22 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     if not source_id:
         return None
 
-    excerpt_text = f" Estratto: {excerpt}" if excerpt else ""
+    missing_data = "nessun dato certo promosso; conferma TL richiesta"
+    if not excerpt:
+        missing_data = "excerpt non disponibile; conferma TL richiesta"
 
     return TLChatResponse(
         ok=True,
         answer=(
-            f"Articolo {article}: contesto recuperato da fonte governata read-only. "
-            f"Fonte: {source_id}. "
-            f"Stato reader: {reader_status}. "
-            f"Confidence: {resolved_context.confidence}. "
-            f"requires_tl_confirmation={str(resolved_context.requires_tl_confirmation).lower()}. "
-            f"can_promote={str(resolved_context.can_promote).lower()}. "
-            f"planner_eligible={str(resolved_context.planner_eligible).lower()}. "
-            f"Percorso relativo fonte: {_clean(metadata.get('relative_path'))}."
-            f"{excerpt_text} "
+            f"Answer: Articolo {article}: contesto recuperato da fonte governata read-only. "
+            f"{excerpt if excerpt else 'Nessun excerpt disponibile.'}\n"
+            f"Source: {source_id}; reader_status={reader_status}; relative_path={_clean(metadata.get('relative_path'))}.\n"
+            f"Confidence: {resolved_context.confidence}; "
+            f"requires_tl_confirmation={str(resolved_context.requires_tl_confirmation).lower()}; "
+            f"can_promote={str(resolved_context.can_promote).lower()}; "
+            f"planner_eligible={str(resolved_context.planner_eligible).lower()}.\n"
+            f"Missing data: {missing_data}.\n"
+            "Next safe action: usare come orientamento; non applicare decisioni operative senza conferma TL. "
             "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO, "
             "nessuna scrittura e nessuna decisione automatica."
         ),
