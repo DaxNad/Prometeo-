@@ -1637,3 +1637,50 @@ def test_tl_chat_uses_governed_retrieval_when_no_article_context():
     assert "no LLM calls" in data["evidence_pack"]["constraints"]
     assert "no DB writes" in data["evidence_pack"]["constraints"]
     assert "no SMF writes" in data["evidence_pack"]["constraints"]
+
+def test_tl_chat_contract_uses_context_reader_bridge_for_governed_source_question(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Mostrami la fonte governata retrieval per 99999",
+            "context": {"article": "99999"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+
+    assert "contesto recuperato da fonte governata read-only" in data["answer"]
+    assert "Fonte: context_access_binding" in data["answer"]
+    assert "can_promote=false" in data["answer"]
+    assert "planner_eligible=false" in data["answer"]
+    assert "nessuna promozione a CERTO" in data["answer"]
+    assert "nessuna decisione automatica" in data["answer"]
+    assert "NON DISPONIBILE NEL PROFILO ATTIVO" not in data["answer"]

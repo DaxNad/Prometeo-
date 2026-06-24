@@ -16,6 +16,8 @@ from app.services.tl_chat_context_resolver import (
     resolve_tl_chat_context,
 )
 from app.services.pattern_learning_registry import find_patterns_by_station
+from tools.context_source_reader_adapter import ContextSourceReaderAdapter
+from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -1618,6 +1620,78 @@ def _response_from_governed_evidence_pack(
     )
 
 
+
+def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
+    adapter = ContextSourceReaderAdapter(
+        index_path=ROOT / "memory" / "context_source_index.json",
+        repo_root=ROOT,
+        max_chars=500,
+    )
+    candidate = build_context_reader_candidate(
+        source_id="context_access_binding",
+        article=article,
+        adapter=adapter,
+        include_excerpt=True,
+        max_chars=500,
+    )
+
+    resolved_context = resolve_tl_chat_context(
+        article=article,
+        candidates=[candidate],
+    )
+
+    if resolved_context.selected_source != "context_source_reader_adapter":
+        return None
+
+    if resolved_context.source_status != "SOURCE_FOUND":
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"Articolo {article}: fonte governata non disponibile. "
+                f"Stato fonte: {resolved_context.source_status}. "
+                "Non invento contenuto e non genero decisioni operative."
+            ),
+            confidence="DA_VERIFICARE",
+            risk="Fonte governata non disponibile o non autorizzata.",
+            recommended_action="Verificare source_id o fonte ammessa prima di usare il contesto.",
+            requires_confirmation=True,
+            technical_details_hidden=True,
+        )
+
+    payload = resolved_context.payload
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    source_id = _clean(payload.get("source_id"))
+    reader_status = _clean(payload.get("reader_status")) or "DA_VERIFICARE"
+    excerpt = _clean(payload.get("excerpt"))
+
+    if not source_id:
+        return None
+
+    excerpt_text = f" Estratto: {excerpt}" if excerpt else ""
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            f"Articolo {article}: contesto recuperato da fonte governata read-only. "
+            f"Fonte: {source_id}. "
+            f"Stato reader: {reader_status}. "
+            f"Confidence: {resolved_context.confidence}. "
+            f"requires_tl_confirmation={str(resolved_context.requires_tl_confirmation).lower()}. "
+            f"can_promote={str(resolved_context.can_promote).lower()}. "
+            f"planner_eligible={str(resolved_context.planner_eligible).lower()}. "
+            f"Percorso relativo fonte: {_clean(metadata.get('relative_path'))}."
+            f"{excerpt_text} "
+            "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO, "
+            "nessuna scrittura e nessuna decisione automatica."
+        ),
+        confidence="DA_VERIFICARE",
+        risk="Risposta basata su ContextSourceReaderAdapter read-only; conferma TL richiesta.",
+        recommended_action="Usare come orientamento; non applicare decisioni operative senza conferma TL.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
@@ -1685,6 +1759,11 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         preview_response = _response_from_preview_profile(article)
         if preview_response:
             return preview_response
+
+        if _question_can_use_governed_evidence(question):
+            context_reader_response = _response_from_context_reader_bridge(article)
+            if context_reader_response:
+                return context_reader_response
 
         return TLChatResponse(
             ok=True,
