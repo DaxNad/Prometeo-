@@ -1690,3 +1690,121 @@ def test_tl_chat_contract_uses_context_reader_bridge_for_governed_source_questio
     assert "nessuna promozione a CERTO" in data["answer"]
     assert "nessuna decisione automatica" in data["answer"]
     assert "NON DISPONIBILE NEL PROFILO ATTIVO" not in data["answer"]
+
+
+def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    route_preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    preview_root.mkdir(parents=True, exist_ok=True)
+    (preview_root / "12514_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "capability": "SPEC_INTAKE_12514_PREVIEW_001",
+                "status": "PREVIEW_ONLY",
+                "runtime_impact": "NONE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "confidence": "DA_VERIFICARE",
+                "article": {
+                    "articolo": "12514",
+                    "codice": "7056055000A0",
+                    "disegno": "A1675003603",
+                    "rev": "6",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    route_preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", route_preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    client = TestClient(app)
+
+    scenarios = [
+        {
+            "name": "unknown article status",
+            "payload": {
+                "question": "Il codice 99999 è attivo?",
+                "context": {"article": "99999"},
+            },
+            "required": ["DA_VERIFICARE"],
+            "forbidden": ["priorità automatica", "planner_eligible=true"],
+        },
+        {
+            "name": "generic turn decision without article",
+            "payload": {"question": "Cosa faccio partire adesso?"},
+            "required": ["NON DECIDO", "DATO MANCANTE:", "codice articolo", "ordine", "lotto"],
+            "forbidden": ["12066", "12100"],
+        },
+        {
+            "name": "governed source request",
+            "payload": {
+                "question": "Mostrami la fonte governata retrieval per 99999",
+                "context": {"article": "99999"},
+            },
+            "required": ["Answer:", "Source:", "Confidence:", "Missing data:", "Next safe action:"],
+            "forbidden": ["can_promote=true", "planner_eligible=true"],
+        },
+        {
+            "name": "confidence semantics",
+            "payload": {"question": "Spiegami confidence CERTO INFERITO DA_VERIFICARE"},
+            "required": ["Fonte governata read-only", "semantic_registry_confidence", "Limite:"],
+            "forbidden": ["scrittura abilitata", "decisione automatica operativa"],
+        },
+        {
+            "name": "article-specific preview question",
+            "payload": {"question": "Cosa sai del 12514?"},
+            "required": [
+                "Articolo 12514",
+                "fonte preview spec_intake_preview",
+                "planner_eligible=false",
+                "requires_tl_confirmation=true",
+                "can_promote=false",
+            ],
+            "forbidden": ["planner_eligible=true", "can_promote=true"],
+        },
+    ]
+
+    for scenario in scenarios:
+        response = client.post("/tl/chat", json=scenario["payload"])
+        assert response.status_code == 200, scenario["name"]
+
+        data = response.json()
+        assert data["ok"] is True, scenario["name"]
+        assert data["mode"] == "TL_CHAT_CONTRACT_V1", scenario["name"]
+        assert data["confidence"] == "DA_VERIFICARE", scenario["name"]
+        assert data["requires_confirmation"] is True, scenario["name"]
+        assert data["technical_details_hidden"] is True, scenario["name"]
+
+        surface = " ".join(
+            [
+                str(data.get("answer") or ""),
+                str(data.get("risk") or ""),
+                str(data.get("recommended_action") or ""),
+                str(data.get("confidence") or ""),
+                json.dumps(data.get("evidence_pack") or {}, sort_keys=True),
+            ]
+        )
+
+        for expected in scenario["required"]:
+            assert expected in surface, scenario["name"]
+
+        lowered_surface = surface.lower()
+        for forbidden in scenario["forbidden"]:
+            assert forbidden.lower() not in lowered_surface, scenario["name"]
