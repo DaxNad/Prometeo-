@@ -1,7 +1,8 @@
 from pathlib import Path
 
 
-DOC_PATH = Path("docs/TL_CHAT_REAL_SOURCE_COVERAGE_VALIDATION_001.md")
+REPO_ROOT = Path(__file__).resolve().parents[2]
+DOC_PATH = REPO_ROOT / "docs" / "TL_CHAT_REAL_SOURCE_COVERAGE_VALIDATION_001.md"
 
 
 def test_real_source_coverage_validation_document_exists() -> None:
