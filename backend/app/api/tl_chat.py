@@ -1349,8 +1349,8 @@ def _response_for_pidmill_dima(article: str, metadata: dict[str, Any]) -> TLChat
             ),
             confidence="DA_VERIFICARE",
             risk=None,
-            recommended_action=None,
-            requires_confirmation=False,
+            recommended_action="Verificare profilo articolo o specifica autorizzata prima di considerare disponibile la dima PIDMILL.",
+            requires_confirmation=True,
             technical_details_hidden=True,
         )
 
@@ -1602,13 +1602,31 @@ def _response_from_governed_evidence_pack(
     if not source_id or not text:
         return None
 
+    confidence_notes = {
+        "CERTO": "dato confermato da fonte reale, TL o struttura dominio autorevole.",
+        "INFERITO": "dato dedotto da contesto governato; utile come ipotesi, non come certezza operativa.",
+        "DA_VERIFICARE": "dato non sufficiente o non confermato; serve controllo TL o fonte autorizzata.",
+    }
+
+    requested_levels = [
+        level
+        for level in ("CERTO", "INFERITO", "DA_VERIFICARE")
+        if level.lower() in text.lower() or level.lower() in source_id.lower()
+    ] or [confidence]
+
+    level_text = " ".join(
+        f"{level}: {confidence_notes[level]}"
+        for level in ("CERTO", "INFERITO", "DA_VERIFICARE")
+        if level in requested_levels or len(requested_levels) > 1
+    )
+
     return TLChatResponse(
         ok=True,
         answer=(
             f"Fonte governata read-only: {source_id}. "
             f"Tipo fonte: {source_type or 'governed_source'}. "
             f"Confidence fonte: {confidence}. "
-            f"{text} "
+            f"{level_text or text} "
             "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO, "
             "nessuna scrittura e nessuna decisione automatica."
         ),
@@ -1671,11 +1689,14 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     if not excerpt:
         missing_data = "excerpt non disponibile; conferma TL richiesta"
 
+    source_summary = "fonte governata read-only disponibile"
+    if excerpt:
+        source_summary = "fonte governata read-only disponibile; contenuto tecnico sintetizzato e non promosso a dato operativo"
+
     return TLChatResponse(
         ok=True,
         answer=(
-            f"Answer: Articolo {article}: contesto recuperato da fonte governata read-only. "
-            f"{excerpt if excerpt else 'Nessun excerpt disponibile.'}\n"
+            f"Answer: Articolo {article}: {source_summary}.\n"
             f"Source: {source_id}; reader_status={reader_status}; relative_path={_clean(metadata.get('relative_path'))}.\n"
             f"Confidence: {resolved_context.confidence}; "
             f"requires_tl_confirmation={str(resolved_context.requires_tl_confirmation).lower()}; "
@@ -1775,7 +1796,7 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             ),
             confidence="DA_VERIFICARE",
             risk=None,
-            recommended_action=None,
+            recommended_action="Verificare articolo in fonte autorizzata o fornire profilo/specifica; non trattare come attivo senza conferma TL.",
             requires_confirmation=True,
         )
 

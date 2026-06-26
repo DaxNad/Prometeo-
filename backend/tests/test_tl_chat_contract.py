@@ -1683,7 +1683,8 @@ def test_tl_chat_contract_uses_context_reader_bridge_for_governed_source_questio
     assert "Missing data:" in data["answer"]
     assert "Next safe action:" in data["answer"]
 
-    assert "contesto recuperato da fonte governata read-only" in data["answer"]
+    assert "fonte governata read-only disponibile" in data["answer"]
+    assert "contenuto tecnico sintetizzato" in data["answer"]
     assert "Source: context_access_binding" in data["answer"]
     assert "can_promote=false" in data["answer"]
     assert "planner_eligible=false" in data["answer"]
