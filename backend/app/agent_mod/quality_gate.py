@@ -17,6 +17,31 @@ def _iso_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _extract_pytest_failure_detail(stdout: str, stderr: str) -> str:
+    out_lines = [line.strip() for line in stdout.splitlines() if line.strip()]
+    err_lines = [line.strip() for line in stderr.splitlines() if line.strip()]
+
+    failed_tests = [line for line in out_lines if line.startswith("FAILED ")]
+    if failed_tests:
+        return "pytest failed tests: " + " | ".join(failed_tests[:8])
+
+    short_summary = [
+        line
+        for line in out_lines
+        if " failed" in line or line.startswith("FAILED") or line.startswith("ERROR")
+    ]
+    if short_summary:
+        return "pytest failure summary: " + " | ".join(short_summary[-8:])
+
+    if err_lines:
+        return "pytest stderr: " + " | ".join(err_lines[-8:])
+
+    if out_lines:
+        return "pytest stdout: " + " | ".join(out_lines[-8:])
+
+    return "pytest failed"
+
+
 def _run_pytest_quiet() -> Tuple[bool, Optional[str]]:
     try:
         # Find the repo root that contains pytest.ini to ensure consistent discovery
@@ -62,11 +87,7 @@ def _run_pytest_quiet() -> Tuple[bool, Optional[str]]:
         ok = proc.returncode == 0
         if ok:
             return True, None
-        # Minimal diagnostic: last non-empty line from stderr or stdout
-        err_lines = [l for l in (proc.stderr or "").strip().splitlines() if l.strip()]
-        out_lines = [l for l in (proc.stdout or "").strip().splitlines() if l.strip()]
-        tail = err_lines[-1] if err_lines else (out_lines[-1] if out_lines else "pytest failed")
-        return False, tail
+        return False, _extract_pytest_failure_detail(proc.stdout or "", proc.stderr or "")
     except FileNotFoundError:
         return False, "pytest module not found"
 
