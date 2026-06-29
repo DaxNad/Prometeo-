@@ -1,12 +1,19 @@
 from fastapi.testclient import TestClient
 
+from backend.app.api import tl_chat
 from backend.app.main import app
 
 
 client = TestClient(app)
 
 
-def test_tl_chat_accepts_12514_structured_confirmation_input_without_promotion():
+def test_tl_chat_accepts_12514_structured_confirmation_input_without_promotion(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        tl_chat,
+        "CONFIRMATION_12514_PATH",
+        tmp_path / "spec_intake_confirmation" / "12514_confirmation.json",
+        raising=False,
+    )
     payload = {
         "article": "12514",
         "confirmation_action": "confirm_preview",
@@ -31,7 +38,8 @@ def test_tl_chat_accepts_12514_structured_confirmation_input_without_promotion()
     assert body["status"] == "TL_CONFIRMED_PREVIEW"
     assert body["confidence"] == "DA_VERIFICARE"
     assert body["planner_eligible"] is False
-    assert body["requires_persistence_step"] is True
+    assert body["requires_persistence_step"] is False
+    assert body["persistence_status"] == "CONFIRMATION_RECORD_CREATED"
     assert body["promoted_to_certo"] is False
 
 

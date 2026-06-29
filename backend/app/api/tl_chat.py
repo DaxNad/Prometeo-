@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 import json
 from pathlib import Path
 from typing import Any
@@ -24,6 +25,8 @@ from tools.context_source_reader_adapter import ContextSourceReaderAdapter
 from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
+
+CONFIRMATION_12514_PATH = Path("data/local_reports/spec_intake_confirmation/12514_confirmation.json")
 
 ROOT = Path(__file__).resolve().parents[3]
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
@@ -107,15 +110,53 @@ def receive_12514_structured_confirmation(
     if not confirmed_fields:
         raise HTTPException(status_code=400, detail="confirmed_fields_required")
 
+    _persist_12514_confirmation(
+        confirmed_fields=confirmed_fields,
+        notes=_clean(payload.notes),
+    )
+
     return {
         "article": "12514",
         "confirmation_received": True,
         "status": "TL_CONFIRMED_PREVIEW",
         "confidence": "DA_VERIFICARE",
         "planner_eligible": False,
-        "requires_persistence_step": True,
+        "requires_persistence_step": False,
         "promoted_to_certo": False,
+        "persistence_status": "CONFIRMATION_RECORD_CREATED",
     }
+
+
+def _persist_12514_confirmation(
+    *,
+    confirmed_fields: list[str],
+    notes: str,
+) -> None:
+    path = CONFIRMATION_12514_PATH
+
+    if path.exists():
+        raise HTTPException(status_code=409, detail="confirmation_record_already_exists")
+
+    record = {
+        "schema": "TL_CHAT_12514_CONFIRMATION_RECORD_V1",
+        "article": "12514",
+        "source_capability": "TL_CHAT_12514_CONFIRMATION_STRUCTURED_INPUT_001",
+        "confirmation_status": "TL_CONFIRMED_PREVIEW",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "promoted_to_certo": False,
+        "requires_persistence_review": True,
+        "confirmed_fields": confirmed_fields,
+        "confirmed_by_role": "TL",
+        "notes": notes,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _normalize_article(value: str | None) -> str:
