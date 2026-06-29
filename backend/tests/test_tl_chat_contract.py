@@ -1809,3 +1809,119 @@ def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
         lowered_surface = surface.lower()
         for forbidden in scenario["forbidden"]:
             assert forbidden.lower() not in lowered_surface, scenario["name"]
+
+
+def test_tl_chat_12514_confirmation_rendering_api_binding_returns_candidate_only(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "12514",
+            "codice": "7056055000A0",
+            "disegno": "A1675003603",
+            "rev": "6",
+        },
+    }
+    (preview_root / "12514_metadata_preview.json").write_text(
+        json.dumps(preview_payload),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Render conferma TL per articolo 12514",
+            "context": {"article": "12514"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "Articolo: 12514" in data["answer"]
+    assert "Domanda: Q1 - article_identity" in data["answer"]
+    assert "Risposta TL: UNKNOWN" in data["answer"]
+    assert "Stato risultante: DA_VERIFICARE" in data["answer"]
+    assert "codice 7056055000A0" in data["answer"]
+    assert "disegno A1675003603" in data["answer"]
+    assert "rev 6" in data["answer"]
+    assert "Confidenza: DA_VERIFICARE" in data["answer"]
+    assert "Effetti runtime: nessuna persistenza" in data["answer"]
+    assert "nessuna mutazione sorgente" in data["answer"]
+    assert "nessuna promozione a CERTO" in data["answer"]
+    assert "nessun planner" in data["answer"]
+    assert "nessun ATLAS" in data["answer"]
+    assert "nessuna scrittura SMF/DB" in data["answer"]
+    assert "non persistente" in data["risk"]
+    assert "non autorizza pianificazione" in data["risk"]
+    assert "non produce effetti operativi" in data["risk"]
+    assert "non persistere" in data["recommended_action"]
+    assert "promuovere a CERTO" in data["recommended_action"]
+
+
+def test_tl_chat_12514_confirmation_rendering_api_binding_keeps_preview_fallback(monkeypatch, tmp_path):
+    import json
+
+    from app.api import tl_chat as tl_chat_api
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "12514",
+            "codice": "7056055000A0",
+            "disegno": "A1675003603",
+            "rev": "6",
+        },
+    }
+    (preview_root / "12514_metadata_preview.json").write_text(
+        json.dumps(preview_payload),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Cosa sai del 12514?",
+            "context": {"article": "12514"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert "dati disponibili da fonte preview spec_intake_preview" in data["answer"]
+    assert "Codice cliente: 7056055000A0" in data["answer"]
+    assert "Disegno: A1675003603 rev 6" in data["answer"]
+    assert "Articolo: 12514" not in data["answer"]
+    assert "Effetti runtime:" not in data["answer"]
