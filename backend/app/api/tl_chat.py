@@ -15,6 +15,10 @@ from app.services.tl_chat_context_resolver import (
     TLChatContextCandidate,
     resolve_tl_chat_context,
 )
+from app.services.tl_chat_confirmation_rendering import (
+    TLChatConfirmationRenderingInput,
+    build_confirmation_rendering,
+)
 from app.services.pattern_learning_registry import find_patterns_by_station
 from tools.context_source_reader_adapter import ContextSourceReaderAdapter
 from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
@@ -1715,6 +1719,68 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     )
 
 
+def _question_asks_12514_confirmation_rendering(question: str) -> bool:
+    normalized = str(question or "").strip().lower()
+
+    asks_confirmation = (
+        "conferma" in normalized
+        or "confirmation" in normalized
+        or "risposta tl" in normalized
+        or "render" in normalized
+        or "rendering" in normalized
+    )
+    asks_12514 = "12514" in normalized
+
+    return asks_12514 and asks_confirmation
+
+
+def _response_from_12514_confirmation_rendering(
+    article: str,
+    payload: dict[str, Any],
+) -> TLChatResponse | None:
+    if article != "12514":
+        return None
+
+    article_payload = (
+        payload.get("article") if isinstance(payload.get("article"), dict) else {}
+    )
+
+    candidate_data = {
+        "codice": _clean(article_payload.get("codice")),
+        "disegno": _clean(article_payload.get("disegno")),
+        "rev": _clean(article_payload.get("rev") or article_payload.get("revision")),
+    }
+    candidate_data = {key: value for key, value in candidate_data.items() if value}
+
+    rendering = build_confirmation_rendering(
+        TLChatConfirmationRenderingInput(
+            article="12514",
+            question_id="Q1",
+            tl_answer_state="UNKNOWN",
+            resulting_status="DA_VERIFICARE",
+            candidate_data=candidate_data,
+            missing_data=["conferma TL strutturata non ancora acquisita"],
+            next_safe_action=(
+                "presentare il rendering candidato al TL; non persistere e non "
+                "promuovere a CERTO"
+            ),
+        )
+    )
+
+    return TLChatResponse(
+        ok=True,
+        answer=rendering.rendered_text,
+        confidence=rendering.confidence,
+        risk=(
+            "Rendering candidato 12514 non persistente: non è fonte di verità, "
+            "non autorizza pianificazione e non produce effetti operativi."
+        ),
+        recommended_action=rendering.next_safe_action,
+        requires_confirmation=True,
+        technical_details_hidden=True,
+    )
+
+
 def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     question = payload.question.strip()
     article = _normalize_article(payload.context.article) or _extract_article_from_question(question)
@@ -1777,6 +1843,16 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
         spec_intake_preview = _load_spec_intake_preview(article)
         if spec_intake_preview:
+            if _question_asks_12514_confirmation_rendering(question):
+                confirmation_rendering_response = (
+                    _response_from_12514_confirmation_rendering(
+                        article,
+                        spec_intake_preview,
+                    )
+                )
+                if confirmation_rendering_response:
+                    return confirmation_rendering_response
+
             return _response_from_spec_intake_preview(article, spec_intake_preview)
 
         preview_response = _response_from_preview_profile(article)
