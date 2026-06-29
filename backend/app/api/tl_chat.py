@@ -1831,6 +1831,43 @@ def _question_asks_12514_confirmation_rendering(question: str) -> bool:
     return asks_12514 and asks_confirmation
 
 
+def _load_12514_confirmation_record() -> dict[str, Any] | None:
+    path = CONFIRMATION_12514_PATH
+    if not path.exists():
+        return None
+
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    if not isinstance(record, dict):
+        return None
+
+    if _clean(record.get("schema")) != "TL_CHAT_12514_CONFIRMATION_RECORD_V1":
+        return None
+
+    if _normalize_article(record.get("article")) != "12514":
+        return None
+
+    if _clean(record.get("confirmation_status")) != "TL_CONFIRMED_PREVIEW":
+        return None
+
+    if _clean(record.get("confidence")).upper() != "DA_VERIFICARE":
+        return None
+
+    if bool(record.get("requires_persistence_review", True)) is not True:
+        return None
+
+    if bool(record.get("planner_eligible", False)):
+        return None
+
+    if bool(record.get("promoted_to_certo", False)):
+        return None
+
+    return record
+
+
 def _response_from_12514_confirmation_rendering(
     article: str,
     payload: dict[str, Any],
@@ -1849,6 +1886,19 @@ def _response_from_12514_confirmation_rendering(
     }
     candidate_data = {key: value for key, value in candidate_data.items() if value}
 
+    confirmation_record = _load_12514_confirmation_record()
+    missing_data = []
+    next_safe_action = (
+        "usare la conferma TL persistita come evidenza locale; mantenere "
+        "DA_VERIFICARE e non promuovere a CERTO"
+    )
+    if not confirmation_record:
+        missing_data = ["conferma TL strutturata non ancora acquisita"]
+        next_safe_action = (
+            "presentare il rendering candidato al TL; non persistere e non "
+            "promuovere a CERTO"
+        )
+
     rendering = build_confirmation_rendering(
         TLChatConfirmationRenderingInput(
             article="12514",
@@ -1856,22 +1906,42 @@ def _response_from_12514_confirmation_rendering(
             tl_answer_state="UNKNOWN",
             resulting_status="DA_VERIFICARE",
             candidate_data=candidate_data,
-            missing_data=["conferma TL strutturata non ancora acquisita"],
-            next_safe_action=(
-                "presentare il rendering candidato al TL; non persistere e non "
-                "promuovere a CERTO"
-            ),
+            missing_data=missing_data,
+            next_safe_action=next_safe_action,
         )
     )
 
+    answer = rendering.rendered_text
+    risk = (
+        "Rendering candidato 12514 non persistente: non è fonte di verità, "
+        "non autorizza pianificazione e non produce effetti operativi."
+    )
+
+    if confirmation_record:
+        confirmed_fields = confirmation_record.get("confirmed_fields")
+        if not isinstance(confirmed_fields, list):
+            confirmed_fields = []
+
+        answer = (
+            answer
+            + "\nEvidenza TL persistita: presente"
+            + f"\nconfirmation_status: {_clean(confirmation_record.get('confirmation_status'))}"
+            + f"\nconfirmed_fields: {', '.join(_clean(field) for field in confirmed_fields if _clean(field))}"
+            + f"\nrequires_persistence_review={str(bool(confirmation_record.get('requires_persistence_review', True))).lower()}"
+            + f"\nplanner_eligible={str(bool(confirmation_record.get('planner_eligible', False))).lower()}"
+            + f"\npromoted_to_certo={str(bool(confirmation_record.get('promoted_to_certo', False))).lower()}"
+        )
+        risk = (
+            "Conferma TL persistita come evidenza locale governata; resta "
+            "DA_VERIFICARE, non autorizza pianificazione e non produce effetti "
+            "operativi."
+        )
+
     return TLChatResponse(
         ok=True,
-        answer=rendering.rendered_text,
+        answer=answer,
         confidence=rendering.confidence,
-        risk=(
-            "Rendering candidato 12514 non persistente: non è fonte di verità, "
-            "non autorizza pianificazione e non produce effetti operativi."
-        ),
+        risk=risk,
         recommended_action=rendering.next_safe_action,
         requires_confirmation=True,
         technical_details_hidden=True,
