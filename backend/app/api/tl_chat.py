@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
 from app.domain.human_checkpoint import consultation
@@ -60,6 +60,62 @@ class TLChatResponse(BaseModel):
     requires_confirmation: bool = False
     technical_details_hidden: bool = True
     evidence_pack: dict[str, Any] | None = None
+
+class TLChat12514ConfirmationStructuredInput(BaseModel):
+    """
+    Structured TL confirmation input for the 12514 preview.
+
+    Contract:
+    - 12514 only
+    - preview confirmation only
+    - no persistence
+    - no planner
+    - no automatic CERTO promotion
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    article: str = Field(min_length=1)
+    confirmation_action: str = Field(min_length=1)
+    confirmed_by: str = Field(min_length=1)
+    confirmed_fields: list[str] = Field(default_factory=list)
+    notes: str | None = None
+
+
+@router.post("/12514/confirmation")
+def receive_12514_structured_confirmation(
+    payload: TLChat12514ConfirmationStructuredInput,
+) -> dict[str, Any]:
+    article = _normalize_article(payload.article)
+    confirmation_action = _clean(payload.confirmation_action)
+    confirmed_by = _clean(payload.confirmed_by).upper()
+    confirmed_fields = [
+        _clean(field)
+        for field in payload.confirmed_fields
+        if _clean(field)
+    ]
+
+    if article != "12514":
+        raise HTTPException(status_code=400, detail="article_out_of_scope")
+
+    if confirmation_action != "confirm_preview":
+        raise HTTPException(status_code=400, detail="unsupported_confirmation_action")
+
+    if confirmed_by != "TL":
+        raise HTTPException(status_code=400, detail="tl_confirmation_required")
+
+    if not confirmed_fields:
+        raise HTTPException(status_code=400, detail="confirmed_fields_required")
+
+    return {
+        "article": "12514",
+        "confirmation_received": True,
+        "status": "TL_CONFIRMED_PREVIEW",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_persistence_step": True,
+        "promoted_to_certo": False,
+    }
 
 
 def _normalize_article(value: str | None) -> str:
