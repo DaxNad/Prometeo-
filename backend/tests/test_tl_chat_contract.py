@@ -2010,3 +2010,189 @@ def test_tl_chat_12514_confirmation_rendering_reads_persisted_evidence_without_p
     assert "DA_VERIFICARE" in data["risk"]
     assert "non autorizza pianificazione" in data["risk"]
     assert "non produce effetti operativi" in data["risk"]
+
+def test_tl_chat_contract_context_reader_unavailable_stays_verifiable(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    def unavailable_candidate(*, source_id, article, adapter=None, include_excerpt=True, max_chars=500):
+        return tl_chat_api.TLChatContextCandidate(
+            source_name="context_source_reader_adapter",
+            source_status="SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+            confidence="DA_VERIFICARE",
+            payload={
+                "article": article,
+                "source_id": source_id,
+                "error_code": "INDEX_NOT_FOUND",
+            },
+            planner_eligible=False,
+            requires_tl_confirmation=True,
+        )
+
+    monkeypatch.setattr(tl_chat_api, "build_context_reader_candidate", unavailable_candidate)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Mostrami la fonte governata retrieval per 99999",
+            "context": {"article": "99999"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert data["technical_details_hidden"] is True
+    assert "SOURCE_AUTHORIZED_BUT_UNAVAILABLE" in data["answer"]
+    assert "planner_eligible=true" not in data["answer"]
+    assert "can_promote=true" not in data["answer"]
+    assert "CERTO" not in data["confidence"]
+
+
+def test_tl_chat_contract_context_reader_forbidden_does_not_expose_content(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    def forbidden_candidate(*, source_id, article, adapter=None, include_excerpt=True, max_chars=500):
+        return tl_chat_api.TLChatContextCandidate(
+            source_name="context_source_reader_adapter",
+            source_status="SOURCE_FORBIDDEN",
+            confidence="DA_VERIFICARE",
+            payload={
+                "article": article,
+                "source_id": source_id,
+                "error_code": "SOURCE_NOT_ALLOWED",
+            },
+            planner_eligible=False,
+            requires_tl_confirmation=True,
+        )
+
+    monkeypatch.setattr(tl_chat_api, "build_context_reader_candidate", forbidden_candidate)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Mostrami la fonte governata retrieval per 99999",
+            "context": {"article": "99999"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "SOURCE_FORBIDDEN" in data["answer"]
+    assert "contenuto tecnico sintetizzato" not in data["answer"]
+    assert "../" not in data["answer"]
+    assert "/Users/" not in data["answer"]
+    assert "planner_eligible=true" not in data["answer"]
+    assert "can_promote=true" not in data["answer"]
+
+
+def test_tl_chat_contract_preview_source_is_not_bypassed_by_context_reader(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+    preview_root.mkdir(parents=True)
+    (preview_root / "99999_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "status": "PREVIEW_ONLY",
+                "confidence": "DA_VERIFICARE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "article": {
+                    "articolo": "99999",
+                    "codice": "TEST99999",
+                    "disegno": "DRAW99999",
+                },
+                "operations_preview": ["LAVAGGIO", "COLLAUDO VISIVO 100%"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    def should_not_be_called(*args, **kwargs):
+        raise AssertionError("context reader bridge must not bypass spec intake preview")
+
+    monkeypatch.setattr(tl_chat_api, "build_context_reader_candidate", should_not_be_called)
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Cosa sai del 99999?",
+            "context": {"article": "99999"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "fonte preview spec_intake_preview" in data["answer"]
+    assert "context_access_binding" not in data["answer"]
+    assert "planner_eligible=false" in data["answer"]
+    assert "can_promote=false" in data["answer"]
