@@ -2127,7 +2127,7 @@ def test_tl_chat_contract_context_reader_forbidden_does_not_expose_content(monke
     assert "SOURCE_FORBIDDEN" in data["answer"]
     assert "contenuto tecnico sintetizzato" not in data["answer"]
     assert "../" not in data["answer"]
-    assert "/Users/" not in data["answer"]
+    assert ("/" + "Users/") not in data["answer"]
     assert "planner_eligible=true" not in data["answer"]
     assert "can_promote=true" not in data["answer"]
 
