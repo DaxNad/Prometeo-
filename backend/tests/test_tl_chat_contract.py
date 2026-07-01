@@ -1811,6 +1811,92 @@ def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
             assert forbidden.lower() not in lowered_surface, scenario["name"]
 
 
+
+def test_tl_chat_real_question_rendering_improvement_001(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    staging = tmp_path / "codici_staging_preview.json"
+    intake = tmp_path / "TL_REAL_SPEC_INTAKE_001.json"
+    route_preview = tmp_path / "article_route_matrix.preview.json"
+    specs_root = tmp_path / "specs"
+    preview_root = tmp_path / "spec_intake_preview"
+
+    registry.write_text(json.dumps({}), encoding="utf-8")
+    staging.write_text(json.dumps({"items": []}), encoding="utf-8")
+    intake.write_text(json.dumps({"items": []}), encoding="utf-8")
+    route_preview.write_text(json.dumps({"profiles": {}}), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(tl_chat_api, "CODICI_STAGING_PREVIEW", staging)
+    monkeypatch.setattr(tl_chat_api, "TL_REAL_SPEC_INTAKE", intake)
+    monkeypatch.setattr(tl_chat_api, "ARTICLE_ROUTE_MATRIX_PREVIEW", route_preview)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", specs_root)
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda _article: {"ok": False})
+
+    client = TestClient(app)
+
+    unknown_response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Il codice 99999 è attivo?",
+            "context": {"article": "99999"},
+        },
+    )
+    assert unknown_response.status_code == 200
+    unknown_data = unknown_response.json()
+
+    assert unknown_data["ok"] is True
+    assert unknown_data["confidence"] == "DA_VERIFICARE"
+    assert unknown_data["requires_confirmation"] is True
+    assert "NON DISPONIBILE NEL PROFILO ATTIVO" in unknown_data["answer"]
+    assert unknown_data["recommended_action"]
+    assert "fonte autorizzata" in unknown_data["recommended_action"]
+    assert "non trattare come attivo" in unknown_data["recommended_action"]
+
+    source_response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Mostrami la fonte governata retrieval per 99999",
+            "context": {"article": "99999"},
+        },
+    )
+    assert source_response.status_code == 200
+    source_data = source_response.json()
+
+    assert source_data["ok"] is True
+    assert source_data["confidence"] == "DA_VERIFICARE"
+    assert source_data["requires_confirmation"] is True
+    assert "Answer:" in source_data["answer"]
+    assert "Source:" in source_data["answer"]
+    assert "Confidence:" in source_data["answer"]
+    assert "Missing data:" in source_data["answer"]
+    assert "Next safe action:" in source_data["answer"]
+    assert "contenuto tecnico sintetizzato" in source_data["answer"]
+    assert "can_promote=false" in source_data["answer"]
+    assert "planner_eligible=false" in source_data["answer"]
+    assert "nessuna promozione a CERTO" in source_data["answer"]
+    assert "nessuna decisione automatica" in source_data["answer"]
+    assert "TL_CHAT_CONTEXT_RETRIEVAL" not in source_data["answer"]
+    assert "BEGIN" not in source_data["answer"]
+    assert "END" not in source_data["answer"]
+
+    confidence_response = client.post(
+        "/tl/chat",
+        json={"question": "Spiegami confidence CERTO INFERITO DA_VERIFICARE"},
+    )
+    assert confidence_response.status_code == 200
+    confidence_data = confidence_response.json()
+
+    assert confidence_data["ok"] is True
+    assert confidence_data["confidence"] == "DA_VERIFICARE"
+    assert confidence_data["requires_confirmation"] is True
+    assert "CERTO:" in confidence_data["answer"]
+    assert "INFERITO:" in confidence_data["answer"]
+    assert "DA_VERIFICARE:" in confidence_data["answer"]
+    assert "nessuna promozione a CERTO" in confidence_data["answer"]
+    assert "nessuna scrittura" in confidence_data["answer"]
+    assert "nessuna decisione automatica" in confidence_data["answer"]
+
 def test_tl_chat_12514_confirmation_rendering_api_binding_returns_candidate_only(monkeypatch, tmp_path):
     import json
 
