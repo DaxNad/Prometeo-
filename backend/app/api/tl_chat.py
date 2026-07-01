@@ -20,6 +20,9 @@ from app.services.tl_chat_confirmation_rendering import (
     TLChatConfirmationRenderingInput,
     build_confirmation_rendering,
 )
+from app.services.tl_chat_confirmation_evidence_readback import (
+    build_confirmation_evidence_readback,
+)
 from app.services.pattern_learning_registry import find_patterns_by_station
 from tools.context_source_reader_adapter import ContextSourceReaderAdapter
 from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
@@ -1831,41 +1834,11 @@ def _question_asks_12514_confirmation_rendering(question: str) -> bool:
     return asks_12514 and asks_confirmation
 
 
-def _load_12514_confirmation_record() -> dict[str, Any] | None:
-    path = CONFIRMATION_12514_PATH
-    if not path.exists():
-        return None
-
-    try:
-        record = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        return None
-
-    if not isinstance(record, dict):
-        return None
-
-    if _clean(record.get("schema")) != "TL_CHAT_12514_CONFIRMATION_RECORD_V1":
-        return None
-
-    if _normalize_article(record.get("article")) != "12514":
-        return None
-
-    if _clean(record.get("confirmation_status")) != "TL_CONFIRMED_PREVIEW":
-        return None
-
-    if _clean(record.get("confidence")).upper() != "DA_VERIFICARE":
-        return None
-
-    if bool(record.get("requires_persistence_review", True)) is not True:
-        return None
-
-    if bool(record.get("planner_eligible", False)):
-        return None
-
-    if bool(record.get("promoted_to_certo", False)):
-        return None
-
-    return record
+def _build_12514_confirmation_readback():
+    return build_confirmation_evidence_readback(
+        article="12514",
+        confirmation_root=CONFIRMATION_12514_PATH.parent,
+    )
 
 
 def _response_from_12514_confirmation_rendering(
@@ -1886,13 +1859,13 @@ def _response_from_12514_confirmation_rendering(
     }
     candidate_data = {key: value for key, value in candidate_data.items() if value}
 
-    confirmation_record = _load_12514_confirmation_record()
+    confirmation_readback = _build_12514_confirmation_readback()
     missing_data = []
     next_safe_action = (
         "usare la conferma TL persistita come evidenza locale; mantenere "
         "DA_VERIFICARE e non promuovere a CERTO"
     )
-    if not confirmation_record:
+    if not confirmation_readback.found:
         missing_data = ["conferma TL strutturata non ancora acquisita"]
         next_safe_action = (
             "presentare il rendering candidato al TL; non persistere e non "
@@ -1917,20 +1890,8 @@ def _response_from_12514_confirmation_rendering(
         "non autorizza pianificazione e non produce effetti operativi."
     )
 
-    if confirmation_record:
-        confirmed_fields = confirmation_record.get("confirmed_fields")
-        if not isinstance(confirmed_fields, list):
-            confirmed_fields = []
-
-        answer = (
-            answer
-            + "\nEvidenza TL persistita: presente"
-            + f"\nconfirmation_status: {_clean(confirmation_record.get('confirmation_status'))}"
-            + f"\nconfirmed_fields: {', '.join(_clean(field) for field in confirmed_fields if _clean(field))}"
-            + f"\nrequires_persistence_review={str(bool(confirmation_record.get('requires_persistence_review', True))).lower()}"
-            + f"\nplanner_eligible={str(bool(confirmation_record.get('planner_eligible', False))).lower()}"
-            + f"\npromoted_to_certo={str(bool(confirmation_record.get('promoted_to_certo', False))).lower()}"
-        )
+    if confirmation_readback.found:
+        answer = answer + "\n" + confirmation_readback.rendered_text
         risk = (
             "Conferma TL persistita come evidenza locale governata; resta "
             "DA_VERIFICARE, non autorizza pianificazione e non produce effetti "
