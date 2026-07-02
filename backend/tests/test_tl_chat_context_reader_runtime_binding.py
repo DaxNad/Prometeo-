@@ -47,6 +47,32 @@ def _write_context_access_binding_source(tmp_path):
     )
 
 
+
+def _write_index_without_context_access_binding(tmp_path):
+    source = tmp_path / "docs" / "other_policy.md"
+    source.parent.mkdir(parents=True)
+    source.write_text("Other governed source fixture.", encoding="utf-8")
+
+    index = tmp_path / "memory" / "context_source_index.json"
+    index.parent.mkdir(parents=True)
+    index.write_text(
+        json.dumps(
+            {
+                "sources": [
+                    {
+                        "id": "other_policy",
+                        "path": "docs/other_policy.md",
+                        "source_type": "doc_fixture",
+                        "access_mode": "read_only",
+                        "runtime_enabled": False,
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_tl_chat_runtime_uses_readonly_context_reader_bridge(monkeypatch, tmp_path):
     _isolate_tl_chat_sources(monkeypatch, tmp_path)
     _write_context_access_binding_source(tmp_path)
@@ -89,6 +115,7 @@ def test_tl_chat_runtime_uses_readonly_context_reader_bridge(monkeypatch, tmp_pa
 
 def test_tl_chat_runtime_context_reader_missing_source_stays_safe(monkeypatch, tmp_path):
     _isolate_tl_chat_sources(monkeypatch, tmp_path)
+    _write_index_without_context_access_binding(tmp_path)
 
     client = TestClient(app)
 
@@ -111,7 +138,7 @@ def test_tl_chat_runtime_context_reader_missing_source_stays_safe(monkeypatch, t
 
     answer = data["answer"]
     assert "Articolo 99998: fonte governata non disponibile" in answer
-    assert "Stato fonte: SOURCE_AUTHORIZED_BUT_UNAVAILABLE" in answer
+    assert "Stato fonte: SOURCE_MISSING" in answer
     assert "Non invento contenuto" in answer
     assert "non genero decisioni operative" in answer
     assert "planner_eligible=true" not in answer
