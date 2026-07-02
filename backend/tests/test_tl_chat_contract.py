@@ -1870,6 +1870,37 @@ def test_tl_chat_mixed_system_map_and_confidence_evidence_keeps_primary_source_t
     assert "nessuna decisione automatica" in response.answer
 
 
+def test_tl_chat_real_question_keeps_primary_source_traceability():
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Spiegami planner confidence"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["ok"] is True
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+    evidence_pack = data["evidence_pack"]
+    evidence = evidence_pack["evidence"]
+    assert evidence[0]["source_id"] == "docs/prometeo_system_map.md"
+    assert evidence[0]["source_type"] == "system_map"
+
+    answer = data["answer"]
+    assert "Fonte governata read-only: docs/prometeo_system_map.md" in answer
+    assert "Tipo fonte: system_map" in answer
+    assert evidence[0]["text"] in answer
+
+    assert "semantic_registry_confidence" not in answer
+    assert "CERTO:" not in answer
+    assert "INFERITO:" not in answer
+    assert "DA_VERIFICARE:" not in answer
+
+
 def test_tl_chat_real_question_rendering_improvement_001(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     staging = tmp_path / "codici_staging_preview.json"
