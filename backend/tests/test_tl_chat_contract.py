@@ -1812,6 +1812,64 @@ def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
 
 
 
+
+def test_tl_chat_mixed_system_map_and_confidence_evidence_keeps_primary_source_traceability():
+    response = tl_chat_api._response_from_governed_evidence_pack(
+        evidence_pack={
+            "mode": "GOVERNED_RETRIEVAL_001",
+            "question": "Spiegami planner confidence",
+            "article": None,
+            "constraints": ["no LLM calls", "no DB writes", "no SMF writes"],
+            "evidence": [
+                {
+                    "source_id": "docs/prometeo_system_map.md",
+                    "source_type": "system_map",
+                    "confidence": "PREVIEW_ONLY",
+                    "text": "Planner e confidence sono concetti governati nel system map.",
+                },
+                {
+                    "source_id": "semantic_registry_confidence:CERTO",
+                    "source_type": "semantic_registry_confidence",
+                    "confidence": "PREVIEW_ONLY",
+                    "text": "CERTO: dato confermato da fonte reale.",
+                },
+                {
+                    "source_id": "semantic_registry_confidence:INFERITO",
+                    "source_type": "semantic_registry_confidence",
+                    "confidence": "PREVIEW_ONLY",
+                    "text": "INFERITO: dato dedotto da contesto governato.",
+                },
+                {
+                    "source_id": "semantic_registry_confidence:DA_VERIFICARE",
+                    "source_type": "semantic_registry_confidence",
+                    "confidence": "PREVIEW_ONLY",
+                    "text": "DA_VERIFICARE: dato non confermato.",
+                },
+            ],
+        }
+    )
+
+    assert response is not None
+    assert response.ok is True
+    assert response.confidence == "DA_VERIFICARE"
+    assert response.requires_confirmation is True
+    assert response.technical_details_hidden is True
+
+    assert "Fonte governata read-only: docs/prometeo_system_map.md" in response.answer
+    assert "Tipo fonte: system_map" in response.answer
+    assert "Confidence fonte: PREVIEW_ONLY" in response.answer
+    assert "Planner e confidence sono concetti governati nel system map." in response.answer
+
+    assert "CERTO:" not in response.answer
+    assert "INFERITO:" not in response.answer
+    assert "DA_VERIFICARE:" not in response.answer
+    assert "semantic_registry_confidence" not in response.answer
+
+    assert "nessuna promozione a CERTO" in response.answer
+    assert "nessuna scrittura" in response.answer
+    assert "nessuna decisione automatica" in response.answer
+
+
 def test_tl_chat_real_question_rendering_improvement_001(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     staging = tmp_path / "codici_staging_preview.json"
