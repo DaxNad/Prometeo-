@@ -1712,10 +1712,27 @@ def _response_from_governed_evidence_pack(
         "DA_VERIFICARE": "dato non sufficiente o non confermato; serve controllo TL o fonte autorizzata.",
     }
 
+    if source_type == "semantic_registry_confidence":
+        semantic_text = " ".join(
+            _clean(item.get("text"))
+            for item in evidence
+            if isinstance(item, dict)
+            and _clean(item.get("source_type")) == "semantic_registry_confidence"
+        )
+        semantic_source_ids = " ".join(
+            _clean(item.get("source_id"))
+            for item in evidence
+            if isinstance(item, dict)
+            and _clean(item.get("source_type")) == "semantic_registry_confidence"
+        )
+        requested_source = " ".join([text, source_id, semantic_text, semantic_source_ids])
+    else:
+        requested_source = " ".join([text, source_id])
+
     requested_levels = [
         level
         for level in ("CERTO", "INFERITO", "DA_VERIFICARE")
-        if level.lower() in text.lower() or level.lower() in source_id.lower()
+        if level.lower() in requested_source.lower()
     ] or [confidence]
 
     level_text = " ".join(
