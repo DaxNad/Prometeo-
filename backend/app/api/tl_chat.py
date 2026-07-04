@@ -25,8 +25,11 @@ from app.services.tl_chat_confirmation_evidence_readback import (
     build_confirmation_evidence_readback,
 )
 from app.services.pattern_learning_registry import find_patterns_by_station
-from tools.context_source_reader_adapter import ContextSourceReaderAdapter
-from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
+from tools.context_source_reader_adapter import ContextSourceReaderAdapter, ContextSourceReaderError
+from tools.tl_chat_context_reader_bridge import (
+    _map_reader_error_to_source_status,
+    build_context_reader_candidate,
+)
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
@@ -1798,47 +1801,66 @@ def _response_from_governed_evidence_pack(
 
 
 
-def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
-    adapter = ContextSourceReaderAdapter(
-        index_path=ROOT / "memory" / "context_source_index.json",
-        repo_root=ROOT,
-        max_chars=500,
+def _context_reader_unavailable_response(
+    *,
+    article: str,
+    source_status: str,
+    error_code: str = "",
+) -> TLChatResponse:
+    response = TLChatResponse(
+        ok=True,
+        answer=(
+            f"Articolo {article}: fonte governata non disponibile. "
+            f"Stato fonte: {source_status}. "
+            "Non invento contenuto e non genero decisioni operative."
+        ),
+        confidence="DA_VERIFICARE",
+        risk="Fonte governata non disponibile o non autorizzata.",
+        recommended_action="Verificare source_id o fonte ammessa prima di usare il contesto.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
     )
-    candidate = build_context_reader_candidate(
-        source_id="context_access_binding",
-        article=article,
-        adapter=adapter,
-        include_excerpt=True,
-        max_chars=500,
-    )
+    if error_code:
+        response._error_code = error_code
+    return response
 
-    resolved_context = resolve_tl_chat_context(
-        article=article,
-        candidates=[candidate],
-    )
+
+def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
+    try:
+        adapter = ContextSourceReaderAdapter(
+            index_path=ROOT / "memory" / "context_source_index.json",
+            repo_root=ROOT,
+            max_chars=500,
+        )
+        candidate = build_context_reader_candidate(
+            source_id="context_access_binding",
+            article=article,
+            adapter=adapter,
+            include_excerpt=True,
+            max_chars=500,
+        )
+
+        resolved_context = resolve_tl_chat_context(
+            article=article,
+            candidates=[candidate],
+        )
+    except ContextSourceReaderError as exc:
+        return _context_reader_unavailable_response(
+            article=article,
+            source_status=_map_reader_error_to_source_status(exc.code),
+            error_code=exc.code,
+        )
 
     if resolved_context.selected_source != "context_source_reader_adapter":
         return None
 
     if resolved_context.source_status != "SOURCE_FOUND":
-        response = TLChatResponse(
-            ok=True,
-            answer=(
-                f"Articolo {article}: fonte governata non disponibile. "
-                f"Stato fonte: {resolved_context.source_status}. "
-                "Non invento contenuto e non genero decisioni operative."
-            ),
-            confidence="DA_VERIFICARE",
-            risk="Fonte governata non disponibile o non autorizzata.",
-            recommended_action="Verificare source_id o fonte ammessa prima di usare il contesto.",
-            requires_confirmation=True,
-            technical_details_hidden=True,
-        )
         payload = resolved_context.payload if isinstance(resolved_context.payload, dict) else {}
-        error_code = _clean(payload.get("error_code"))
-        if error_code:
-            response._error_code = error_code
-        return response
+        return _context_reader_unavailable_response(
+            article=article,
+            source_status=resolved_context.source_status,
+            error_code=_clean(payload.get("error_code")),
+        )
 
     payload = resolved_context.payload
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
