@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from fastapi import APIRouter, HTTPException
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
+from app.domain.component_classifier import find_explicit_manicotto_component
 from app.domain.human_checkpoint import consultation
 from app.atlas_engine.governed_retrieval import build_governed_retrieval_pack
 from app.semantic_registry import resolve_confidence
@@ -1520,26 +1521,31 @@ def _question_asks_components(question: str) -> bool:
 
 
 
-KNOWN_MANICOTTO_TUBE_CODES = frozenset({"12201"})
-
-
 def _question_asks_manicotto(question: str) -> bool:
     return "manicotto" in str(question or "").strip().lower()
 
 
-def _response_for_manicotto_component(article: str, values: list[str]) -> TLChatResponse | None:
-    matches = [value for value in values if value in KNOWN_MANICOTTO_TUBE_CODES]
+def _response_for_manicotto_component(
+    article: str,
+    values: list[str],
+    metadata: dict[str, Any],
+) -> TLChatResponse | None:
+    component = find_explicit_manicotto_component(metadata, values)
 
-    if not matches:
+    if not component:
         return None
+
+    confidence = _resolve_tl_chat_confidence(
+        metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
+    )
 
     return TLChatResponse(
         ok=True,
-        answer=f"{article} — manicotto: {matches[0]}.",
-        confidence="CERTO",
-        risk="Fonte locale metadata/components; interpretazione TL: manicotto = tubo in gomma.",
+        answer=f"{article} — manicotto: {component}.",
+        confidence=confidence,
+        risk="Fonte locale metadata/components con classificazione esplicita manicotto.",
         recommended_action="Usare il codice manicotto indicato; verificare fisicamente solo in caso di discrepanza con specifica reale.",
-        requires_confirmation=False,
+        requires_confirmation=confidence != "CERTO",
         technical_details_hidden=True,
     )
 
@@ -1603,7 +1609,7 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
         )
 
     if _question_asks_manicotto(question):
-        manicotto_response = _response_for_manicotto_component(article, values)
+        manicotto_response = _response_for_manicotto_component(article, values, metadata)
         if manicotto_response is not None:
             return manicotto_response
 

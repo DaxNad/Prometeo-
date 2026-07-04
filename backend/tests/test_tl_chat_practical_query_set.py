@@ -468,6 +468,12 @@ def test_practical_q_component_intent_manicotto_50036_resolves_tube_code(isolate
                 "article": "50036",
                 "confidence": "CERTO",
                 "components": ["468783", "468772", "12201"],
+                "linked_bom": [
+                    {
+                        "component": "12201",
+                        "description": "Manicotto associato da conoscenza operativa TL",
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -482,3 +488,109 @@ def test_practical_q_component_intent_manicotto_50036_resolves_tube_code(isolate
     assert "manicotto: 12201" in data["answer"].lower()
     assert "468772" not in data["answer"].lower()
 
+
+def test_practical_q_component_intent_unclassified_component_is_not_manicotto(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50037"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50037",
+                "confidence": "CERTO",
+                "components": ["468772"],
+                "linked_bom": [
+                    {
+                        "component": "468772",
+                        "description": "Componente WINTEC",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50037?")
+
+    assert "manicotto:" not in data["answer"].lower()
+    assert "componenti: 468772" in data["answer"].lower()
+
+
+def test_practical_q_component_intent_without_classification_source_uses_components_fallback(
+    isolated_tl_sources,
+):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50038"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50038",
+                "confidence": "CERTO",
+                "components": ["12201"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50038?")
+
+    assert "manicotto:" not in data["answer"].lower()
+    assert "componenti: 12201" in data["answer"].lower()
+
+
+def test_practical_q_component_intent_explicit_manicotto_keeps_uncertain_confidence(
+    isolated_tl_sources,
+):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50040"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50040",
+                "confidence": "DA_VERIFICARE",
+                "components": ["12201"],
+                "linked_bom": [
+                    {
+                        "component": "12201",
+                        "description": "Manicotto associato da conoscenza operativa TL",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50040?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "manicotto: 12201" in data["answer"].lower()
+
+
+def test_practical_q_component_general_response_is_unchanged(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50039"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50039",
+                "confidence": "CERTO",
+                "components": ["468783", "468772"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("componenti 50039?")
+
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "50039" in data["answer"]
+    assert "componenti: 468783, 468772" in data["answer"].lower()
