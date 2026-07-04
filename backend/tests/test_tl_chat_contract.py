@@ -2246,6 +2246,37 @@ def test_tl_chat_contract_context_reader_unavailable_stays_verifiable(monkeypatc
     assert "CERTO" not in data["confidence"]
 
 
+def test_tl_chat_context_reader_preserves_error_code_internally_without_public_field(monkeypatch):
+    def fake_adapter(*args, **kwargs):
+        return object()
+
+    def unavailable_candidate(*, source_id, article, adapter=None, include_excerpt=True, max_chars=500):
+        return tl_chat_api.TLChatContextCandidate(
+            source_name="context_source_reader_adapter",
+            source_status="SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+            confidence="DA_VERIFICARE",
+            payload={
+                "article": article,
+                "source_id": source_id,
+                "error_code": "INDEX_NOT_FOUND",
+            },
+            planner_eligible=False,
+            requires_tl_confirmation=True,
+        )
+
+    monkeypatch.setattr(tl_chat_api, "ContextSourceReaderAdapter", fake_adapter)
+    monkeypatch.setattr(tl_chat_api, "build_context_reader_candidate", unavailable_candidate)
+
+    response = tl_chat_api._response_from_context_reader_bridge("99999")
+
+    assert response is not None
+    assert response.confidence == "DA_VERIFICARE"
+    assert response.requires_confirmation is True
+    assert response._error_code == "INDEX_NOT_FOUND"
+    assert "error_code" not in response.model_dump()
+    assert "INDEX_NOT_FOUND" not in response.model_dump_json()
+
+
 def test_tl_chat_contract_context_reader_forbidden_does_not_expose_content(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     staging = tmp_path / "codici_staging_preview.json"

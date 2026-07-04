@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from fastapi import APIRouter, HTTPException
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
@@ -64,6 +64,8 @@ class TLChatRequest(BaseModel):
 
 
 class TLChatResponse(BaseModel):
+    _error_code: str | None = PrivateAttr(default=None)
+
     ok: bool
     mode: str = "TL_CHAT_CONTRACT_V1"
     answer: str
@@ -1819,7 +1821,7 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
         return None
 
     if resolved_context.source_status != "SOURCE_FOUND":
-        return TLChatResponse(
+        response = TLChatResponse(
             ok=True,
             answer=(
                 f"Articolo {article}: fonte governata non disponibile. "
@@ -1832,6 +1834,11 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
             requires_confirmation=True,
             technical_details_hidden=True,
         )
+        payload = resolved_context.payload if isinstance(resolved_context.payload, dict) else {}
+        error_code = _clean(payload.get("error_code"))
+        if error_code:
+            response._error_code = error_code
+        return response
 
     payload = resolved_context.payload
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}

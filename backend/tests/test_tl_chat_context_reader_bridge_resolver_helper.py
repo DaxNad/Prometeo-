@@ -63,6 +63,7 @@ def test_context_reader_bridge_resolves_authorized_source_through_resolver(tmp_p
     assert result["can_promote"] is False
     assert result["relative_path"] == "docs/tl_context_policy.md"
     assert "TL Chat retrieval source fixture" in result["excerpt"]
+    assert "error_code" not in result
 
 
 def test_context_reader_bridge_blocks_non_logical_source_id(tmp_path):
@@ -90,3 +91,4 @@ def test_context_reader_bridge_blocks_non_logical_source_id(tmp_path):
     assert result["can_promote"] is False
     assert result["relative_path"] == ""
     assert result["excerpt"] == ""
+    assert result["error_code"] == "SOURCE_ID_INVALID"
