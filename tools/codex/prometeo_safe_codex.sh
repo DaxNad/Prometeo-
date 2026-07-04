@@ -33,4 +33,4 @@ exec codex \
   --profile prometeo_safe_codex \
   --sandbox read-only \
   --ask-for-approval untrusted \
-  --cd "$SAFE_ROOT"
+  --cd "$REAL_REPO"

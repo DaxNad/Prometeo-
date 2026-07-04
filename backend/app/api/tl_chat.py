@@ -29,9 +29,8 @@ from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
-CONFIRMATION_12514_PATH = Path("data/local_reports/spec_intake_confirmation/12514_confirmation.json")
-
 ROOT = Path(__file__).resolve().parents[3]
+CONFIRMATION_12514_PATH = ROOT / "data" / "local_reports" / "spec_intake_confirmation" / "12514_confirmation.json"
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
 TL_REAL_SPEC_INTAKE = ROOT / "data" / "local_reports" / "tl_real_spec_intake" / "TL_REAL_SPEC_INTAKE_001.json"
