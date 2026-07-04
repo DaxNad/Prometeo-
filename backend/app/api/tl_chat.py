@@ -39,6 +39,13 @@ FAMILY_REGISTRY = ROOT / "data" / "backend" / "app" / "registry" / "prometeo_fam
 SPECS_ROOT = ROOT / "specs_finitura"
 SPEC_INTAKE_PREVIEW_ROOT = ROOT / "data" / "local_reports" / "spec_intake_preview"
 
+SOURCE_FOUND = "SOURCE_FOUND"
+SOURCE_MISSING = "SOURCE_MISSING"
+SOURCE_INVALID = "SOURCE_INVALID"
+SOURCE_UNREADABLE = "SOURCE_UNREADABLE"
+
+_JSON_LOADER_DIAGNOSTICS: dict[str, str] = {}
+
 
 class TLChatContext(BaseModel):
     model_config = ConfigDict(extra="allow")
@@ -194,6 +201,32 @@ def _resolve_tl_chat_confidence(value: Any) -> str:
     return resolve_confidence(value).normalized_key
 
 
+def _set_json_loader_status(source_name: str, status: str) -> None:
+    _JSON_LOADER_DIAGNOSTICS[source_name] = status
+
+
+def _get_json_loader_status(source_name: str) -> str | None:
+    return _JSON_LOADER_DIAGNOSTICS.get(source_name)
+
+
+def _read_json_source(path: Path, source_name: str) -> Any:
+    if not path.exists():
+        _set_json_loader_status(source_name, SOURCE_MISSING)
+        return None
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
+        return None
+    except (PermissionError, OSError):
+        _set_json_loader_status(source_name, SOURCE_UNREADABLE)
+        return None
+
+    _set_json_loader_status(source_name, SOURCE_FOUND)
+    return data
+
+
 def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
     """
     Read-only lifecycle registry loader.
@@ -204,15 +237,12 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
     - does not write to SMF/database
     - does not call external APIs
     """
-    if not LIFECYCLE_REGISTRY.exists():
-        return {}
-
-    try:
-        data = json.loads(LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    source_name = "lifecycle_registry"
+    data = _read_json_source(LIFECYCLE_REGISTRY, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
     output: dict[str, dict[str, Any]] = {}
@@ -224,15 +254,12 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
 
 
 def _load_family_registry() -> dict[str, dict[str, Any]]:
-    if not FAMILY_REGISTRY.exists():
-        return {}
-
-    try:
-        data = json.loads(FAMILY_REGISTRY.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    source_name = "family_registry"
+    data = _read_json_source(FAMILY_REGISTRY, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
     return {
@@ -298,21 +325,20 @@ def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
         return None
 
     metadata_path = SPECS_ROOT / safe_article / "metadata.json"
-    if not metadata_path.exists():
-        return None
-
-    try:
-        data = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    source_name = "local_specs_metadata"
+    data = _read_json_source(metadata_path, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if data.get("schema") != "PROMETEO_REAL_DATA_PILOT_V1":
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if _normalize_article(data.get("article")) != safe_article:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     return data
@@ -657,15 +683,15 @@ def _load_codici_staging_preview() -> dict[str, Any]:
     - does not write to SMF/database
     - does not call external APIs
     """
-    if not CODICI_STAGING_PREVIEW.exists():
+    source_name = "codici_staging_preview"
+    data = _read_json_source(CODICI_STAGING_PREVIEW, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(CODICI_STAGING_PREVIEW.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 
@@ -680,15 +706,15 @@ def _load_tl_real_spec_intake() -> dict[str, Any]:
     - does not call external APIs
     - missing intake preserves existing behavior
     """
-    if not TL_REAL_SPEC_INTAKE.exists():
+    source_name = "tl_real_spec_intake"
+    data = _read_json_source(TL_REAL_SPEC_INTAKE, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(TL_REAL_SPEC_INTAKE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 def _question_asks_for_densification_candidates(question: str) -> bool:
@@ -930,22 +956,21 @@ def _load_spec_intake_preview(article: str) -> dict[str, Any] | None:
         return None
 
     metadata_path = SPEC_INTAKE_PREVIEW_ROOT / f"{safe_article}_metadata_preview.json"
-    if not metadata_path.exists():
-        return None
-
-    try:
-        data = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    source_name = "spec_intake_preview"
+    data = _read_json_source(metadata_path, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if _clean(data.get("status")).upper() != "PREVIEW_ONLY":
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     article_payload = data.get("article") if isinstance(data.get("article"), dict) else {}
     if _normalize_article(article_payload.get("articolo")) != safe_article:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     return data
@@ -1024,15 +1049,15 @@ def _load_article_route_matrix_preview() -> dict[str, Any]:
     - does not call external APIs
     - preview is secondary fallback after active article_tl_summary
     """
-    if not ARTICLE_ROUTE_MATRIX_PREVIEW.exists():
+    source_name = "article_route_matrix_preview"
+    data = _read_json_source(ARTICLE_ROUTE_MATRIX_PREVIEW, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(ARTICLE_ROUTE_MATRIX_PREVIEW.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 def _response_from_preview_profile(article: str) -> TLChatResponse | None:
