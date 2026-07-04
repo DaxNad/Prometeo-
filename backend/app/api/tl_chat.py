@@ -73,9 +73,15 @@ class TLChat12514ConfirmationStructuredInput(BaseModel):
     Contract:
     - 12514 only
     - preview confirmation only
-    - no persistence
-    - no planner
+    - persists governed local confirmation evidence only
+    - no operational promotion
+    - no planner eligibility
     - no automatic CERTO promotion
+
+    API response semantics:
+    - requires_persistence_step=False means the local evidence record was written
+    - persisted evidence keeps requires_persistence_review=True before any promotion
+    - planner_eligible=False and promoted_to_certo=False remain invariant
     """
 
     model_config = ConfigDict(extra="forbid")

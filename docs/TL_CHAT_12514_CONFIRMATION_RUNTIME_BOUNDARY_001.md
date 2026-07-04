@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Define the runtime boundary for future TL Chat confirmation behavior for article 12514 before any implementation.
+Define the runtime boundary for TL Chat confirmation behavior for article 12514.
 
-This is a document-only boundary. It does not implement runtime confirmation, persist TL answers, mutate preview JSON, or promote any field to CERTO.
+This boundary allows governed local confirmation evidence persistence. It does not mutate preview JSON, promote any field to CERTO, enable planner, invoke ATLAS, or write to SMF/database.
 
 ## Source documents
 
@@ -14,9 +14,9 @@ This is a document-only boundary. It does not implement runtime confirmation, pe
 
 ## Boundary principle
 
-TL Chat may ask bounded confirmation questions and may display non-persisted candidate confirmation outcomes.
+TL Chat may ask bounded confirmation questions, display candidate confirmation outcomes, and persist governed local confirmation evidence.
 
-TL Chat must not persist TL answers, mutate source data, promote certainty, or enable operational execution in this boundary.
+TL Chat must not mutate source data, promote certainty, or enable operational execution in this boundary.
 
 ## Allowed runtime surface
 
@@ -30,7 +30,8 @@ Future runtime may display:
 - Q1-Q7 confirmation questions from the prompt contract
 - allowed answer states
 - blocked operational conclusions
-- non-persisted confirmation result summary
+- confirmation result summary
+- governed local evidence persistence status
 
 Future runtime may ask:
 
@@ -52,9 +53,9 @@ Future runtime may receive:
 - NOT_VISIBLE
 - ABSENT
 
-## Allowed non-persisted output states
+## Allowed output states
 
-| Output state | Meaning | Persistence allowed in this boundary |
+| Output state | Meaning | Operational promotion allowed in this boundary |
 |---|---|---|
 | CANDIDATE_CONFIRMATION | TL answer appears to confirm proposed value | No |
 | CANDIDATE_CORRECTION | TL provides corrected value | No |
@@ -66,7 +67,7 @@ Future runtime may receive:
 
 The following effects are explicitly forbidden:
 
-- persist TL answers
+- treat persisted confirmation evidence as operational truth
 - mutate data/local_reports/spec_intake_preview/12514_metadata_preview.json
 - write confirmation state to SMF
 - write confirmation state to database
@@ -90,11 +91,10 @@ Allowed:
 - show current preview values
 - show allowed answer states
 - explain that the response is not a CERTO promotion
-- summarize the TL response as non-persisted candidate confirmation
+- summarize the TL response as governed confirmation evidence
 
 Forbidden:
 
-- saving the answer
 - treating the answer as source of truth
 - updating preview metadata
 - changing route_status
@@ -105,7 +105,7 @@ Forbidden:
 
 Every future runtime confirmation prompt must include this framing:
 
-La tua risposta serve solo come input di conferma governata. Non viene salvata da questa funzione, non promuove automaticamente il dato a CERTO e non abilita planner o produzione.
+La tua risposta serve come input di conferma governata e puo essere salvata solo come evidenza locale. Non promuove automaticamente il dato a CERTO e non abilita planner o produzione.
 
 ## Stop conditions
 
@@ -113,7 +113,6 @@ TL Chat must stop or refuse when the user asks to:
 
 - confirm production readiness
 - confirm planning readiness
-- save the confirmation
 - update source JSON
 - write to SMF or database
 - promote to CERTO
@@ -122,11 +121,11 @@ TL Chat must stop or refuse when the user asks to:
 
 ## Future implementation preconditions
 
-Before any runtime implementation, a separate capability must define:
+Runtime implementation must preserve:
 
-- exact non-persistent response model
+- exact non-operational response model
 - test cases for allowed Q1-Q7 prompts
-- test cases for forbidden persistence
+- test cases for governed evidence persistence
 - test cases for anti-CERTO behavior
 - test cases for anti-planner and anti-ATLAS behavior
 - explicit statement that preview JSON remains immutable
@@ -138,15 +137,15 @@ TL_CHAT_12514_CONFIRMATION_RUNTIME_BOUNDARY_TEST_001
 Purpose:
 
 - guard this runtime boundary document with a document-level test
-- require ask-only and no-persist language
+- require governed evidence persistence language
 - require forbidden runtime effects
 - require stop conditions
 - require anti-CERTO, anti-planner, anti-ATLAS, and no JSON mutation boundaries
 
 ## Explicit non-goals
 
-- no runtime implementation
-- no TL answer persistence
+- no operational promotion
+- no unreviewed promotion from persisted evidence
 - no preview JSON mutation
 - no automatic promotion to CERTO
 - no planner

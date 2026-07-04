@@ -15,9 +15,8 @@ def test_runtime_boundary_document_exists_and_declares_scope():
 
     required = [
         "TL_CHAT_12514_CONFIRMATION_RUNTIME_BOUNDARY_001",
-        "document-only boundary",
-        "does not implement runtime confirmation",
-        "does not implement runtime confirmation, persist TL answers, mutate preview JSON, or promote any field to CERTO",
+        "governed local confirmation evidence persistence",
+        "does not mutate preview JSON, promote any field to CERTO",
         "ask-only and summarize-only",
     ]
 
@@ -80,11 +79,10 @@ def test_runtime_boundary_forbids_persistence_and_source_mutation():
     text = _doc()
 
     forbidden_effects = [
-        "persist TL answers",
+        "treat persisted confirmation evidence as operational truth",
         "mutate data/local_reports/spec_intake_preview/12514_metadata_preview.json",
         "write confirmation state to SMF",
         "write confirmation state to database",
-        "saving the answer",
         "treating the answer as source of truth",
         "updating preview metadata",
     ]
@@ -116,8 +114,8 @@ def test_runtime_boundary_preserves_required_response_framing():
     text = _doc()
 
     required_framing = (
-        "La tua risposta serve solo come input di conferma governata. "
-        "Non viene salvata da questa funzione, non promuove automaticamente "
+        "La tua risposta serve come input di conferma governata e puo essere salvata solo come evidenza locale. "
+        "Non promuove automaticamente "
         "il dato a CERTO e non abilita planner o produzione."
     )
 
@@ -130,7 +128,6 @@ def test_runtime_boundary_declares_stop_conditions():
     required = [
         "confirm production readiness",
         "confirm planning readiness",
-        "save the confirmation",
         "update source JSON",
         "write to SMF or database",
         "promote to CERTO",
@@ -146,9 +143,9 @@ def test_runtime_boundary_declares_future_implementation_preconditions():
     text = _doc()
 
     required = [
-        "exact non-persistent response model",
+        "exact non-operational response model",
         "test cases for allowed Q1-Q7 prompts",
-        "test cases for forbidden persistence",
+        "test cases for governed evidence persistence",
         "test cases for anti-CERTO behavior",
         "test cases for anti-planner and anti-ATLAS behavior",
         "explicit statement that preview JSON remains immutable",
@@ -164,7 +161,7 @@ def test_runtime_boundary_recommends_expected_next_capability():
     required = [
         "TL_CHAT_12514_CONFIRMATION_RUNTIME_BOUNDARY_TEST_001",
         "guard this runtime boundary document with a document-level test",
-        "require ask-only and no-persist language",
+        "require governed evidence persistence language",
         "require forbidden runtime effects",
         "require stop conditions",
         "require anti-CERTO, anti-planner, anti-ATLAS, and no JSON mutation boundaries",

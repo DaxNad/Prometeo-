@@ -13,9 +13,9 @@ def test_12514_confirmation_persistence_contract_exists_and_is_contract_only():
     text = _contract_text()
 
     assert "TL_CHAT_12514_CONFIRMATION_PERSISTENCE_CONTRACT_001" in text
-    assert "This document is contract-only." in text
-    assert "It does not implement persistence" in text
-    assert "Runtime persistence must be opened as a separate implementation capability." in text
+    assert "runtime evidence persistence contract" in text
+    assert "persists a local governed evidence record" in text
+    assert "still requires review before any operational promotion" in text
 
 
 def test_12514_confirmation_persistence_contract_blocks_scope_creep():
