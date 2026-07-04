@@ -15,9 +15,8 @@ def test_non_persistent_response_model_document_exists_and_declares_scope():
 
     required = [
         "TL_CHAT_12514_CONFIRMATION_NON_PERSISTENT_RESPONSE_MODEL_001",
-        "document-only model",
-        "does not implement runtime confirmation",
-        "persist TL answers",
+        "non-operational response model",
+        "persist a governed local confirmation evidence record",
         "mutate preview JSON",
         "promote any field to CERTO",
         "enable planner",
@@ -152,7 +151,7 @@ def test_non_persistent_response_model_forbids_runtime_effects():
     text = _doc()
 
     required = [
-        "no TL answer persistence",
+        "local TL confirmation evidence persistence is allowed only as governed evidence",
         "no preview JSON mutation",
         "no automatic promotion to CERTO",
         "no planner enablement",
@@ -171,8 +170,6 @@ def test_non_persistent_response_model_forbids_persisted_or_operational_fields()
     text = _doc()
 
     required = [
-        "persisted",
-        "saved",
         "source_of_truth",
         "certo",
         "planner_eligible",
@@ -193,7 +190,6 @@ def test_non_persistent_response_model_declares_stop_conditions():
     text = _doc()
 
     required = [
-        "save the confirmation",
         "update source JSON",
         "promote any value to CERTO",
         "set planner_eligible=true",
@@ -218,7 +214,7 @@ def test_non_persistent_response_model_declares_future_test_preconditions():
         "CORRECTED_VALUE requires corrected_value",
         "ABSENT is allowed only for Q7",
         "forbidden runtime effects remain preserved",
-        "no persistence or source mutation occurs",
+        "evidence persistence does not mutate source data",
         "no CERTO, planner, ATLAS, SMF, DB, or API effects occur",
     ]
 
@@ -231,11 +227,11 @@ def test_non_persistent_response_model_recommends_expected_next_capability():
 
     required = [
         "TL_CHAT_12514_CONFIRMATION_NON_PERSISTENT_RESPONSE_MODEL_TEST_001",
-        "guard this non-persistent response model with a document-level test",
+        "guard this non-operational response model with a document-level test",
         "require required fields",
         "require allowed values",
         "require forbidden field names",
-        "require anti-persistence, anti-CERTO, anti-planner, anti-ATLAS, anti-SMF/DB behavior",
+        "require anti-promotion, anti-CERTO, anti-planner, anti-ATLAS, anti-SMF/DB behavior",
     ]
 
     for phrase in required:

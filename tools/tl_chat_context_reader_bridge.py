@@ -137,6 +137,7 @@ def resolve_context_reader_source_for_tl_chat(
     metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
     excerpt = payload.get("excerpt") if isinstance(payload.get("excerpt"), str) else ""
     resolved_source_id = str(payload.get("source_id") or source_id).strip()
+    error_code = str(payload.get("error_code") or "").strip()
 
     source_status = resolved.source_status
     missing_data = "nessun dato certo promosso; conferma TL richiesta"
@@ -151,7 +152,7 @@ def resolve_context_reader_source_for_tl_chat(
     elif not excerpt:
         missing_data = "excerpt non disponibile; conferma TL richiesta"
 
-    return {
+    result = {
         "article": resolved.article,
         "source": resolved_source_id,
         "source_status": source_status,
@@ -165,3 +166,8 @@ def resolve_context_reader_source_for_tl_chat(
         "relative_path": str(metadata.get("relative_path") or "").strip(),
         "excerpt": excerpt,
     }
+
+    if error_code:
+        result["error_code"] = error_code
+
+    return result

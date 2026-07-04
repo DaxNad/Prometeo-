@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Define the non-persistent response model for future TL Chat confirmation behavior for article 12514.
+Define the non-operational response model for TL Chat confirmation behavior for article 12514.
 
-This is a document-only model. It does not implement runtime confirmation, persist TL answers, mutate preview JSON, promote any field to CERTO, enable planner, invoke ATLAS, or write to SMF/database.
+This model covers the TL-facing confirmation rendering. The runtime endpoint may persist a governed local confirmation evidence record, but that evidence is not operational truth: it does not mutate preview JSON, promote any field to CERTO, enable planner, invoke ATLAS, or write to SMF/database.
 
 ## Source documents
 
@@ -15,9 +15,9 @@ This is a document-only model. It does not implement runtime confirmation, persi
 
 ## Model principle
 
-A TL answer to Q1-Q7 may be represented only as a non-persisted candidate response.
+A TL answer to Q1-Q7 may be represented as a candidate confirmation response and, through the structured endpoint, as a governed local evidence record.
 
-The response model is allowed to summarize what the TL answered, but it must not become source of truth and must not modify operational state.
+The response model is allowed to summarize what the TL answered, but neither the response nor the persisted evidence may become source of truth or modify operational state.
 
 ## Required fields
 
@@ -142,7 +142,7 @@ Every response object must include forbidden_runtime_effects_preserved=true.
 
 This means:
 
-* no TL answer persistence
+* local TL confirmation evidence persistence is allowed only as governed evidence
 * no preview JSON mutation
 * no automatic promotion to CERTO
 * no planner enablement
@@ -174,10 +174,8 @@ This means:
 
 ## Forbidden model behavior
 
-The model must not include fields that imply persisted or operational state, including:
+The model must not include fields that imply operational promotion, including:
 
-* persisted
-* saved
 * source_of_truth
 * certo
 * planner_eligible
@@ -193,7 +191,6 @@ The model must not include fields that imply persisted or operational state, inc
 
 The response model must return BLOCKED or refuse when the requested confirmation asks to:
 
-* save the confirmation
 * update source JSON
 * promote any value to CERTO
 * set planner_eligible=true
@@ -205,7 +202,7 @@ The response model must return BLOCKED or refuse when the requested confirmation
 
 ## Future implementation preconditions
 
-Before runtime implementation, a separate capability must add tests that verify:
+Runtime tests must verify:
 
 * all required fields are present
 * only allowed question_id values are accepted
@@ -213,7 +210,7 @@ Before runtime implementation, a separate capability must add tests that verify:
 * CORRECTED_VALUE requires corrected_value
 * ABSENT is allowed only for Q7
 * forbidden runtime effects remain preserved
-* no persistence or source mutation occurs
+* evidence persistence does not mutate source data
 * no CERTO, planner, ATLAS, SMF, DB, or API effects occur
 
 ## Recommended next capability
@@ -222,16 +219,16 @@ TL_CHAT_12514_CONFIRMATION_NON_PERSISTENT_RESPONSE_MODEL_TEST_001
 
 Purpose:
 
-* guard this non-persistent response model with a document-level test
+* guard this non-operational response model with a document-level test
 * require required fields
 * require allowed values
 * require forbidden field names
-* require anti-persistence, anti-CERTO, anti-planner, anti-ATLAS, anti-SMF/DB behavior
+* require anti-promotion, anti-CERTO, anti-planner, anti-ATLAS, anti-SMF/DB behavior
 
 ## Explicit non-goals
 
-* no runtime implementation
-* no TL answer persistence
+* no operational promotion
+* no unreviewed promotion from persisted evidence
 * no preview JSON mutation
 * no automatic promotion to CERTO
 * no planner

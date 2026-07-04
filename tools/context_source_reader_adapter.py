@@ -76,7 +76,13 @@ class ContextSourceReaderAdapter:
                 "Source file not found or not readable.",
             )
 
-        content = source_path.read_text(encoding="utf-8", errors="replace")
+        try:
+            content = source_path.read_text(encoding="utf-8", errors="replace")
+        except (PermissionError, OSError) as exc:
+            raise ContextSourceReaderError(
+                "SOURCE_FILE_NOT_FOUND",
+                "Source file not found or not readable.",
+            ) from exc
         limited = content[: self.max_chars]
 
         status = "READ_OK"
@@ -97,8 +103,19 @@ class ContextSourceReaderAdapter:
                 "Context Source Index not found.",
             )
 
-        with self.index_path.open("r", encoding="utf-8") as f:
-            data = json.load(f)
+        try:
+            with self.index_path.open("r", encoding="utf-8") as f:
+                data = json.load(f)
+        except json.JSONDecodeError as exc:
+            raise ContextSourceReaderError(
+                "INDEX_INVALID",
+                "Context Source Index is invalid.",
+            ) from exc
+        except (PermissionError, OSError) as exc:
+            raise ContextSourceReaderError(
+                "INDEX_NOT_FOUND",
+                "Context Source Index not found or not readable.",
+            ) from exc
 
         if not isinstance(data, dict):
             raise ContextSourceReaderError(
@@ -235,11 +252,19 @@ class ContextSourceReaderAdapter:
     def _safe_metadata(self, source: dict[str, Any], source_path: Path) -> dict[str, Any]:
         relative_path = str(source_path.relative_to(self.repo_root))
 
+        try:
+            exists = source_path.exists()
+        except (PermissionError, OSError) as exc:
+            raise ContextSourceReaderError(
+                "SOURCE_FILE_NOT_FOUND",
+                "Source file not found or not readable.",
+            ) from exc
+
         return {
             "schema": "CONTEXT_SOURCE_READER_ADAPTER_READONLY_001",
             "source_type": source.get("source_type"),
             "access_mode": source.get("access_mode", "read_only"),
             "runtime_enabled": source.get("runtime_enabled", False),
             "relative_path": relative_path,
-            "exists": source_path.exists(),
+            "exists": exists,
         }

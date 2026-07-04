@@ -143,3 +143,45 @@ def test_tl_chat_runtime_context_reader_missing_source_stays_safe(monkeypatch, t
     assert "non genero decisioni operative" in answer
     assert "planner_eligible=true" not in answer
     assert "CERTO" not in data["confidence"]
+
+
+def test_tl_chat_runtime_context_reader_missing_index_stays_safe_internally(monkeypatch, tmp_path):
+    _isolate_tl_chat_sources(monkeypatch, tmp_path)
+
+    response = tl_chat_api._response_from_context_reader_bridge("99998")
+
+    assert response is not None
+    assert response.confidence == "DA_VERIFICARE"
+    assert response.requires_confirmation is True
+    assert response.technical_details_hidden is True
+    assert response._error_code == "INDEX_NOT_FOUND"
+    assert "error_code" not in response.model_dump()
+    assert "INDEX_NOT_FOUND" not in response.model_dump_json()
+    assert "fonte governata non disponibile" in response.answer
+    assert "Non invento contenuto" in response.answer
+
+
+def test_tl_chat_runtime_context_reader_typed_candidate_error_stays_safe(monkeypatch):
+    class FakeAdapter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+    def typed_error_candidate(*, source_id, article, adapter=None, include_excerpt=True, max_chars=500):
+        raise tl_chat_api.ContextSourceReaderError(
+            "SOURCE_NOT_ALLOWED",
+            "technical detail must not be exposed",
+        )
+
+    monkeypatch.setattr(tl_chat_api, "ContextSourceReaderAdapter", FakeAdapter)
+    monkeypatch.setattr(tl_chat_api, "build_context_reader_candidate", typed_error_candidate)
+
+    response = tl_chat_api._response_from_context_reader_bridge("99998")
+
+    assert response is not None
+    assert response.confidence == "DA_VERIFICARE"
+    assert response.requires_confirmation is True
+    assert response._error_code == "SOURCE_NOT_ALLOWED"
+    assert "error_code" not in response.model_dump()
+    assert "SOURCE_NOT_ALLOWED" not in response.model_dump_json()
+    assert "Stato fonte: SOURCE_FORBIDDEN" in response.answer
+    assert "technical detail" not in response.answer

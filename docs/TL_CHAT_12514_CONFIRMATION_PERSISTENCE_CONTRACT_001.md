@@ -2,11 +2,11 @@
 
 ## Purpose
 
-Define the future persistence contract for structured TL confirmation of article `12514`.
+Define the persistence contract for structured TL confirmation evidence of article `12514`.
 
-This document is contract-only.
+This document describes the runtime evidence persistence contract.
 
-It does not implement persistence, does not write runtime data, does not promote the article to `CERTO`, and does not enable planner or SMF execution.
+The runtime endpoint persists a local governed evidence record. That persistence does not promote the article to `CERTO`, does not enable planner or SMF execution, and still requires review before any operational promotion.
 
 ## Capability boundary
 
@@ -28,13 +28,13 @@ Current confirmed input endpoint:
 POST /tl/12514/confirmation
 ```
 
-The current endpoint accepts and validates a structured TL confirmation payload, then returns a governed response.
+The current endpoint accepts and validates a structured TL confirmation payload, persists governed local evidence, then returns a governed response.
 
-The future persistence step may only persist the confirmation as controlled evidence. It must not convert the preview into an operationally certain source.
+The persistence step may only persist the confirmation as controlled evidence. It must not convert the preview into an operationally certain source.
 
-## Allowed future persistence target
+## Allowed persistence target
 
-A future implementation may persist a local, governed confirmation record for article `12514`.
+The implementation may persist a local, governed confirmation record for article `12514`.
 
 Allowed conceptual target:
 
@@ -48,7 +48,7 @@ The persisted record must remain local, auditable, and non-operational by defaul
 
 ## Allowed persisted fields
 
-A future persisted record may contain only:
+The persisted record may contain only:
 
 ```json
 {
@@ -84,7 +84,7 @@ It must not be treated as final production truth.
 
 ## Forbidden behavior
 
-A future implementation must not:
+The implementation must not:
 
 ```text
 promote 12514 to CERTO automatically
@@ -112,9 +112,9 @@ STRUCTURED DOMAIN SOURCE
 
 It has higher authority only than a volatile API response that was not saved.
 
-## Future test contract
+## Test contract
 
-A future implementation must add tests proving:
+The implementation must have tests proving:
 
 ```text
 valid 12514 confirmation can be persisted as governed evidence
@@ -129,8 +129,15 @@ existing record overwrite is blocked or explicitly governed
 no lifecycle/master/SMF file is modified
 ```
 
+## Response field semantics
+
+```text
+requires_persistence_step = false means the governed local evidence record has already been written
+requires_persistence_review = true means review is still required before operational promotion
+planner_eligible = false means the persisted evidence is not planner input
+promoted_to_certo = false means the persisted evidence is not CERTO
+```
+
 ## Stop condition
 
-This contract is complete when the repository contains this document and no runtime persistence behavior has been added.
-
-Runtime persistence must be opened as a separate implementation capability.
+This contract is complete when runtime persistence remains limited to governed local evidence and does not promote 12514 operationally.

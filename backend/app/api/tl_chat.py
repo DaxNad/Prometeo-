@@ -5,10 +5,11 @@ import json
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from fastapi import APIRouter, HTTPException
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
+from app.domain.component_classifier import find_explicit_manicotto_component
 from app.domain.human_checkpoint import consultation
 from app.atlas_engine.governed_retrieval import build_governed_retrieval_pack
 from app.semantic_registry import resolve_confidence
@@ -24,14 +25,16 @@ from app.services.tl_chat_confirmation_evidence_readback import (
     build_confirmation_evidence_readback,
 )
 from app.services.pattern_learning_registry import find_patterns_by_station
-from tools.context_source_reader_adapter import ContextSourceReaderAdapter
-from tools.tl_chat_context_reader_bridge import build_context_reader_candidate
+from tools.context_source_reader_adapter import ContextSourceReaderAdapter, ContextSourceReaderError
+from tools.tl_chat_context_reader_bridge import (
+    _map_reader_error_to_source_status,
+    build_context_reader_candidate,
+)
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
 
-CONFIRMATION_12514_PATH = Path("data/local_reports/spec_intake_confirmation/12514_confirmation.json")
-
 ROOT = Path(__file__).resolve().parents[3]
+CONFIRMATION_12514_PATH = ROOT / "data" / "local_reports" / "spec_intake_confirmation" / "12514_confirmation.json"
 LIFECYCLE_REGISTRY = ROOT / "data" / "local_smf" / "article_lifecycle_registry.json"
 CODICI_STAGING_PREVIEW = ROOT / "data" / "local_smf" / "codici_staging_preview.json"
 TL_REAL_SPEC_INTAKE = ROOT / "data" / "local_reports" / "tl_real_spec_intake" / "TL_REAL_SPEC_INTAKE_001.json"
@@ -39,6 +42,13 @@ ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "artic
 FAMILY_REGISTRY = ROOT / "data" / "backend" / "app" / "registry" / "prometeo_famiglie.json"
 SPECS_ROOT = ROOT / "specs_finitura"
 SPEC_INTAKE_PREVIEW_ROOT = ROOT / "data" / "local_reports" / "spec_intake_preview"
+
+SOURCE_FOUND = "SOURCE_FOUND"
+SOURCE_MISSING = "SOURCE_MISSING"
+SOURCE_INVALID = "SOURCE_INVALID"
+SOURCE_UNREADABLE = "SOURCE_UNREADABLE"
+
+_JSON_LOADER_DIAGNOSTICS: dict[str, str] = {}
 
 
 class TLChatContext(BaseModel):
@@ -57,6 +67,8 @@ class TLChatRequest(BaseModel):
 
 
 class TLChatResponse(BaseModel):
+    _error_code: str | None = PrivateAttr(default=None)
+
     ok: bool
     mode: str = "TL_CHAT_CONTRACT_V1"
     answer: str
@@ -74,9 +86,15 @@ class TLChat12514ConfirmationStructuredInput(BaseModel):
     Contract:
     - 12514 only
     - preview confirmation only
-    - no persistence
-    - no planner
+    - persists governed local confirmation evidence only
+    - no operational promotion
+    - no planner eligibility
     - no automatic CERTO promotion
+
+    API response semantics:
+    - requires_persistence_step=False means the local evidence record was written
+    - persisted evidence keeps requires_persistence_review=True before any promotion
+    - planner_eligible=False and promoted_to_certo=False remain invariant
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -189,6 +207,32 @@ def _resolve_tl_chat_confidence(value: Any) -> str:
     return resolve_confidence(value).normalized_key
 
 
+def _set_json_loader_status(source_name: str, status: str) -> None:
+    _JSON_LOADER_DIAGNOSTICS[source_name] = status
+
+
+def _get_json_loader_status(source_name: str) -> str | None:
+    return _JSON_LOADER_DIAGNOSTICS.get(source_name)
+
+
+def _read_json_source(path: Path, source_name: str) -> Any:
+    if not path.exists():
+        _set_json_loader_status(source_name, SOURCE_MISSING)
+        return None
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
+        return None
+    except (PermissionError, OSError):
+        _set_json_loader_status(source_name, SOURCE_UNREADABLE)
+        return None
+
+    _set_json_loader_status(source_name, SOURCE_FOUND)
+    return data
+
+
 def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
     """
     Read-only lifecycle registry loader.
@@ -199,15 +243,12 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
     - does not write to SMF/database
     - does not call external APIs
     """
-    if not LIFECYCLE_REGISTRY.exists():
-        return {}
-
-    try:
-        data = json.loads(LIFECYCLE_REGISTRY.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    source_name = "lifecycle_registry"
+    data = _read_json_source(LIFECYCLE_REGISTRY, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
     output: dict[str, dict[str, Any]] = {}
@@ -219,15 +260,12 @@ def _load_lifecycle_registry() -> dict[str, dict[str, Any]]:
 
 
 def _load_family_registry() -> dict[str, dict[str, Any]]:
-    if not FAMILY_REGISTRY.exists():
-        return {}
-
-    try:
-        data = json.loads(FAMILY_REGISTRY.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    source_name = "family_registry"
+    data = _read_json_source(FAMILY_REGISTRY, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
     return {
@@ -293,21 +331,20 @@ def _load_local_specs_metadata(article: str) -> dict[str, Any] | None:
         return None
 
     metadata_path = SPECS_ROOT / safe_article / "metadata.json"
-    if not metadata_path.exists():
-        return None
-
-    try:
-        data = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    source_name = "local_specs_metadata"
+    data = _read_json_source(metadata_path, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if data.get("schema") != "PROMETEO_REAL_DATA_PILOT_V1":
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if _normalize_article(data.get("article")) != safe_article:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     return data
@@ -652,15 +689,15 @@ def _load_codici_staging_preview() -> dict[str, Any]:
     - does not write to SMF/database
     - does not call external APIs
     """
-    if not CODICI_STAGING_PREVIEW.exists():
+    source_name = "codici_staging_preview"
+    data = _read_json_source(CODICI_STAGING_PREVIEW, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(CODICI_STAGING_PREVIEW.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 
@@ -675,15 +712,15 @@ def _load_tl_real_spec_intake() -> dict[str, Any]:
     - does not call external APIs
     - missing intake preserves existing behavior
     """
-    if not TL_REAL_SPEC_INTAKE.exists():
+    source_name = "tl_real_spec_intake"
+    data = _read_json_source(TL_REAL_SPEC_INTAKE, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(TL_REAL_SPEC_INTAKE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 def _question_asks_for_densification_candidates(question: str) -> bool:
@@ -925,22 +962,21 @@ def _load_spec_intake_preview(article: str) -> dict[str, Any] | None:
         return None
 
     metadata_path = SPEC_INTAKE_PREVIEW_ROOT / f"{safe_article}_metadata_preview.json"
-    if not metadata_path.exists():
-        return None
-
-    try:
-        data = json.loads(metadata_path.read_text(encoding="utf-8"))
-    except Exception:
-        return None
+    source_name = "spec_intake_preview"
+    data = _read_json_source(metadata_path, source_name)
 
     if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     if _clean(data.get("status")).upper() != "PREVIEW_ONLY":
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     article_payload = data.get("article") if isinstance(data.get("article"), dict) else {}
     if _normalize_article(article_payload.get("articolo")) != safe_article:
+        _set_json_loader_status(source_name, SOURCE_INVALID)
         return None
 
     return data
@@ -1019,15 +1055,15 @@ def _load_article_route_matrix_preview() -> dict[str, Any]:
     - does not call external APIs
     - preview is secondary fallback after active article_tl_summary
     """
-    if not ARTICLE_ROUTE_MATRIX_PREVIEW.exists():
+    source_name = "article_route_matrix_preview"
+    data = _read_json_source(ARTICLE_ROUTE_MATRIX_PREVIEW, source_name)
+
+    if not isinstance(data, dict):
+        if data is not None:
+            _set_json_loader_status(source_name, SOURCE_INVALID)
         return {}
 
-    try:
-        data = json.loads(ARTICLE_ROUTE_MATRIX_PREVIEW.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
-
-    return data if isinstance(data, dict) else {}
+    return data
 
 
 def _response_from_preview_profile(article: str) -> TLChatResponse | None:
@@ -1242,7 +1278,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         confidence=confidence,
         risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
         recommended_action=(str(summary.get("tl_action") or "Seguire risposta operativa sintetica.") + pattern_hint).strip(),
-        requires_confirmation=False,
+        requires_confirmation=confidence != "CERTO",
         technical_details_hidden=True,
     )
 
@@ -1372,7 +1408,7 @@ def _response_for_article_why_question(
             confidence=confidence,
             risk="Planner eligibility non equivale ad avvio automatico della produzione.",
             recommended_action="Usare solo dentro il normale flusso ordine/turno e con override TL tracciabile se necessario.",
-            requires_confirmation=False,
+            requires_confirmation=confidence != "CERTO",
             technical_details_hidden=True,
         )
 
@@ -1490,26 +1526,31 @@ def _question_asks_components(question: str) -> bool:
 
 
 
-KNOWN_MANICOTTO_TUBE_CODES = frozenset({"12201"})
-
-
 def _question_asks_manicotto(question: str) -> bool:
     return "manicotto" in str(question or "").strip().lower()
 
 
-def _response_for_manicotto_component(article: str, values: list[str]) -> TLChatResponse | None:
-    matches = [value for value in values if value in KNOWN_MANICOTTO_TUBE_CODES]
+def _response_for_manicotto_component(
+    article: str,
+    values: list[str],
+    metadata: dict[str, Any],
+) -> TLChatResponse | None:
+    component = find_explicit_manicotto_component(metadata, values)
 
-    if not matches:
+    if not component:
         return None
+
+    confidence = _resolve_tl_chat_confidence(
+        metadata.get("confidence") or metadata.get("classification") or "DA_VERIFICARE"
+    )
 
     return TLChatResponse(
         ok=True,
-        answer=f"{article} — manicotto: {matches[0]}.",
-        confidence="CERTO",
-        risk="Fonte locale metadata/components; interpretazione TL: manicotto = tubo in gomma.",
+        answer=f"{article} — manicotto: {component}.",
+        confidence=confidence,
+        risk="Fonte locale metadata/components con classificazione esplicita manicotto.",
         recommended_action="Usare il codice manicotto indicato; verificare fisicamente solo in caso di discrepanza con specifica reale.",
-        requires_confirmation=False,
+        requires_confirmation=confidence != "CERTO",
         technical_details_hidden=True,
     )
 
@@ -1524,7 +1565,7 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             confidence="DA_VERIFICARE",
             risk=None,
             recommended_action="Densificare o verificare metadata/components.",
-            requires_confirmation=False,
+            requires_confirmation=True,
             technical_details_hidden=True,
         )
 
@@ -1568,12 +1609,12 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             confidence="DA_VERIFICARE",
             risk=None,
             recommended_action="Verificare struttura metadata/components.",
-            requires_confirmation=False,
+            requires_confirmation=True,
             technical_details_hidden=True,
         )
 
     if _question_asks_manicotto(question):
-        manicotto_response = _response_for_manicotto_component(article, values)
+        manicotto_response = _response_for_manicotto_component(article, values, metadata)
         if manicotto_response is not None:
             return manicotto_response
 
@@ -1760,41 +1801,65 @@ def _response_from_governed_evidence_pack(
 
 
 
-def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
-    adapter = ContextSourceReaderAdapter(
-        index_path=ROOT / "memory" / "context_source_index.json",
-        repo_root=ROOT,
-        max_chars=500,
+def _context_reader_unavailable_response(
+    *,
+    article: str,
+    source_status: str,
+    error_code: str = "",
+) -> TLChatResponse:
+    response = TLChatResponse(
+        ok=True,
+        answer=(
+            f"Articolo {article}: fonte governata non disponibile. "
+            f"Stato fonte: {source_status}. "
+            "Non invento contenuto e non genero decisioni operative."
+        ),
+        confidence="DA_VERIFICARE",
+        risk="Fonte governata non disponibile o non autorizzata.",
+        recommended_action="Verificare source_id o fonte ammessa prima di usare il contesto.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
     )
-    candidate = build_context_reader_candidate(
-        source_id="context_access_binding",
-        article=article,
-        adapter=adapter,
-        include_excerpt=True,
-        max_chars=500,
-    )
+    if error_code:
+        response._error_code = error_code
+    return response
 
-    resolved_context = resolve_tl_chat_context(
-        article=article,
-        candidates=[candidate],
-    )
+
+def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
+    try:
+        adapter = ContextSourceReaderAdapter(
+            index_path=ROOT / "memory" / "context_source_index.json",
+            repo_root=ROOT,
+            max_chars=500,
+        )
+        candidate = build_context_reader_candidate(
+            source_id="context_access_binding",
+            article=article,
+            adapter=adapter,
+            include_excerpt=True,
+            max_chars=500,
+        )
+
+        resolved_context = resolve_tl_chat_context(
+            article=article,
+            candidates=[candidate],
+        )
+    except ContextSourceReaderError as exc:
+        return _context_reader_unavailable_response(
+            article=article,
+            source_status=_map_reader_error_to_source_status(exc.code),
+            error_code=exc.code,
+        )
 
     if resolved_context.selected_source != "context_source_reader_adapter":
         return None
 
     if resolved_context.source_status != "SOURCE_FOUND":
-        return TLChatResponse(
-            ok=True,
-            answer=(
-                f"Articolo {article}: fonte governata non disponibile. "
-                f"Stato fonte: {resolved_context.source_status}. "
-                "Non invento contenuto e non genero decisioni operative."
-            ),
-            confidence="DA_VERIFICARE",
-            risk="Fonte governata non disponibile o non autorizzata.",
-            recommended_action="Verificare source_id o fonte ammessa prima di usare il contesto.",
-            requires_confirmation=True,
-            technical_details_hidden=True,
+        payload = resolved_context.payload if isinstance(resolved_context.payload, dict) else {}
+        return _context_reader_unavailable_response(
+            article=article,
+            source_status=resolved_context.source_status,
+            error_code=_clean(payload.get("error_code")),
         )
 
     payload = resolved_context.payload

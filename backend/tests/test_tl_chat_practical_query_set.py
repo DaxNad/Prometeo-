@@ -115,6 +115,33 @@ def test_practical_q1_certain_article_12066(monkeypatch, isolated_tl_sources):
     assert "Azione:" in data["answer"]
 
 
+def test_practical_q_article_summary_da_verificare_requires_confirmation(monkeypatch, isolated_tl_sources):
+    def summary(article: str) -> dict:
+        assert article == "12067"
+        return {
+            "ok": True,
+            "article": "12067",
+            "confidence": "DA_VERIFICARE",
+            "route": ["HENN", "ZAW1"],
+            "signals": {
+                "has_henn": True,
+                "has_zaw1": True,
+                "has_zaw2": False,
+                "primary_zaw_station": "ZAW1",
+            },
+            "criticalities": ["Profilo articolo da verificare."],
+            "tl_action": "Confermare con TL prima di usare la route.",
+        }
+
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", summary)
+
+    data = _ask("12067?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "12067" in data["answer"]
+
+
 def test_practical_q2_inferred_article_12070_requires_confirmation(isolated_tl_sources):
     isolated_tl_sources["registry"].write_text(
         json.dumps({"12070": {"status": "NEW_ENTRY", "source": "tl"}}),
@@ -362,6 +389,31 @@ def test_practical_q_why_planner_false_explains_admission_not_profile_dump(isola
     assert "route:" not in data["answer"].lower()
 
 
+def test_practical_q_planner_eligible_true_da_verificare_requires_confirmation(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "12098"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "12098",
+                "confidence": "DA_VERIFICARE",
+                "route_status": "DA_VERIFICARE",
+                "operational_class": "STANDARD",
+                "planner_eligible": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("perché planner_eligible=true per 12098?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "planner_eligible=true" in data["answer"]
+
+
 def test_practical_q_wintec_article_does_not_emit_zaw_noise(isolated_tl_sources):
     specs_root = tl_chat_api.SPECS_ROOT
     article_dir = specs_root / "50042"
@@ -468,6 +520,12 @@ def test_practical_q_component_intent_manicotto_50036_resolves_tube_code(isolate
                 "article": "50036",
                 "confidence": "CERTO",
                 "components": ["468783", "468772", "12201"],
+                "linked_bom": [
+                    {
+                        "component": "12201",
+                        "description": "Manicotto associato da conoscenza operativa TL",
+                    }
+                ],
             }
         ),
         encoding="utf-8",
@@ -482,3 +540,154 @@ def test_practical_q_component_intent_manicotto_50036_resolves_tube_code(isolate
     assert "manicotto: 12201" in data["answer"].lower()
     assert "468772" not in data["answer"].lower()
 
+
+def test_practical_q_component_intent_unclassified_component_is_not_manicotto(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50037"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50037",
+                "confidence": "CERTO",
+                "components": ["468772"],
+                "linked_bom": [
+                    {
+                        "component": "468772",
+                        "description": "Componente WINTEC",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50037?")
+
+    assert "manicotto:" not in data["answer"].lower()
+    assert "componenti: 468772" in data["answer"].lower()
+
+
+def test_practical_q_component_intent_without_classification_source_uses_components_fallback(
+    isolated_tl_sources,
+):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50038"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50038",
+                "confidence": "CERTO",
+                "components": ["12201"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50038?")
+
+    assert "manicotto:" not in data["answer"].lower()
+    assert "componenti: 12201" in data["answer"].lower()
+
+
+def test_practical_q_component_intent_explicit_manicotto_keeps_uncertain_confidence(
+    isolated_tl_sources,
+):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50040"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50040",
+                "confidence": "DA_VERIFICARE",
+                "components": ["12201"],
+                "linked_bom": [
+                    {
+                        "component": "12201",
+                        "description": "Manicotto associato da conoscenza operativa TL",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("quale manicotto monta nel 50040?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "manicotto: 12201" in data["answer"].lower()
+
+
+def test_practical_q_component_general_response_is_unchanged(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50039"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50039",
+                "confidence": "CERTO",
+                "components": ["468783", "468772"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("componenti 50039?")
+
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "50039" in data["answer"]
+    assert "componenti: 468783, 468772" in data["answer"].lower()
+
+
+def test_practical_q_components_missing_requires_confirmation(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50041"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50041",
+                "confidence": "CERTO",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("componenti 50041?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "componenti non disponibili" in data["answer"].lower()
+
+
+def test_practical_q_components_unreadable_requires_confirmation(isolated_tl_sources):
+    specs_root = tl_chat_api.SPECS_ROOT
+    article_dir = specs_root / "50042"
+    article_dir.mkdir(parents=True, exist_ok=True)
+    (article_dir / "metadata.json").write_text(
+        json.dumps(
+            {
+                "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                "article": "50042",
+                "confidence": "CERTO",
+                "components": ["CRT001", "SUPPORTO"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask("componenti 50042?")
+
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "componenti presenti ma non leggibili" in data["answer"].lower()
