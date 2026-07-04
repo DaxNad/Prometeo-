@@ -1273,7 +1273,7 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
         confidence=confidence,
         risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
         recommended_action=(str(summary.get("tl_action") or "Seguire risposta operativa sintetica.") + pattern_hint).strip(),
-        requires_confirmation=False,
+        requires_confirmation=confidence != "CERTO",
         technical_details_hidden=True,
     )
 
@@ -1403,7 +1403,7 @@ def _response_for_article_why_question(
             confidence=confidence,
             risk="Planner eligibility non equivale ad avvio automatico della produzione.",
             recommended_action="Usare solo dentro il normale flusso ordine/turno e con override TL tracciabile se necessario.",
-            requires_confirmation=False,
+            requires_confirmation=confidence != "CERTO",
             technical_details_hidden=True,
         )
 
@@ -1560,7 +1560,7 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             confidence="DA_VERIFICARE",
             risk=None,
             recommended_action="Densificare o verificare metadata/components.",
-            requires_confirmation=False,
+            requires_confirmation=True,
             technical_details_hidden=True,
         )
 
@@ -1604,7 +1604,7 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             confidence="DA_VERIFICARE",
             risk=None,
             recommended_action="Verificare struttura metadata/components.",
-            requires_confirmation=False,
+            requires_confirmation=True,
             technical_details_hidden=True,
         )
 
