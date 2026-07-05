@@ -35,6 +35,7 @@ export default function TLChatPage() {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -80,6 +81,7 @@ export default function TLChatPage() {
       setMessages((current) => [...current, assistantMessage]);
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
     }
   }
 
@@ -188,6 +190,7 @@ export default function TLChatPage() {
         }}
       >
         <textarea
+          ref={textareaRef}
           aria-label="Prompt TL"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
