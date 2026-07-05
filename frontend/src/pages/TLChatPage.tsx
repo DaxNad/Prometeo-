@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { tlChat, type TLChatResponse } from "../lib/api/prometeo";
+import "./TLChatPage.css";
 
 type ChatMessage = {
   id: number;
@@ -35,10 +36,19 @@ export default function TLChatPage() {
   const [loading, setLoading] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 180)}px`;
+  }, [question]);
 
   async function submit() {
     const cleanQuestion = question.trim();
@@ -57,182 +67,131 @@ export default function TLChatPage() {
 
     try {
       const article = extractArticle(cleanQuestion);
-
       const data: TLChatResponse = await tlChat({
         question: cleanQuestion,
         context: article ? { article } : {},
       });
 
-      const assistantMessage: ChatMessage = {
-        id: nextMessageId(),
-        role: "assistant",
-        content: data.answer,
-      };
-
-      setMessages((current) => [...current, assistantMessage]);
+      setMessages((current) => [
+        ...current,
+        {
+          id: nextMessageId(),
+          role: "assistant",
+          content: data.answer,
+        },
+      ]);
     } catch (err) {
-      const assistantMessage: ChatMessage = {
-        id: nextMessageId(),
-        role: "assistant",
-        content: normalizeError(err),
-      };
-
-      setMessages((current) => [...current, assistantMessage]);
+      setMessages((current) => [
+        ...current,
+        {
+          id: nextMessageId(),
+          role: "assistant",
+          content: normalizeError(err),
+        },
+      ]);
     } finally {
       setLoading(false);
+      requestAnimationFrame(() => textareaRef.current?.focus());
     }
   }
 
+  function resetConversation() {
+    if (loading) return;
+    setMessages([]);
+    setQuestion("");
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }
+
   return (
-    <main
-      style={{
-        minHeight: "calc(100vh - 72px)",
-        display: "grid",
-        gridTemplateRows: "auto 1fr auto",
-        gap: 16,
-        maxWidth: 980,
-        margin: "0 auto",
-        padding: "12px 16px 20px",
-      }}
-    >
-      <header style={{ display: "grid", gap: 4 }}>
-        <h1 style={{ margin: 0, fontSize: 22 }}>TL Chat</h1>
-        <p style={{ margin: 0, color: "#9ca3af", fontSize: 14 }}>
-          Scrivi una richiesta operativa come in un prompt. PROMETEO risponde senza modificare dati.
-        </p>
+    <main className="tl-chat">
+      <header className="tl-chat__header">
+        <div>
+          <h1 className="tl-chat__title">TL Chat</h1>
+          <p className="tl-chat__subtitle">Supporto operativo governato per il turno</p>
+        </div>
+
+        <button
+          type="button"
+          className="tl-chat__reset"
+          onClick={resetConversation}
+          disabled={loading || messages.length === 0}
+        >
+          Nuova chat
+        </button>
       </header>
 
-      <section
-        aria-label="Cronologia conversazione TL"
-        style={{
-          minHeight: 360,
-          display: "grid",
-          alignContent: messages.length === 0 ? "center" : "start",
-          gap: 14,
-          overflowY: "auto",
-          padding: "8px 0 24px",
-        }}
-      >
-        {messages.length === 0 && (
-          <div
-            style={{
-              justifySelf: "center",
-              maxWidth: 680,
-              textAlign: "center",
-              color: "#d4d4d8",
-              display: "grid",
-              gap: 10,
-            }}
-          >
-            <div style={{ fontSize: 28, fontWeight: 800 }}>Come posso aiutarti nel turno?</div>
-            <div style={{ color: "#9ca3af" }}>
-              Esempio: “Che criticità ha il 12066?” oppure “Spiegami la sequenza per questo articolo.”
+      <section className="tl-chat__scroll" aria-label="Cronologia conversazione TL">
+        <div className="tl-chat__conversation">
+          {messages.length === 0 && (
+            <div className="tl-chat__empty">
+              <h2 className="tl-chat__empty-title">Come posso aiutarti nel turno?</h2>
+              <p className="tl-chat__empty-copy">
+                Chiedi informazioni su articoli, route, componenti, stati o criticità operative.
+              </p>
             </div>
-          </div>
-        )}
+          )}
 
-        {messages.map((message) => (
-          <article
-            key={message.id}
-            style={{
-              justifySelf: message.role === "user" ? "end" : "start",
-              maxWidth: message.role === "user" ? "72%" : "86%",
-              border: "1px solid #27272a",
-              background: message.role === "user" ? "#1f2937" : "#0b0b0c",
-              color: "#fff",
-              borderRadius: 18,
-              padding: "12px 14px",
-              whiteSpace: "pre-wrap",
-              lineHeight: 1.45,
-            }}
-          >
-            {message.content}
-          </article>
-        ))}
+          {messages.map((message) => (
+            <article
+              key={message.id}
+              className={`tl-chat__message tl-chat__message--${message.role}`}
+              aria-label={message.role === "user" ? "Messaggio utente" : "Risposta PROMETEO"}
+            >
+              <div className="tl-chat__bubble">{message.content}</div>
+            </article>
+          ))}
 
-        {loading && (
-          <article
-            style={{
-              justifySelf: "start",
-              maxWidth: "86%",
-              border: "1px solid #27272a",
-              background: "#0b0b0c",
-              color: "#9ca3af",
-              borderRadius: 18,
-              padding: "12px 14px",
-              lineHeight: 1.45,
-            }}
-          >
-            PROMETEO sta rispondendo…
-          </article>
-        )}
+          {loading && (
+            <article className="tl-chat__message tl-chat__message--assistant" aria-live="polite">
+              <div className="tl-chat__loading" aria-label="PROMETEO sta rispondendo">
+                <span className="tl-chat__dot" />
+                <span className="tl-chat__dot" />
+                <span className="tl-chat__dot" />
+              </div>
+            </article>
+          )}
 
-        <div ref={bottomRef} />
+          <div ref={bottomRef} />
+        </div>
       </section>
 
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          submit();
-        }}
-        style={{
-          position: "sticky",
-          bottom: 0,
-          display: "grid",
-          gap: 8,
-          border: "1px solid #27272a",
-          background: "#09090b",
-          borderRadius: 22,
-          padding: 12,
-          boxShadow: "0 -12px 30px rgba(0, 0, 0, 0.22)",
-        }}
-      >
-        <textarea
-          aria-label="Prompt TL"
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              submit();
-            }
+      <div className="tl-chat__composer-wrap">
+        <form
+          className="tl-chat__composer"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submit();
           }}
-          rows={3}
-          style={{
-            width: "100%",
-            boxSizing: "border-box",
-            resize: "vertical",
-            border: 0,
-            outline: "none",
-            background: "transparent",
-            color: "#fff",
-            padding: "6px 4px",
-            fontSize: 16,
-            lineHeight: 1.4,
-          }}
-          placeholder="Scrivi un prompt TL..."
-        />
-
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
-          <span style={{ color: "#71717a", fontSize: 13 }}>Invio per mandare · Shift+Invio per andare a capo</span>
+        >
+          <textarea
+            ref={textareaRef}
+            className="tl-chat__input"
+            aria-label="Prompt TL"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                submit();
+              }
+            }}
+            rows={1}
+            disabled={loading}
+            placeholder="Chiedi a PROMETEO"
+          />
 
           <button
             type="submit"
+            className="tl-chat__send"
             disabled={loading || !question.trim()}
-            style={{
-              border: "1px solid #444",
-              background: loading || !question.trim() ? "#18181b" : "#fff",
-              color: loading || !question.trim() ? "#71717a" : "#000",
-              borderRadius: 999,
-              padding: "9px 15px",
-              fontWeight: 800,
-              cursor: loading || !question.trim() ? "not-allowed" : "pointer",
-            }}
+            aria-label="Invia domanda"
           >
-            Invia
+            ↑
           </button>
-        </div>
-      </form>
+
+          <div className="tl-chat__hint">Invio per mandare · Shift+Invio per andare a capo</div>
+        </form>
+      </div>
     </main>
   );
 }
