@@ -67,6 +67,8 @@ class TLChatRequest(BaseModel):
 
 
 class TLChatResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     _error_code: str | None = PrivateAttr(default=None)
 
     ok: bool
@@ -2084,6 +2086,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             risk=None,
             recommended_action="Verificare articolo in fonte autorizzata o fornire profilo/specifica; non trattare come attivo senza conferma TL.",
             requires_confirmation=True,
+            source="missing",
+            source_status="SOURCE_MISSING",
+            semantic_status="MANCANTE",
+            missing_data=[
+                "profilo articolo o fonte operativa autorizzata non disponibile"
+            ],
         )
 
     family = _extract_family_from_question(question)
