@@ -1214,37 +1214,68 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
     if not rev:
         missing_data.append("Revisione disegno")
     if requires_tl_confirmation:
-        missing_data.append("Conferma TL")
+        missing_data.append("Conferma TL dei dati preview")
     if not planner_eligible:
         missing_data.append("Abilitazione all'uso per pianificazione")
+    if not resolved_context.can_promote:
+        missing_data.append("Autorizzazione alla promozione a CERTO")
 
-    details: list[str] = [
-        f"Articolo {article}: dati disponibili da fonte preview.",
-        f"Affidabilità: {confidence}.",
-    ]
+    available_data: list[str] = []
 
     if codice:
-        details.append(f"Codice cliente: {codice}.")
+        available_data.append(f"- Codice cliente: {codice}")
 
     if disegno:
-        drawing_text = f"Disegno: {disegno}"
+        drawing_text = f"- Disegno: {disegno}"
         if rev:
-            drawing_text += f" rev {rev}"
-        details.append(drawing_text + ".")
+            drawing_text += f", revisione {rev}"
+        available_data.append(drawing_text)
 
-    details.append(
-        "I dati sono disponibili solo come supporto informativo e richiedono conferma TL."
+    if not available_data:
+        available_data.append("- Nessun dato identificativo disponibile")
+
+    missing_lines = [f"- {item}" for item in missing_data] or ["- Nessuno"]
+
+    safe_action = (
+        "Verificare la preview con il Team Leader prima di utilizzarla "
+        "come dato operativo."
     )
-    details.append(
-        "Prossima azione sicura: verificare e confermare i dati prima dell'uso operativo."
+
+    answer = "\n".join(
+        [
+            f"Articolo {article}",
+            "",
+            "Dati disponibili:",
+            *available_data,
+            "",
+            "Fonte:",
+            "- spec_intake_preview",
+            "",
+            "Stato:",
+            f"- {status}",
+            "",
+            "Affidabilità:",
+            f"- {confidence}",
+            "",
+            "Dati mancanti:",
+            *missing_lines,
+            "",
+            "Prossima azione sicura:",
+            f"- {safe_action}",
+            "",
+            (
+                "Il contenuto non è utilizzabile per pianificazione e non può "
+                "essere promosso automaticamente a CERTO."
+            ),
+        ]
     )
 
     return TLChatResponse(
         ok=True,
-        answer=" ".join(details),
+        answer=answer,
         confidence=confidence,
         risk="Spec intake preview-only: non usare per pianificazione o profilo attivo senza conferma TL.",
-        recommended_action="Verificare e confermare con il TL prima dell'uso operativo.",
+        recommended_action=safe_action,
         requires_confirmation=requires_tl_confirmation,
         technical_details_hidden=True,
         source="spec_intake_preview",
