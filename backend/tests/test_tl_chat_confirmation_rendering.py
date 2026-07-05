@@ -88,11 +88,11 @@ def test_build_confirmation_rendering_supports_all_q1_to_q7_field_groups():
         assert f"Domanda: {question_id} - {field_group}" in result.rendered_text
 
 
-def test_build_confirmation_rendering_rejects_non_12514_article():
+def test_build_confirmation_rendering_rejects_invalid_article_code():
     try:
         build_confirmation_rendering(
             TLChatConfirmationRenderingInput(
-                article="99999",
+                article="../12514",
                 question_id="Q1",
                 tl_answer_state="YES",
                 resulting_status="CANDIDATE_CONFIRMATION",
@@ -102,7 +102,7 @@ def test_build_confirmation_rendering_rejects_non_12514_article():
             )
         )
     except TLChatConfirmationRenderingError as exc:
-        assert "Only article 12514 is supported" in str(exc)
+        assert "Invalid article code" in str(exc)
     else:
         raise AssertionError("Expected TLChatConfirmationRenderingError")
 
