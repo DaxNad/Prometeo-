@@ -14,10 +14,11 @@ It does not write to SMF or database.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from typing import Any
 
 
-ARTICLE_12514 = "12514"
+SAFE_ARTICLE_RE = re.compile(r"^\d{5}[A-Z]{0,3}$")
 
 ALLOWED_QUESTION_IDS = frozenset({"Q1", "Q2", "Q3", "Q4", "Q5", "Q6", "Q7"})
 
@@ -156,8 +157,8 @@ def build_confirmation_rendering(
 
 
 def _validate_input(data: TLChatConfirmationRenderingInput) -> None:
-    if data.article != ARTICLE_12514:
-        raise TLChatConfirmationRenderingError("Only article 12514 is supported.")
+    if not SAFE_ARTICLE_RE.fullmatch(data.article):
+        raise TLChatConfirmationRenderingError("Invalid article code.")
 
     if data.question_id not in ALLOWED_QUESTION_IDS:
         raise TLChatConfirmationRenderingError("Unsupported question_id.")

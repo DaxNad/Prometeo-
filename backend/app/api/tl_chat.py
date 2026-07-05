@@ -42,6 +42,7 @@ ARTICLE_ROUTE_MATRIX_PREVIEW = ROOT / "data" / "local_smf" / "finiture" / "artic
 FAMILY_REGISTRY = ROOT / "data" / "backend" / "app" / "registry" / "prometeo_famiglie.json"
 SPECS_ROOT = ROOT / "specs_finitura"
 SPEC_INTAKE_PREVIEW_ROOT = ROOT / "data" / "local_reports" / "spec_intake_preview"
+SPEC_INTAKE_CONFIRMATION_ROOT = ROOT / "data" / "local_reports" / "spec_intake_confirmation"
 
 SOURCE_FOUND = "SOURCE_FOUND"
 SOURCE_MISSING = "SOURCE_MISSING"
@@ -300,6 +301,94 @@ def receive_12514_structured_confirmation(
     }
 
 
+@router.post("/{article}/confirmation")
+def receive_article_structured_confirmation(
+    article: str,
+    payload: TLChat12514ConfirmationStructuredInput,
+) -> dict[str, Any]:
+    route_article = _normalize_article(article)
+    payload_article = _normalize_article(payload.article)
+
+    if not _is_safe_article_code(route_article):
+        raise HTTPException(status_code=400, detail="invalid_article_code")
+
+    if payload_article != route_article:
+        raise HTTPException(status_code=400, detail="article_mismatch")
+
+    if _clean(payload.confirmation_action) != "confirm_preview":
+        raise HTTPException(status_code=400, detail="unsupported_confirmation_action")
+
+    if _clean(payload.confirmed_by).upper() != "TL":
+        raise HTTPException(status_code=400, detail="tl_confirmation_required")
+
+    confirmed_fields = [
+        _clean(field)
+        for field in payload.confirmed_fields
+        if _clean(field)
+    ]
+    if not confirmed_fields:
+        raise HTTPException(status_code=400, detail="confirmed_fields_required")
+
+    if _load_spec_intake_preview(route_article) is None:
+        raise HTTPException(status_code=404, detail="preview_source_missing")
+
+    _persist_article_confirmation(
+        article=route_article,
+        confirmed_fields=confirmed_fields,
+        notes=_clean(payload.notes),
+    )
+
+    return {
+        "article": route_article,
+        "confirmation_received": True,
+        "status": "TL_CONFIRMED_PREVIEW",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_persistence_step": False,
+        "promoted_to_certo": False,
+        "persistence_status": "CONFIRMATION_RECORD_CREATED",
+    }
+
+
+def _persist_article_confirmation(
+    *,
+    article: str,
+    confirmed_fields: list[str],
+    notes: str,
+) -> None:
+    if not _is_safe_article_code(article):
+        raise HTTPException(status_code=400, detail="invalid_article_code")
+
+    path = SPEC_INTAKE_CONFIRMATION_ROOT / f"{article}_confirmation.json"
+
+    if path.exists():
+        raise HTTPException(
+            status_code=409,
+            detail="confirmation_record_already_exists",
+        )
+
+    record = {
+        "schema": "TL_CHAT_CONFIRMATION_RECORD_V1",
+        "article": article,
+        "source_capability": "TL_CHAT_CONFIRMATION_STRUCTURED_INPUT_001",
+        "confirmation_status": "TL_CONFIRMED_PREVIEW",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "promoted_to_certo": False,
+        "requires_persistence_review": True,
+        "confirmed_fields": confirmed_fields,
+        "confirmed_by_role": "TL",
+        "notes": notes,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(record, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def _persist_12514_confirmation(
     *,
     confirmed_fields: list[str],
@@ -334,6 +423,12 @@ def _persist_12514_confirmation(
 
 def _normalize_article(value: str | None) -> str:
     return str(value or "").strip().upper()
+
+
+def _is_safe_article_code(value: str | None) -> bool:
+    import re
+
+    return re.fullmatch(r"\d{5}[A-Z]{0,3}", _normalize_article(value)) is not None
 
 
 def _extract_article_from_question(question: str) -> str:
