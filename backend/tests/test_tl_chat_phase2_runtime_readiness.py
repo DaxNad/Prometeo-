@@ -136,15 +136,19 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert data["source"] == "spec_intake_preview"
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
-    assert "Conferma TL" in data["missing_data"]
+    assert "Conferma TL dei dati preview" in data["missing_data"]
     assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
 
     assert "Articolo 12514" in data["answer"]
-    assert "dati disponibili da fonte preview" in data["answer"]
+    assert "Dati disponibili:" in data["answer"]
+    assert "Fonte:" in data["answer"]
+    assert "- spec_intake_preview" in data["answer"]
     assert "planner_eligible=" not in data["answer"]
     assert "can_promote=" not in data["answer"]
     assert "Codice cliente: 7056055000A0" in data["answer"]
     assert "Disegno: A1675003603" in data["answer"]
     assert "Stato: PREVIEW_ONLY" not in data["answer"]
-    assert "Affidabilità: DA_VERIFICARE" in data["answer"]
-    assert "richiedono conferma TL" in data["answer"]
+    assert "Affidabilità:" in data["answer"]
+    assert "- DA_VERIFICARE" in data["answer"]
+    assert "Dati mancanti:" in data["answer"]
+    assert "- Conferma TL dei dati preview" in data["answer"]
