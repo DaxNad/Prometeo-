@@ -329,6 +329,92 @@ def test_practical_runtime_provenance_exceptions_keep_empty_evidence(isolated_tl
     assert guardrail["evidence_pack"]["evidence"] == []
 
 
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Quali codici sono pronti per la densificazione?",
+        "Quali codici sono pronti per review TL prima della densificazione?",
+    ],
+)
+def test_practical_global_intent_recognizes_densification_phrasings(
+    isolated_tl_sources,
+    question,
+):
+    isolated_tl_sources["staging"].write_text(
+        json.dumps(
+            {
+                "items": [
+                    {
+                        "codice": "12056",
+                        "tl_decision": "PENDING",
+                        "staging_status": "PREVIEW_ONLY",
+                        "next_action": "REVIEW_BEFORE_STAGING",
+                    },
+                    {
+                        "codice": "12410",
+                        "tl_decision": "PENDING",
+                        "staging_status": "PREVIEW_ONLY",
+                        "next_action": "REVIEW_HIGH_PRIORITY",
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask(question)
+
+    assert "richiede almeno un articolo" not in data["answer"]
+    assert "Codici pronti per review TL prima della densificazione" in data["answer"]
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "12056" in data["answer"]
+    assert "12410" in data["answer"]
+    _assert_runtime_evidence(
+        data,
+        expected_source_type="PREVIEW_PROFILE",
+        allowed_confidences={"PREVIEW_ONLY"},
+    )
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Quali sono i nuovi inserimenti?",
+        "Quali codici sono new entry?",
+    ],
+)
+def test_practical_global_intent_recognizes_new_entry_phrasings(
+    isolated_tl_sources,
+    question,
+):
+    isolated_tl_sources["registry"].write_text(
+        json.dumps(
+            {
+                "12410": {"status": "NEW_ENTRY", "source": "tl"},
+                "12402": {"status": "DA_VERIFICARE", "source": "tl"},
+                "12053": {"status": "FUORI_PRODUZIONE", "source": "tl"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    data = _ask(question)
+
+    assert "richiede almeno un articolo" not in data["answer"]
+    assert "Codici NEW_ENTRY nel lifecycle registry reparto" in data["answer"]
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is True
+    assert "12410" in data["answer"]
+    assert "12402" not in data["answer"]
+    assert "12053" not in data["answer"]
+    _assert_runtime_evidence(
+        data,
+        expected_source_type="LIFECYCLE_REGISTRY",
+        allowed_confidences={"CERTO"},
+    )
+
+
 def test_practical_q_article_summary_da_verificare_requires_confirmation(monkeypatch, isolated_tl_sources):
     def summary(article: str) -> dict:
         assert article == "12067"
