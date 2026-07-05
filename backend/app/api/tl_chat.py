@@ -1205,16 +1205,23 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
     disegno = _clean(article_payload.get("disegno"))
     rev = _clean(article_payload.get("rev") or article_payload.get("revision"))
 
+    missing_data: list[str] = []
+
+    if not codice:
+        missing_data.append("Codice cliente")
+    if not disegno:
+        missing_data.append("Disegno")
+    if not rev:
+        missing_data.append("Revisione disegno")
+    if requires_tl_confirmation:
+        missing_data.append("Conferma TL")
+    if not planner_eligible:
+        missing_data.append("Abilitazione all'uso per pianificazione")
+
     details: list[str] = [
-        f"Articolo {article}: dati disponibili da fonte preview spec_intake_preview.",
+        f"Articolo {article}: dati disponibili da fonte preview.",
         f"Stato: {status}.",
-        f"Confidence: {confidence}.",
-        "Non è nel profilo attivo.",
-        "conferma TL richiesta.",
-        "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO.",
-        f"planner_eligible={str(planner_eligible).lower()}.",
-        f"requires_tl_confirmation={str(requires_tl_confirmation).lower()}.",
-        f"can_promote={str(resolved_context.can_promote).lower()}.",
+        f"Affidabilità: {confidence}.",
     ]
 
     if codice:
@@ -1226,14 +1233,25 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
             drawing_text += f" rev {rev}"
         details.append(drawing_text + ".")
 
+    details.append(
+        "I dati sono disponibili solo come supporto informativo e richiedono conferma TL."
+    )
+    details.append(
+        "Prossima azione sicura: verificare e confermare i dati prima dell'uso operativo."
+    )
+
     return TLChatResponse(
         ok=True,
         answer=" ".join(details),
         confidence=confidence,
         risk="Spec intake preview-only: non usare per pianificazione o profilo attivo senza conferma TL.",
-        recommended_action="Confermare con TL prima di promuovere il dato in un profilo operativo.",
-        requires_confirmation=True,
+        recommended_action="Verificare e confermare con il TL prima dell'uso operativo.",
+        requires_confirmation=requires_tl_confirmation,
         technical_details_hidden=True,
+        source="spec_intake_preview",
+        source_status=status,
+        semantic_status=confidence,
+        missing_data=missing_data,
     )
 
 
