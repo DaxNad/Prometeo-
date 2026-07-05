@@ -26,6 +26,12 @@ ALLOWED_SOURCES = (
     "docs/prometeo_system_map.md",
     "semantic_registry_confidence",
     "spec_intake_preview",
+    "local_specs_metadata",
+    "article_tl_summary",
+    "lifecycle_registry",
+    "article_route_matrix_preview",
+    "codici_staging_preview",
+    "tl_real_spec_intake",
 )
 
 BLOCKED_SOURCES = (

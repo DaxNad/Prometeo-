@@ -8,6 +8,80 @@ from app.main import app
 from app.api import tl_chat as tl_chat_api
 
 
+def _evidence_item(source_id: str, source_type: str = "existing") -> dict:
+    return {
+        "source_id": source_id,
+        "source_type": source_type,
+        "authority_rank": 10,
+        "confidence": "PREVIEW_ONLY",
+        "text": f"Evidence {source_id}",
+        "reason": "test evidence",
+    }
+
+
+def test_tl_chat_runtime_evidence_merge_preserves_existing_when_not_full():
+    pack = {
+        "evidence": [
+            _evidence_item("existing:1"),
+            _evidence_item("existing:2"),
+        ]
+    }
+    runtime = [_evidence_item("runtime:1", "ARTICLE_SUMMARY")]
+
+    result = tl_chat_api._merge_runtime_evidence(pack, runtime, limit=5)
+
+    assert [item["source_id"] for item in result["evidence"]] == [
+        "existing:1",
+        "existing:2",
+        "runtime:1",
+    ]
+    assert len(result["evidence"]) <= 5
+
+
+def test_tl_chat_runtime_evidence_merge_replaces_only_last_when_full():
+    pack = {
+        "evidence": [
+            _evidence_item("existing:1"),
+            _evidence_item("existing:2"),
+            _evidence_item("existing:3"),
+            _evidence_item("existing:4"),
+            _evidence_item("existing:5"),
+        ]
+    }
+    runtime = [_evidence_item("runtime:1", "ARTICLE_SUMMARY")]
+
+    result = tl_chat_api._merge_runtime_evidence(pack, runtime, limit=5)
+
+    assert [item["source_id"] for item in result["evidence"]] == [
+        "existing:1",
+        "existing:2",
+        "existing:3",
+        "existing:4",
+        "runtime:1",
+    ]
+    assert len(result["evidence"]) == 5
+
+
+def test_tl_chat_runtime_evidence_merge_deduplicates_by_source_id_and_type():
+    duplicate = _evidence_item("same", "ARTICLE_SUMMARY")
+    pack = {"evidence": [duplicate]}
+    runtime = [_evidence_item("same", "ARTICLE_SUMMARY")]
+
+    result = tl_chat_api._merge_runtime_evidence(pack, runtime, limit=5)
+
+    assert result["evidence"] == [duplicate]
+
+
+def test_tl_chat_runtime_evidence_merge_keeps_pack_identical_when_runtime_empty():
+    evidence = [_evidence_item("existing:1")]
+    pack = {"evidence": evidence}
+
+    result = tl_chat_api._merge_runtime_evidence(pack, [], limit=5)
+
+    assert result is pack
+    assert result["evidence"] is evidence
+
+
 def test_tl_chat_contract_reads_12402_from_lifecycle_registry(monkeypatch, tmp_path):
     registry = tmp_path / "article_lifecycle_registry.json"
     registry.write_text(

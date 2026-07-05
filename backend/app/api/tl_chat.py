@@ -70,6 +70,7 @@ class TLChatResponse(BaseModel):
     model_config = ConfigDict(extra="allow")
 
     _error_code: str | None = PrivateAttr(default=None)
+    _evidence_items: list[dict[str, Any]] = PrivateAttr(default_factory=list)
 
     ok: bool
     mode: str = "TL_CHAT_CONTRACT_V1"
@@ -84,6 +85,151 @@ class TLChatResponse(BaseModel):
     source_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
+
+
+def _runtime_evidence_item(
+    *,
+    source_id: str,
+    source_type: str,
+    authority_rank: int,
+    confidence: str,
+    text: str,
+    reason: str,
+) -> dict[str, Any]:
+    return {
+        "source_id": source_id,
+        "source_type": source_type,
+        "authority_rank": authority_rank,
+        "confidence": confidence,
+        "text": text,
+        "reason": reason,
+    }
+
+
+def _with_runtime_evidence(
+    response: TLChatResponse,
+    *items: dict[str, Any],
+) -> TLChatResponse:
+    response._evidence_items.extend(item for item in items if item)
+    return response
+
+
+def _merge_runtime_evidence(
+    evidence_pack: dict[str, Any],
+    runtime_items: list[dict[str, Any]],
+    *,
+    limit: int,
+) -> dict[str, Any]:
+    if not runtime_items:
+        return evidence_pack
+
+    evidence = evidence_pack.get("evidence")
+    if not isinstance(evidence, list):
+        evidence = []
+
+    merged: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+
+    for item in evidence:
+        if not isinstance(item, dict):
+            continue
+        source_id = _clean(item.get("source_id"))
+        source_type = _clean(item.get("source_type"))
+        if not source_id or not source_type:
+            continue
+        key = (source_id, source_type)
+        if key in seen:
+            continue
+        seen.add(key)
+        merged.append(item)
+        if len(merged) >= limit:
+            break
+
+    runtime_to_add: list[dict[str, Any]] = []
+    for item in runtime_items:
+        if not isinstance(item, dict):
+            continue
+        source_id = _clean(item.get("source_id"))
+        source_type = _clean(item.get("source_type"))
+        if not source_id or not source_type:
+            continue
+        key = (source_id, source_type)
+        if key in seen:
+            continue
+        runtime_to_add.append(item)
+        seen.add(key)
+
+    if not runtime_to_add:
+        evidence_pack["evidence"] = merged
+        return evidence_pack
+
+    remaining_slots = max(0, limit - len(merged))
+    if remaining_slots > 0:
+        merged.extend(runtime_to_add[:remaining_slots])
+    elif limit > 0:
+        # Existing governed evidence keeps its order. When the pack is full,
+        # runtime provenance still needs one trace of the consumed responder
+        # source, so only the last slot is deterministically replaced.
+        merged[-1] = runtime_to_add[0]
+
+    evidence_pack["evidence"] = merged
+    return evidence_pack
+
+
+def _local_specs_metadata_evidence(article: str, confidence: str) -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id=f"local_specs_metadata:{article}",
+        source_type="ARTICLE_METADATA",
+        authority_rank=12,
+        confidence=confidence,
+        text=f"Local specs metadata consumed for article {article}.",
+        reason="Runtime TL Chat responder used validated local specs metadata already loaded in memory.",
+    )
+
+
+def _article_summary_evidence(article: str, confidence: str) -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id=f"article_tl_summary:{article}",
+        source_type="ARTICLE_SUMMARY",
+        authority_rank=12,
+        confidence=confidence,
+        text=f"Article TL summary consumed for article {article}.",
+        reason="Runtime TL Chat responder used build_article_tl_summary output already loaded in memory.",
+    )
+
+
+def _lifecycle_registry_evidence(source_id: str, confidence: str) -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id=source_id,
+        source_type="LIFECYCLE_REGISTRY",
+        authority_rank=12,
+        confidence=confidence,
+        text="Lifecycle registry data consumed by TL Chat runtime.",
+        reason="Runtime TL Chat responder used the local lifecycle registry already loaded in memory.",
+    )
+
+
+def _preview_profile_evidence(source_id: str) -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id=source_id,
+        source_type="PREVIEW_PROFILE",
+        authority_rank=12,
+        confidence="PREVIEW_ONLY",
+        text="Preview profile data consumed by TL Chat runtime.",
+        reason="Runtime TL Chat responder used a local preview source already loaded in memory.",
+    )
+
+
+def _tl_real_spec_intake_evidence() -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id="tl_real_spec_intake",
+        source_type="ARTICLE_METADATA",
+        authority_rank=12,
+        confidence="PREVIEW_ONLY",
+        text="TL real spec intake data consumed by TL Chat runtime.",
+        reason="Runtime TL Chat responder used local intake candidates already loaded in memory.",
+    )
+
 
 class TLChat12514ConfirmationStructuredInput(BaseModel):
     """
@@ -540,21 +686,24 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         risk = "Metadata locale articolo presente."
         recommended_action = "Usare il metadata locale come riferimento operativo confermato."
 
-    return TLChatResponse(
-        ok=True,
-        answer=_format_operational_answer(
-            article=article,
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=_format_operational_answer(
+                article=article,
+                confidence=confidence,
+                route=route or ("non strutturata" if route_status != "CERTO" else ""),
+                constraints=constraints_text,
+                note="; ".join(note_bits),
+                action=action,
+            ),
             confidence=confidence,
-            route=route or ("non strutturata" if route_status != "CERTO" else ""),
-            constraints=constraints_text,
-            note="; ".join(note_bits),
-            action=action,
+            risk=risk,
+            recommended_action=recommended_action,
+            requires_confirmation=requires_confirmation,
+            technical_details_hidden=True,
         ),
-        confidence=confidence,
-        risk=risk,
-        recommended_action=recommended_action,
-        requires_confirmation=requires_confirmation,
-        technical_details_hidden=True,
+        _local_specs_metadata_evidence(article, confidence),
     )
 
 
@@ -619,67 +768,85 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
     checkpoint = consultation()
 
     if status == "NEW_ENTRY":
-        return TLChatResponse(
-            ok=True,
-            answer=f"Il codice {article} risulta NEW_ENTRY nella memoria reparto.",
-            confidence="INFERITO",
-            risk="Codice nuovo: va densificato con priorità ma confermato prima dello staging.",
-            recommended_action="Verifica TL e poi priorità alta di densificazione.",
-            requires_confirmation=checkpoint.requires_confirmation,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=f"Il codice {article} risulta NEW_ENTRY nella memoria reparto.",
+                confidence="INFERITO",
+                risk="Codice nuovo: va densificato con priorità ma confermato prima dello staging.",
+                recommended_action="Verifica TL e poi priorità alta di densificazione.",
+                requires_confirmation=checkpoint.requires_confirmation,
+            ),
+            _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
         )
 
     if status == "FUORI_PRODUZIONE":
-        return TLChatResponse(
-            ok=True,
-            answer=f"Il codice {article} risulta FUORI_PRODUZIONE nella memoria reparto.",
-            confidence="INFERITO",
-            risk="Codice non prioritario per densificazione operativa; evitare promozione automatica.",
-            recommended_action="Non portare in staging salvo conferma TL esplicita.",
-            requires_confirmation=checkpoint.requires_confirmation,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=f"Il codice {article} risulta FUORI_PRODUZIONE nella memoria reparto.",
+                confidence="INFERITO",
+                risk="Codice non prioritario per densificazione operativa; evitare promozione automatica.",
+                recommended_action="Non portare in staging salvo conferma TL esplicita.",
+                requires_confirmation=checkpoint.requires_confirmation,
+            ),
+            _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
         )
 
     if _is_customer_request_only_status(status):
-        return TLChatResponse(
-            ok=True,
-            answer=(
-                f"Il codice {article} è fuori produzione standard ma producibile solo "
-                "su richiesta cliente esplicita."
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=(
+                    f"Il codice {article} è fuori produzione standard ma producibile solo "
+                    "su richiesta cliente esplicita."
+                ),
+                confidence="INFERITO",
+                risk="Codice non standard: non pianificare automaticamente senza ordine o richiesta cliente.",
+                recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
+                requires_confirmation=checkpoint.requires_confirmation,
             ),
-            confidence="INFERITO",
-            risk="Codice non standard: non pianificare automaticamente senza ordine o richiesta cliente.",
-            recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
-            requires_confirmation=checkpoint.requires_confirmation,
+            _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
         )
 
     if status == "ATTIVO":
-        return TLChatResponse(
-            ok=True,
-            answer=f"Il codice {article} risulta ATTIVO nella memoria reparto.",
-            confidence="INFERITO",
-            risk="Stato reparto presente ma da incrociare con BOM, Codici e route prima di scritture.",
-            recommended_action="Procedere con preview e conferma TL prima dello staging.",
-            requires_confirmation=checkpoint.requires_confirmation,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=f"Il codice {article} risulta ATTIVO nella memoria reparto.",
+                confidence="INFERITO",
+                risk="Stato reparto presente ma da incrociare con BOM, Codici e route prima di scritture.",
+                recommended_action="Procedere con preview e conferma TL prima dello staging.",
+                requires_confirmation=checkpoint.requires_confirmation,
+            ),
+            _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
         )
 
     if status == "DA_VERIFICARE":
         detail = f" Nota reparto: {note}" if note else ""
         source_text = f" Fonte: {source}." if source else ""
-        return TLChatResponse(
-            ok=True,
-            answer=f"Il codice {article} è da verificare prima di densificarlo o promuoverlo.{source_text}{detail}",
-            confidence="DA_VERIFICARE",
-            risk="Lifecycle articolo non confermato: non è ancora classificato come attivo, fuori produzione o new entry.",
-            recommended_action="Verifica TL richiesta prima di staging.",
-            requires_confirmation=checkpoint.requires_confirmation,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=f"Il codice {article} è da verificare prima di densificarlo o promuoverlo.{source_text}{detail}",
+                confidence="DA_VERIFICARE",
+                risk="Lifecycle articolo non confermato: non è ancora classificato come attivo, fuori produzione o new entry.",
+                recommended_action="Verifica TL richiesta prima di staging.",
+                requires_confirmation=checkpoint.requires_confirmation,
+            ),
+            _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "DA_VERIFICARE"),
         )
 
-    return TLChatResponse(
-        ok=True,
-        answer=f"Il codice {article} è presente nel lifecycle registry ma ha stato non riconosciuto: {status}.",
-        confidence="DA_VERIFICARE",
-        risk="Stato lifecycle non interpretabile.",
-        recommended_action="Correggere o confermare lo stato articolo nel registry reparto.",
-        requires_confirmation=checkpoint.requires_confirmation,
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=f"Il codice {article} è presente nel lifecycle registry ma ha stato non riconosciuto: {status}.",
+            confidence="DA_VERIFICARE",
+            risk="Stato lifecycle non interpretabile.",
+            recommended_action="Correggere o confermare lo stato articolo nel registry reparto.",
+            requires_confirmation=checkpoint.requires_confirmation,
+        ),
+        _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "DA_VERIFICARE"),
     )
 
 
@@ -780,18 +947,21 @@ def _response_for_densification_candidates(staging: dict[str, Any]) -> TLChatRes
     sample = codes[:20]
     suffix = "" if len(codes) <= 20 else f" Altri {len(codes) - 20} codici non mostrati."
 
-    return TLChatResponse(
-        ok=True,
-        answer=(
-            "Codici pronti per review TL prima della densificazione: "
-            + ", ".join(sample)
-            + "."
-            + suffix
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=(
+                "Codici pronti per review TL prima della densificazione: "
+                + ", ".join(sample)
+                + "."
+                + suffix
+            ),
+            confidence="CERTO",
+            risk="I codici sono candidati da staging preview: serve conferma TL prima di qualsiasi scrittura.",
+            recommended_action="Revisionare i candidati e confermare esplicitamente prima dello staging controllato.",
+            requires_confirmation=True,
         ),
-        confidence="CERTO",
-        risk="I codici sono candidati da staging preview: serve conferma TL prima di qualsiasi scrittura.",
-        recommended_action="Revisionare i candidati e confermare esplicitamente prima dello staging controllato.",
-        requires_confirmation=True,
+        _preview_profile_evidence("codici_staging_preview"),
     )
 
 
@@ -897,25 +1067,33 @@ def _response_for_lifecycle_status_list(
 
     if requested_status == "NEW_ENTRY" and intake_new_entry_candidates:
         answer_parts: list[str] = []
+        evidence_items: list[dict[str, Any]] = []
         if codes:
             answer_parts.append(
                 "Codici NEW_ENTRY nel lifecycle registry reparto: "
                 + ", ".join(codes)
                 + "."
             )
+            evidence_items.append(
+                _lifecycle_registry_evidence("lifecycle_registry:NEW_ENTRY", "CERTO")
+            )
         answer_parts.append(
             "Candidati new entry da intake locale: "
             + ", ".join(intake_new_entry_candidates)
             + "."
         )
+        evidence_items.append(_tl_real_spec_intake_evidence())
 
-        return TLChatResponse(
-            ok=True,
-            answer=" ".join(answer_parts),
-            confidence="CERTO",
-            risk="Candidati da specifiche reali locali: conferma TL obbligatoria; nessuna pianificazione automatica.",
-            recommended_action="Revisionare le specifiche e promuovere solo dopo conferma TL controllata.",
-            requires_confirmation=True,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=" ".join(answer_parts),
+                confidence="CERTO",
+                risk="Candidati da specifiche reali locali: conferma TL obbligatoria; nessuna pianificazione automatica.",
+                recommended_action="Revisionare le specifiche e promuovere solo dopo conferma TL controllata.",
+                requires_confirmation=True,
+            ),
+            *evidence_items,
         )
 
     if requested_status == "FUORI_PRODUZIONE":
@@ -933,22 +1111,28 @@ def _response_for_lifecycle_status_list(
                 + "."
             )
 
-        return TLChatResponse(
-            ok=True,
-            answer=" ".join(answer_parts),
-            confidence="CERTO",
-            risk="Questi codici non devono essere promossi automaticamente in priorità produttiva.",
-            recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
-            requires_confirmation=True,
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=" ".join(answer_parts),
+                confidence="CERTO",
+                risk="Questi codici non devono essere promossi automaticamente in priorità produttiva.",
+                recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
+                requires_confirmation=True,
+            ),
+            _lifecycle_registry_evidence("lifecycle_registry:FUORI_PRODUZIONE", "CERTO"),
         )
 
-    return TLChatResponse(
-        ok=True,
-        answer=f"Codici {requested_status} nel lifecycle registry reparto: " + ", ".join(codes) + ".",
-        confidence="CERTO",
-        risk=risk,
-        recommended_action=recommended,
-        requires_confirmation=True,
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=f"Codici {requested_status} nel lifecycle registry reparto: " + ", ".join(codes) + ".",
+            confidence="CERTO",
+            risk=risk,
+            recommended_action=recommended,
+            requires_confirmation=True,
+        ),
+        _lifecycle_registry_evidence(f"lifecycle_registry:{requested_status}", "CERTO"),
     )
 
 
@@ -1138,26 +1322,29 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
             pieces.append(f"Discrepanza da verificare: {code}. {wrong}".strip())
             break
 
-    return TLChatResponse(
-        ok=True,
-        answer=" ".join(pieces),
-        confidence=confidence,
-        risk=(
-            "Profilo preview da verificare: non usarlo per decisione operativa senza conferma TL."
-            if confidence == "DA_VERIFICARE"
-            else "Profilo preview inferito: usare con cautela."
-            if confidence == "INFERITO"
-            else "Profilo preview disponibile."
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=" ".join(pieces),
+            confidence=confidence,
+            risk=(
+                "Profilo preview da verificare: non usarlo per decisione operativa senza conferma TL."
+                if confidence == "DA_VERIFICARE"
+                else "Profilo preview inferito: usare con cautela."
+                if confidence == "INFERITO"
+                else "Profilo preview disponibile."
+            ),
+            recommended_action=(
+                "Conferma TL richiesta prima di usare questo articolo in strategia turno."
+                if confidence == "DA_VERIFICARE"
+                else "Usare come supporto provvisorio, poi consolidare con specifica/metadata."
+                if confidence == "INFERITO"
+                else "Seguire risposta operativa sintetica."
+            ),
+            requires_confirmation=confidence != "CERTO",
+            technical_details_hidden=True,
         ),
-        recommended_action=(
-            "Conferma TL richiesta prima di usare questo articolo in strategia turno."
-            if confidence == "DA_VERIFICARE"
-            else "Usare come supporto provvisorio, poi consolidare con specifica/metadata."
-            if confidence == "INFERITO"
-            else "Seguire risposta operativa sintetica."
-        ),
-        requires_confirmation=confidence != "CERTO",
-        technical_details_hidden=True,
+        _preview_profile_evidence(f"article_route_matrix_preview:{article}"),
     )
 
 
@@ -1271,21 +1458,24 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
     pattern_hint = _pattern_hint_for_stations(route_parts)
 
-    return TLChatResponse(
-        ok=True,
-        answer=_format_operational_answer(
-            article=article,
+    return _with_runtime_evidence(
+        TLChatResponse(
+            ok=True,
+            answer=_format_operational_answer(
+                article=article,
+                confidence=confidence,
+                route=" → ".join(route_parts),
+                constraints=constraints,
+                note="",
+                action=action,
+            ),
             confidence=confidence,
-            route=" → ".join(route_parts),
-            constraints=constraints,
-            note="",
-            action=action,
+            risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
+            recommended_action=(str(summary.get("tl_action") or "Seguire risposta operativa sintetica.") + pattern_hint).strip(),
+            requires_confirmation=confidence != "CERTO",
+            technical_details_hidden=True,
         ),
-        confidence=confidence,
-        risk="Profilo operativo articolo disponibile. Dettagli tecnici nascosti salvo richiesta.",
-        recommended_action=(str(summary.get("tl_action") or "Seguire risposta operativa sintetica.") + pattern_hint).strip(),
-        requires_confirmation=confidence != "CERTO",
-        technical_details_hidden=True,
+        _article_summary_evidence(article, confidence),
     )
 
 
@@ -2046,19 +2236,30 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
                     local_specs_metadata,
                 )
                 if why_response:
-                    return why_response
+                    return _with_runtime_evidence(
+                        why_response,
+                        _local_specs_metadata_evidence(article, why_response.confidence),
+                    )
 
             if _question_asks_pidmill_dima(question):
-                return _response_for_pidmill_dima(
+                pidmill_response = _response_for_pidmill_dima(
                     article,
                     local_specs_metadata,
                 )
+                return _with_runtime_evidence(
+                    pidmill_response,
+                    _local_specs_metadata_evidence(article, pidmill_response.confidence),
+                )
 
             if _question_asks_components(question):
-                return _response_for_components(
+                components_response = _response_for_components(
                     article,
                     local_specs_metadata,
                     question,
+                )
+                return _with_runtime_evidence(
+                    components_response,
+                    _local_specs_metadata_evidence(article, components_response.confidence),
                 )
             if _question_asks_if_article_needs_verification(question):
                 operational_verification = _response_for_article_operational_verification(
@@ -2066,7 +2267,13 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
                     local_specs_metadata,
                 )
                 if operational_verification:
-                    return operational_verification
+                    return _with_runtime_evidence(
+                        operational_verification,
+                        _local_specs_metadata_evidence(
+                            article,
+                            operational_verification.confidence,
+                        ),
+                    )
 
             return _response_from_local_specs_metadata(article, local_specs_metadata)
 
@@ -2195,5 +2402,10 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     if governed_response is not None:
         response = governed_response
 
+    evidence_pack = _merge_runtime_evidence(
+        evidence_pack,
+        response._evidence_items,
+        limit=5,
+    )
     response.evidence_pack = evidence_pack
     return response
