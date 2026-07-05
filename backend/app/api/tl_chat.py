@@ -1498,6 +1498,10 @@ def _response_for_pidmill_dima(article: str, metadata: dict[str, Any]) -> TLChat
             recommended_action="Verificare profilo articolo o specifica autorizzata prima di considerare disponibile la dima PIDMILL.",
             requires_confirmation=True,
             technical_details_hidden=True,
+            source="local_specs_metadata",
+            source_status="SOURCE_FOUND",
+            semantic_status="MANCANTE",
+            missing_data=["dima PIDMILL"],
         )
 
     label = "DIMA PIDMILL" if len(dime) == 1 else "DIME PIDMILL"
@@ -1573,6 +1577,10 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             recommended_action="Densificare o verificare metadata/components.",
             requires_confirmation=True,
             technical_details_hidden=True,
+            source="local_specs_metadata",
+            source_status="SOURCE_FOUND",
+            semantic_status="MANCANTE",
+            missing_data=["components"],
         )
 
     values: list[str] = []
@@ -1617,6 +1625,10 @@ def _response_for_components(article: str, metadata: dict[str, Any], question: s
             recommended_action="Verificare struttura metadata/components.",
             requires_confirmation=True,
             technical_details_hidden=True,
+            source="local_specs_metadata",
+            source_status="SOURCE_FOUND",
+            semantic_status="DA_VERIFICARE",
+            missing_data=["struttura components leggibile"],
         )
 
     if _question_asks_manicotto(question):
@@ -1703,6 +1715,16 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
         ),
         requires_confirmation=True,
         technical_details_hidden=True,
+        source="missing",
+        source_status="SOURCE_MISSING",
+        semantic_status="MANCANTE",
+        missing_data=[
+            "codice articolo",
+            "ordine",
+            "lotto",
+            "stato board",
+            "evento aperto",
+        ],
     )
 
 
