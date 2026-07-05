@@ -904,6 +904,7 @@ def _question_asks_for_densification_candidates(question: str) -> bool:
         and "codici" in normalized
         and (
             "densificare" in normalized
+            or "densificazione" in normalized
             or "staging" in normalized
             or "posso portare" in normalized
             or "candidati" in normalized
@@ -972,6 +973,7 @@ def _requested_lifecycle_status_from_question(question: str) -> str | None:
         "codici" in normalized
         or "lista" in normalized
         or "elenco" in normalized
+        or "inserimenti" in normalized
     )
 
     if not asks_codes:
