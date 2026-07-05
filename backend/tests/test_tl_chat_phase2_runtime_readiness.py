@@ -145,6 +145,6 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert "can_promote=" not in data["answer"]
     assert "Codice cliente: 7056055000A0" in data["answer"]
     assert "Disegno: A1675003603" in data["answer"]
-    assert "Stato: PREVIEW_ONLY" in data["answer"]
+    assert "Stato: PREVIEW_ONLY" not in data["answer"]
     assert "Affidabilità: DA_VERIFICARE" in data["answer"]
     assert "richiedono conferma TL" in data["answer"]
