@@ -67,6 +67,8 @@ class TLChatRequest(BaseModel):
 
 
 class TLChatResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     _error_code: str | None = PrivateAttr(default=None)
 
     ok: bool
@@ -78,6 +80,10 @@ class TLChatResponse(BaseModel):
     requires_confirmation: bool = False
     technical_details_hidden: bool = True
     evidence_pack: dict[str, Any] | None = None
+    source: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 class TLChat12514ConfirmationStructuredInput(BaseModel):
     """
@@ -2084,6 +2090,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             risk=None,
             recommended_action="Verificare articolo in fonte autorizzata o fornire profilo/specifica; non trattare come attivo senza conferma TL.",
             requires_confirmation=True,
+            source="missing",
+            source_status="SOURCE_MISSING",
+            semantic_status="MANCANTE",
+            missing_data=[
+                "profilo articolo o fonte operativa autorizzata non disponibile"
+            ],
         )
 
     family = _extract_family_from_question(question)
