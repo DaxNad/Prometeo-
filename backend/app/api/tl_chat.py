@@ -80,6 +80,10 @@ class TLChatResponse(BaseModel):
     requires_confirmation: bool = False
     technical_details_hidden: bool = True
     evidence_pack: dict[str, Any] | None = None
+    source: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    source_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
+    missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
 
 class TLChat12514ConfirmationStructuredInput(BaseModel):
     """
