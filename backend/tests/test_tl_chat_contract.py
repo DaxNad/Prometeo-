@@ -1675,17 +1675,22 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
 
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert "Conferma TL" in data["missing_data"]
+    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+
     assert "Articolo 12514" in data["answer"]
-    assert "fonte preview spec_intake_preview" in data["answer"]
-    assert "Non è nel profilo attivo" in data["answer"]
-    assert "planner_eligible=false" in data["answer"]
-    assert "requires_tl_confirmation=true" in data["answer"]
-    assert "can_promote=false" in data["answer"]
     assert "7056055000A0" in data["answer"]
     assert "A1675003603" in data["answer"]
+    assert "Prossima azione sicura" in data["answer"]
+    assert "planner_eligible=false" not in data["answer"]
+    assert "requires_tl_confirmation=true" not in data["answer"]
+    assert "can_promote=false" not in data["answer"]
 
     assert "pianificazione" in data["risk"].lower()
-    assert "confermare con tl" in data["recommended_action"].lower()
+    assert "confermare con il tl" in data["recommended_action"].lower()
 
 def test_tl_chat_uses_governed_retrieval_when_no_article_context():
     client = TestClient(app)
@@ -1847,12 +1852,17 @@ def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
             "payload": {"question": "Cosa sai del 12514?"},
             "required": [
                 "Articolo 12514",
-                "fonte preview spec_intake_preview",
+                "7056055000A0",
+                "A1675003603",
+                "Prossima azione sicura",
+            ],
+            "forbidden": [
+                "planner_eligible=true",
                 "planner_eligible=false",
                 "requires_tl_confirmation=true",
+                "can_promote=true",
                 "can_promote=false",
             ],
-            "forbidden": ["planner_eligible=true", "can_promote=true"],
         },
     ]
 
@@ -2174,7 +2184,15 @@ def test_tl_chat_12514_confirmation_rendering_api_binding_keeps_preview_fallback
 
     assert data["ok"] is True
     assert data["confidence"] == "DA_VERIFICARE"
-    assert "dati disponibili da fonte preview spec_intake_preview" in data["answer"]
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert "Conferma TL" in data["missing_data"]
+    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+    assert "dati disponibili da fonte preview" in data["answer"]
+    assert "planner_eligible=" not in data["answer"]
+    assert "requires_tl_confirmation=" not in data["answer"]
+    assert "can_promote=" not in data["answer"]
     assert "Codice cliente: 7056055000A0" in data["answer"]
     assert "Disegno: A1675003603 rev 6" in data["answer"]
     assert "Articolo: 12514" not in data["answer"]
@@ -2472,7 +2490,13 @@ def test_tl_chat_contract_preview_source_is_not_bypassed_by_context_reader(monke
     assert data["ok"] is True
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
-    assert "fonte preview spec_intake_preview" in data["answer"]
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert "Conferma TL" in data["missing_data"]
+    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+    assert "dati disponibili da fonte preview" in data["answer"]
     assert "context_access_binding" not in data["answer"]
-    assert "planner_eligible=false" in data["answer"]
-    assert "can_promote=false" in data["answer"]
+    assert "planner_eligible=" not in data["answer"]
+    assert "requires_tl_confirmation=" not in data["answer"]
+    assert "can_promote=" not in data["answer"]
