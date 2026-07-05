@@ -2134,6 +2134,10 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         risk="Contesto articolo mancante.",
         recommended_action="Ripetere la domanda indicando un codice articolo.",
         requires_confirmation=True,
+        source="missing",
+        source_status="SOURCE_MISSING",
+        semantic_status="MANCANTE",
+        missing_data=["codice articolo"],
     )
 
 
