@@ -50,6 +50,34 @@ Ogni evidence item deve contenere:
 - tl_memory_rules
 - docs/prometeo_system_map.md
 - semantic_registry_confidence
+- spec_intake_preview
+- local_specs_metadata
+- article_tl_summary
+- lifecycle_registry
+- article_route_matrix_preview
+- codici_staging_preview
+- tl_real_spec_intake
+
+Le fonti runtime aggiunte dichiarano provenance di sorgenti locali gia
+consumate dai responder TL Chat. Non introducono nuovi reader, nuove fonti
+fisiche o nuove capability di lettura.
+
+## Merge provenance runtime
+
+Il pack mantiene il limite pubblico di 5 evidence item.
+
+Policy di merge:
+
+- se non esistono runtime evidence, il pack resta invariato;
+- le evidence prodotte da build_governed_retrieval_pack mantengono l'ordine
+  originale;
+- la deduplicazione usa la coppia source_id/source_type;
+- se il totale non supera il limite, le runtime evidence vengono aggiunte in
+  coda;
+- se il pack esistente occupa gia tutto il limite e sono presenti runtime
+  evidence, le prime evidence esistenti restano nell'ordine originale e solo
+  l'ultimo slot viene sostituito deterministicamente dalla prima runtime
+  evidence.
 
 ## Fonti bloccate
 
@@ -88,7 +116,8 @@ PASS locale:
 
 ## Limiti residui
 
-Il layer non e ancora collegato a TL Chat runtime.
+Il layer e collegato a TL Chat runtime solo per completare la provenance
+strutturata di fonti gia consumate dai responder.
 
 Il layer non implementa conflict detection.
 

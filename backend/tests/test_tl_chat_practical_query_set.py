@@ -72,6 +72,41 @@ def _assert_operational_shape(data: dict) -> None:
     assert not any(token in combined.lower() for token in TECHNICAL_NOISE)
 
 
+def _assert_runtime_evidence(
+    data: dict,
+    *,
+    expected_source_type: str,
+    allowed_confidences: set[str],
+) -> dict:
+    evidence_pack = data["evidence_pack"]
+    assert evidence_pack["mode"] == "GOVERNED_RETRIEVAL_001"
+    assert "read-only" in evidence_pack["constraints"]
+    assert "no DB writes" in evidence_pack["constraints"]
+    assert "no SMF writes" in evidence_pack["constraints"]
+    assert "no planner mutation" in evidence_pack["constraints"]
+
+    evidence = evidence_pack["evidence"]
+    assert evidence
+    item = next(
+        item for item in evidence
+        if item["source_type"] == expected_source_type
+    )
+
+    required = {"source_id", "source_type", "authority_rank", "confidence", "text", "reason"}
+    assert required <= set(item)
+    assert item["source_id"]
+    assert item["confidence"] in allowed_confidences
+    assert item["text"]
+    assert item["reason"]
+
+    for value in item.values():
+        if isinstance(value, str):
+            assert not value.startswith("/")
+            assert f"/{'Users'}/" not in value
+
+    return item
+
+
 def test_practical_q1_certain_article_12066(monkeypatch, isolated_tl_sources):
     def summary(article: str) -> dict:
         assert article == "12066"
@@ -113,6 +148,185 @@ def test_practical_q1_certain_article_12066(monkeypatch, isolated_tl_sources):
     assert "VERTICALE_DUE_PIANI" in data["answer"]
     assert "Vincoli:" in data["answer"]
     assert "Azione:" in data["answer"]
+
+
+@pytest.mark.parametrize(
+    ("scenario", "expected_source_type", "allowed_confidences"),
+    [
+        ("local_specs_metadata", "ARTICLE_METADATA", {"CERTO"}),
+        ("article_summary", "ARTICLE_SUMMARY", {"CERTO"}),
+        ("route_preview", "PREVIEW_PROFILE", {"PREVIEW_ONLY"}),
+        ("staging_preview", "PREVIEW_PROFILE", {"PREVIEW_ONLY"}),
+        ("lifecycle_registry", "LIFECYCLE_REGISTRY", {"CERTO"}),
+        ("intake_new_entry", "ARTICLE_METADATA", {"PREVIEW_ONLY"}),
+    ],
+)
+def test_practical_runtime_provenance_completeness(
+    monkeypatch,
+    isolated_tl_sources,
+    scenario,
+    expected_source_type,
+    allowed_confidences,
+):
+    if scenario == "local_specs_metadata":
+        article_dir = tl_chat_api.SPECS_ROOT / "12056"
+        article_dir.mkdir(parents=True, exist_ok=True)
+        (article_dir / "metadata.json").write_text(
+            json.dumps(
+                {
+                    "schema": "PROMETEO_REAL_DATA_PILOT_V1",
+                    "article": "12056",
+                    "confidence": "CERTO",
+                    "route_status": "CERTO",
+                    "operational_class": "STANDARD",
+                    "planner_eligible": True,
+                    "route_steps": [
+                        {"seq": 1, "station": "ZAW1", "status": "CERTO"},
+                        {"seq": 2, "station": "CP", "status": "CERTO"},
+                    ],
+                    "constraints": {"cp_required": True},
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = _ask("12056?")
+        assert data["confidence"] == "CERTO"
+        assert data["requires_confirmation"] is False
+        assert "12056" in data["answer"]
+
+    elif scenario == "article_summary":
+        def summary(article: str) -> dict:
+            assert article == "12066"
+            return {
+                "ok": True,
+                "article": "12066",
+                "confidence": "CERTO",
+                "route": ["HENN", "ZAW1", "PIDMILL", "CP"],
+                "signals": {
+                    "has_henn": True,
+                    "has_zaw1": True,
+                    "has_zaw2": False,
+                    "primary_zaw_station": "ZAW1",
+                    "has_pidmill": True,
+                    "cp_required": True,
+                },
+                "criticalities": [],
+                "tl_action": "Seguire route confermata e usare criticita come checklist TL.",
+            }
+
+        monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", summary)
+        data = _ask("12066?")
+        assert data["confidence"] == "CERTO"
+        assert data["requires_confirmation"] is False
+        assert "12066" in data["answer"]
+
+    elif scenario == "route_preview":
+        isolated_tl_sources["preview"].write_text(
+            json.dumps(
+                {
+                    "profiles": {
+                        "12070": {
+                            "article": "12070",
+                            "confidence": "INFERITO",
+                            "signals": {
+                                "has_henn": False,
+                                "has_zaw1": True,
+                                "has_zaw2": False,
+                                "primary_zaw_station": "ZAW1",
+                                "cp_required": True,
+                            },
+                            "review_reasons": [],
+                            "discrepancies": [],
+                        }
+                    }
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = _ask("12070?")
+        assert data["confidence"] == "INFERITO"
+        assert data["requires_confirmation"] is True
+        assert "Profilo inferito" in data["answer"]
+
+    elif scenario == "staging_preview":
+        isolated_tl_sources["staging"].write_text(
+            json.dumps(
+                {
+                    "items": [
+                        {
+                            "codice": "12056",
+                            "tl_decision": "PENDING",
+                            "staging_status": "PREVIEW_ONLY",
+                            "next_action": "REVIEW_BEFORE_STAGING",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = _ask("Quali codici posso densificare?")
+        assert data["confidence"] == "CERTO"
+        assert data["requires_confirmation"] is True
+        assert "12056" in data["answer"]
+        assert "staging preview" in data["risk"]
+
+    elif scenario == "lifecycle_registry":
+        isolated_tl_sources["registry"].write_text(
+            json.dumps(
+                {
+                    "12053": {"status": "FUORI_PRODUZIONE", "source": "tl"},
+                    "12410": {"status": "NEW_ENTRY", "source": "tl"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = _ask("Quali codici sono fuori produzione?")
+        assert data["confidence"] == "CERTO"
+        assert data["requires_confirmation"] is True
+        assert "12053" in data["answer"]
+        assert "12410" not in data["answer"]
+
+    else:
+        isolated_tl_sources["intake"].write_text(
+            json.dumps(
+                {
+                    "items": [
+                        {
+                            "article": "12589",
+                            "initial_classification": "NEW_ENTRY_CANDIDATE_ZAW",
+                            "confidence": "DA_VERIFICARE",
+                        }
+                    ]
+                }
+            ),
+            encoding="utf-8",
+        )
+        data = _ask("Quali codici sono new entry?")
+        assert data["confidence"] == "CERTO"
+        assert data["requires_confirmation"] is True
+        assert "12589" in data["answer"]
+        assert "intake locale" in data["answer"].lower()
+
+    _assert_operational_shape(data)
+    _assert_runtime_evidence(
+        data,
+        expected_source_type=expected_source_type,
+        allowed_confidences=allowed_confidences,
+    )
+
+
+def test_practical_runtime_provenance_exceptions_keep_empty_evidence(isolated_tl_sources):
+    missing_article = _ask("Dimmi lo stato del codice.", {"article": "99999"})
+    assert missing_article["confidence"] == "DA_VERIFICARE"
+    assert missing_article["evidence_pack"]["evidence"] == []
+
+    missing_staging = _ask("Quali codici posso densificare?")
+    assert "Non risultano codici pronti" in missing_staging["answer"]
+    assert missing_staging["evidence_pack"]["evidence"] == []
+
+    guardrail = _ask("Cosa faccio partire adesso?")
+    assert "Domanda turno" in guardrail["answer"]
+    assert guardrail["evidence_pack"]["evidence"] == []
 
 
 def test_practical_q_article_summary_da_verificare_requires_confirmation(monkeypatch, isolated_tl_sources):

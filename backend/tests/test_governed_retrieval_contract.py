@@ -39,6 +39,12 @@ def test_pack_declares_allowed_and_blocked_sources():
     pack = build_governed_retrieval_pack("retrieval fonti autorizzate")
     assert "tl_memory_rules" in pack["allowed_sources"]
     assert "docs/prometeo_system_map.md" in pack["allowed_sources"]
+    assert "local_specs_metadata" in pack["allowed_sources"]
+    assert "article_tl_summary" in pack["allowed_sources"]
+    assert "lifecycle_registry" in pack["allowed_sources"]
+    assert "article_route_matrix_preview" in pack["allowed_sources"]
+    assert "codici_staging_preview" in pack["allowed_sources"]
+    assert "tl_real_spec_intake" in pack["allowed_sources"]
     assert "specs_finitura_images" in pack["blocked_sources"]
     assert "real_smf" in pack["blocked_sources"]
     assert "secrets" in pack["blocked_sources"]
