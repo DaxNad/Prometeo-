@@ -27,7 +27,6 @@ def test_tl_chat_phase2_governed_retrieval_runtime_fallback():
     assert data["requires_confirmation"] is True
 
     assert "Fonte governata read-only" in data["answer"]
-    assert "nessuna promozione a CERTO" in data["answer"]
     assert "nessuna scrittura" in data["answer"]
     assert "nessuna decisione automatica" in data["answer"]
 
@@ -134,13 +133,18 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
         for item in evidence
     )
 
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert "Conferma TL" in data["missing_data"]
+    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+
     assert "Articolo 12514" in data["answer"]
-    assert "fonte preview spec_intake_preview" in data["answer"]
+    assert "dati disponibili da fonte preview" in data["answer"]
+    assert "planner_eligible=" not in data["answer"]
+    assert "can_promote=" not in data["answer"]
     assert "Codice cliente: 7056055000A0" in data["answer"]
     assert "Disegno: A1675003603" in data["answer"]
     assert "Stato: PREVIEW_ONLY" in data["answer"]
-    assert "Confidence: DA_VERIFICARE" in data["answer"]
-    assert "conferma TL richiesta" in data["answer"]
-    assert "nessuna promozione a CERTO" in data["answer"]
-    assert "planner_eligible=false" in data["answer"]
-    assert "can_promote=false" in data["answer"]
+    assert "Affidabilità: DA_VERIFICARE" in data["answer"]
+    assert "richiedono conferma TL" in data["answer"]
