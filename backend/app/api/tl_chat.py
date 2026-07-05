@@ -1220,7 +1220,6 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
 
     details: list[str] = [
         f"Articolo {article}: dati disponibili da fonte preview.",
-        f"Stato: {status}.",
         f"Affidabilità: {confidence}.",
     ]
 
