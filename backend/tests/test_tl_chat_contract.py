@@ -1678,9 +1678,7 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     assert data["source"] == "spec_intake_preview"
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
-    assert "Conferma TL dei dati preview" in data["missing_data"]
-    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
-    assert "Autorizzazione alla promozione a CERTO" in data["missing_data"]
+    assert data["missing_data"] == []
 
     assert "Articolo 12514" in data["answer"]
     assert "Dati disponibili:" in data["answer"]
@@ -2193,8 +2191,7 @@ def test_tl_chat_12514_confirmation_rendering_api_binding_keeps_preview_fallback
     assert data["source"] == "spec_intake_preview"
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
-    assert "Conferma TL dei dati preview" in data["missing_data"]
-    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+    assert data["missing_data"] == []
     assert "Dati disponibili:" in data["answer"]
     assert "Fonte:" in data["answer"]
     assert "- spec_intake_preview" in data["answer"]
@@ -2501,8 +2498,7 @@ def test_tl_chat_contract_preview_source_is_not_bypassed_by_context_reader(monke
     assert data["source"] == "spec_intake_preview"
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
-    assert "Conferma TL dei dati preview" in data["missing_data"]
-    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+    assert data["missing_data"] == ["Revisione disegno"]
     assert "Dati disponibili:" in data["answer"]
     assert "Fonte:" in data["answer"]
     assert "- spec_intake_preview" in data["answer"]
@@ -2510,3 +2506,64 @@ def test_tl_chat_contract_preview_source_is_not_bypassed_by_context_reader(monke
     assert "planner_eligible=" not in data["answer"]
     assert "requires_tl_confirmation=" not in data["answer"]
     assert "can_promote=" not in data["answer"]
+
+
+def test_spec_intake_preview_asks_tl_only_for_missing_operational_data(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+
+    (preview_root / "54321_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "capability": "SPEC_INTAKE_54321_PREVIEW_001",
+                "status": "PREVIEW_ONLY",
+                "confidence": "DA_VERIFICARE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "article": {
+                    "articolo": "54321",
+                    "codice": "TEST-CODE",
+                    "disegno": "",
+                    "rev": "",
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        tl_chat_api,
+        "SPEC_INTAKE_PREVIEW_ROOT",
+        preview_root,
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Cosa sai dell'articolo 54321?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "Codice cliente: TEST-CODE" in data["answer"]
+    assert "Disegno" in data["answer"]
+    assert "Revisione disegno" in data["answer"]
+
+    assert "Puoi fornire o confermare" in data["answer"]
+
+    assert data["missing_data"] == [
+        "Disegno",
+        "Revisione disegno",
+    ]
+
+    assert "Abilitazione all'uso per pianificazione" not in data["answer"]
+    assert "Autorizzazione alla promozione a CERTO" not in data["answer"]
+
+    assert "non è utilizzabile per pianificazione" in data["answer"]
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True

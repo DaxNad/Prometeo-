@@ -136,8 +136,7 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert data["source"] == "spec_intake_preview"
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
-    assert "Conferma TL dei dati preview" in data["missing_data"]
-    assert "Abilitazione all'uso per pianificazione" in data["missing_data"]
+    assert data["missing_data"] == ["Revisione disegno"]
 
     assert "Articolo 12514" in data["answer"]
     assert "Dati disponibili:" in data["answer"]
@@ -151,4 +150,5 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert "Affidabilità:" in data["answer"]
     assert "- DA_VERIFICARE" in data["answer"]
     assert "Dati mancanti:" in data["answer"]
-    assert "- Conferma TL dei dati preview" in data["answer"]
+    assert "Richiesta al TL:" in data["answer"]
+    assert "- Puoi fornire o confermare: Revisione disegno?" in data["answer"]
