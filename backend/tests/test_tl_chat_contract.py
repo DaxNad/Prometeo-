@@ -2567,3 +2567,110 @@ def test_spec_intake_preview_asks_tl_only_for_missing_operational_data(
     assert "non è utilizzabile per pianificazione" in data["answer"]
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
+
+
+def test_spec_intake_preview_reports_missing_assembly_data_for_real_question(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+
+    (preview_root / "12514_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "capability": "SPEC_INTAKE_12514_PREVIEW_001",
+                "status": "PREVIEW_ONLY",
+                "confidence": "DA_VERIFICARE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "article": {
+                    "articolo": "12514",
+                    "codice": "7056055000A0",
+                    "disegno": "A1675003603",
+                    "rev": "6",
+                },
+                "operations_preview": [
+                    "ASSEMBLAGGIO",
+                    "MARCATURA",
+                    "COLLAUDO A PRESSIONE",
+                ],
+                "components_and_tools_preview": [
+                    {
+                        "code": "468922",
+                        "type": "component",
+                        "note": "guaina",
+                    },
+                    {
+                        "code": "CRT004",
+                        "type": "tooling",
+                        "note": "attrezzatura tacca numero 004",
+                    },
+                ],
+                "tl_confirmation_required": [
+                    (
+                        "Confermare se i due passaggi ZAW sono entrambi ZAW1 "
+                        "o coinvolgono altra postazione."
+                    ),
+                    "Confermare sequenza route normalizzata PROMETEO.",
+                    (
+                        "Confermare componenti 468728, 468865, 468796 "
+                        "e attrezzature CRT/CRM."
+                    ),
+                    (
+                        "Confermare se PIDMILL e CP sono assenti "
+                        "o solo non visibili nella specifica."
+                    ),
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        tl_chat_api,
+        "SPEC_INTAKE_PREVIEW_ROOT",
+        preview_root,
+    )
+
+    client = TestClient(app)
+
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": (
+                "Quali dati operativi mancano per completare le indicazioni "
+                "di assemblaggio dell'articolo 12514?"
+            )
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["source"] == "spec_intake_preview"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert data["missing_data"] == [
+        (
+            "Confermare se i due passaggi ZAW sono entrambi ZAW1 "
+            "o coinvolgono altra postazione."
+        ),
+        "Confermare sequenza route normalizzata PROMETEO.",
+        (
+            "Confermare componenti 468728, 468865, 468796 "
+            "e attrezzature CRT/CRM."
+        ),
+        (
+            "Confermare se PIDMILL e CP sono assenti "
+            "o solo non visibili nella specifica."
+        ),
+    ]
+
+    assert "Dati mancanti:" in data["answer"]
+    assert "Richiesta al TL:" in data["answer"]
+    assert (
+        "Puoi fornire o confermare: Confermare se i due passaggi ZAW "
+        "sono entrambi ZAW1 o coinvolgono altra postazione."
+        in data["answer"]
+    )
+    assert "Dati mancanti:\n- Nessuno" not in data["answer"]
