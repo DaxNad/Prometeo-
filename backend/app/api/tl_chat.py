@@ -1308,12 +1308,6 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
         missing_data.append("Disegno")
     if not rev:
         missing_data.append("Revisione disegno")
-    if requires_tl_confirmation:
-        missing_data.append("Conferma TL dei dati preview")
-    if not planner_eligible:
-        missing_data.append("Abilitazione all'uso per pianificazione")
-    if not resolved_context.can_promote:
-        missing_data.append("Autorizzazione alla promozione a CERTO")
 
     available_data: list[str] = []
 
@@ -1330,6 +1324,15 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
         available_data.append("- Nessun dato identificativo disponibile")
 
     missing_lines = [f"- {item}" for item in missing_data] or ["- Nessuno"]
+
+    if missing_data:
+        tl_request = (
+            "Puoi fornire o confermare: "
+            + ", ".join(missing_data)
+            + "?"
+        )
+    else:
+        tl_request = "Puoi confermare i dati disponibili della preview?"
 
     safe_action = (
         "Verificare la preview con il Team Leader prima di utilizzarla "
@@ -1354,6 +1357,9 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
             "",
             "Dati mancanti:",
             *missing_lines,
+            "",
+            "Richiesta al TL:",
+            f"- {tl_request}",
             "",
             "Prossima azione sicura:",
             f"- {safe_action}",
