@@ -1269,7 +1269,11 @@ def _load_spec_intake_preview(article: str) -> dict[str, Any] | None:
     return data
 
 
-def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) -> TLChatResponse:
+def _response_from_spec_intake_preview(
+    article: str,
+    payload: dict[str, Any],
+    question: str = "",
+) -> TLChatResponse:
     article_payload = payload.get("article") if isinstance(payload.get("article"), dict) else {}
 
     raw_confidence = _resolve_tl_chat_confidence(payload.get("confidence") or "DA_VERIFICARE")
@@ -1308,6 +1312,25 @@ def _response_from_spec_intake_preview(article: str, payload: dict[str, Any]) ->
         missing_data.append("Disegno")
     if not rev:
         missing_data.append("Revisione disegno")
+
+    normalized_question = _clean(question).lower()
+    asks_missing_assembly_data = (
+        ("manc" in normalized_question or "incomplet" in normalized_question)
+        and (
+            "assemblaggio" in normalized_question
+            or "indicazioni operative" in normalized_question
+            or "dati operativi" in normalized_question
+        )
+    )
+
+    if asks_missing_assembly_data:
+        tl_confirmation_required = payload.get("tl_confirmation_required")
+        if isinstance(tl_confirmation_required, list):
+            missing_data.extend(
+                _clean(item)
+                for item in tl_confirmation_required
+                if _clean(item)
+            )
 
     available_data: list[str] = []
 
@@ -2449,7 +2472,11 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
                 if confirmation_rendering_response:
                     return confirmation_rendering_response
 
-            return _response_from_spec_intake_preview(article, spec_intake_preview)
+            return _response_from_spec_intake_preview(
+                article,
+                spec_intake_preview,
+                question,
+            )
 
         preview_response = _response_from_preview_profile(article)
         if preview_response:
