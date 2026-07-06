@@ -78,6 +78,18 @@ Chiudere la capability:
 - verdict finale;
 - prossima mossa unica, solo se necessaria.
 
+## External Timer Rule
+Quando una fase richiede di attendere un intervallo temporale esplicito:
+
+- ChatGPT non deve stimare mentalmente il tempo trascorso;
+- deve creare un timer esterno reale con offset esatto;
+- il timer deve essere associato all'azione da eseguire allo scadere;
+- allo scadere deve verificare lo stato reale prima di procedere;
+- in caso di failure, stato inatteso o scope change deve fermarsi;
+- non deve dichiarare che il tempo è trascorso senza una schedulazione effettiva.
+
+Questa regola si applica a verifiche CI, retry tecnici, attese operative e controlli differiti.
+
 ## Anti-Entropy Rule
 Non aprire nuovi documenti, capability, guard, eval o runtime se la capability corrente è già chiudibile.
 
