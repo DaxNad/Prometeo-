@@ -2293,33 +2293,37 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     )
 
 
-def _question_asks_12514_confirmation_rendering(question: str) -> bool:
+def _question_asks_confirmation_rendering(question: str) -> bool:
     normalized = str(question or "").strip().lower()
 
-    asks_confirmation = (
+    return (
         "conferma" in normalized
         or "confirmation" in normalized
         or "risposta tl" in normalized
         or "render" in normalized
         or "rendering" in normalized
     )
-    asks_12514 = "12514" in normalized
-
-    return asks_12514 and asks_confirmation
 
 
-def _build_12514_confirmation_readback():
+def _confirmation_root_for_article(article: str) -> Path:
+    if article == "12514":
+        return CONFIRMATION_12514_PATH.parent
+
+    return SPEC_INTAKE_CONFIRMATION_ROOT
+
+
+def _build_article_confirmation_readback(article: str):
     return build_confirmation_evidence_readback(
-        article="12514",
-        confirmation_root=CONFIRMATION_12514_PATH.parent,
+        article=article,
+        confirmation_root=_confirmation_root_for_article(article),
     )
 
 
-def _response_from_12514_confirmation_rendering(
+def _response_from_article_confirmation_rendering(
     article: str,
     payload: dict[str, Any],
 ) -> TLChatResponse | None:
-    if article != "12514":
+    if not _is_safe_article_code(article):
         return None
 
     article_payload = (
@@ -2333,7 +2337,7 @@ def _response_from_12514_confirmation_rendering(
     }
     candidate_data = {key: value for key, value in candidate_data.items() if value}
 
-    confirmation_readback = _build_12514_confirmation_readback()
+    confirmation_readback = _build_article_confirmation_readback(article)
     missing_data = []
     next_safe_action = (
         "usare la conferma TL persistita come evidenza locale; mantenere "
@@ -2348,7 +2352,7 @@ def _response_from_12514_confirmation_rendering(
 
     rendering = build_confirmation_rendering(
         TLChatConfirmationRenderingInput(
-            article="12514",
+            article=article,
             question_id="Q1",
             tl_answer_state="UNKNOWN",
             resulting_status="DA_VERIFICARE",
@@ -2360,7 +2364,7 @@ def _response_from_12514_confirmation_rendering(
 
     answer = rendering.rendered_text
     risk = (
-        "Rendering candidato 12514 non persistente: non è fonte di verità, "
+        f"Rendering candidato {article} non persistente: non è fonte di verità, "
         "non autorizza pianificazione e non produce effetti operativi."
     )
 
@@ -2462,9 +2466,9 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
         spec_intake_preview = _load_spec_intake_preview(article)
         if spec_intake_preview:
-            if _question_asks_12514_confirmation_rendering(question):
+            if _question_asks_confirmation_rendering(question):
                 confirmation_rendering_response = (
-                    _response_from_12514_confirmation_rendering(
+                    _response_from_article_confirmation_rendering(
                         article,
                         spec_intake_preview,
                     )
