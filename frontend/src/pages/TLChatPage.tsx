@@ -97,11 +97,8 @@ export default function TLChatPage() {
         padding: "12px 16px 20px",
       }}
     >
-      <header style={{ display: "grid", gap: 4 }}>
-        <h1 style={{ margin: 0, fontSize: 22 }}>TL Chat</h1>
-        <p style={{ margin: 0, color: "#9ca3af", fontSize: 14 }}>
-          Scrivi una richiesta operativa come in un prompt. PROMETEO risponde senza modificare dati.
-        </p>
+      <header>
+        <h1 style={{ margin: 0, fontSize: 22 }}>Chat PROMETEO</h1>
       </header>
 
       <section
@@ -126,10 +123,7 @@ export default function TLChatPage() {
               gap: 10,
             }}
           >
-            <div style={{ fontSize: 28, fontWeight: 800 }}>Come posso aiutarti nel turno?</div>
-            <div style={{ color: "#9ca3af" }}>
-              Esempio: “Che criticità ha il 12066?” oppure “Spiegami la sequenza per questo articolo.”
-            </div>
+            <div style={{ fontSize: 28, fontWeight: 800 }}>FAI UNA DOMANDA</div>
           </div>
         )}
 
