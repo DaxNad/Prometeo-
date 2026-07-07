@@ -23,7 +23,7 @@ function normalizeError(err: unknown): string {
     return "PROMETEO non è raggiungibile. Verificare il runtime locale e riprovare.";
   }
 
-  return "Errore durante l'interrogazione TL Chat. Riprovare.";
+  return "Errore durante l'interrogazione di PROMETEO. Riprovare.";
 }
 
 function nextMessageId(): number {
@@ -102,7 +102,7 @@ export default function TLChatPage() {
       </header>
 
       <section
-        aria-label="Cronologia conversazione TL"
+        aria-label="Cronologia conversazione PROMETEO"
         style={{
           minHeight: 360,
           display: "grid",
@@ -185,7 +185,7 @@ export default function TLChatPage() {
       >
         <textarea
           ref={textareaRef}
-          aria-label="Prompt TL"
+          aria-label="Prompt PROMETEO"
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => {
@@ -207,7 +207,7 @@ export default function TLChatPage() {
             fontSize: 16,
             lineHeight: 1.4,
           }}
-          placeholder="Scrivi un prompt TL..."
+          placeholder="Scrivi una domanda..."
         />
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
