@@ -70,6 +70,16 @@ Quando esistono più opzioni implementative, seguire questa priorità:
 
 ---
 
+## 6.1 Metodo operativo rinforzato
+- Tutti i comandi Python del repository devono usare `./tools/py`.
+- Non usare direttamente `python` o `python3` nei comandi operativi, nei documenti o nelle procedure.
+- Prima di applicare una patch, verificare file, percorso corrente e stato Git reale.
+- Per nuove capability runtime: aggiungere prima un test mirato rosso, poi la patch minima.
+- Le patch automatiche devono contenere guard espliciti (`assert` o controllo equivalente) sui marker attesi.
+- Dopo ogni patch verificare `git status --short`, diff circoscritto e test mirati.
+- Fermarsi su failure reale, diff inatteso, cambio di scope o modifica architetturale.
+- Non ripetere un comando già fallito senza averne identificato e corretto la causa.
+
 ## 7) Regole di verifica finale (obbligatorie in chiusura)
 In ogni chiusura modifica Codex deve dichiarare esplicitamente:
 
@@ -135,8 +145,8 @@ Agents must not run or suggest:
 
 Before any push or merge, agents must verify:
 
-- `python3 scripts/privacy_guard_specs.py`
-- `python3 scripts/data_leak_guard.py`
+- `./tools/py scripts/privacy_guard_specs.py`
+- `./tools/py scripts/data_leak_guard.py`
 - `git status --short`
 - `git diff --cached --stat`
 

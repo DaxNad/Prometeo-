@@ -1,0 +1,13 @@
+#!/usr/bin/env sh
+set -eu
+
+if command -v python3 >/dev/null 2>&1; then
+    exec python3 "$@"
+fi
+
+if command -v python >/dev/null 2>&1; then
+    exec python "$@"
+fi
+
+echo "ERROR: Python interpreter not available (checked: python3, python)." >&2
+exit 127
