@@ -18,6 +18,7 @@ function normalizeError(err: unknown): string {
   if (
     message.includes("Failed to fetch") ||
     message.includes("NetworkError") ||
+    message.includes("POST /chat failed") ||
     message.includes("POST /tl/chat failed")
   ) {
     return "PROMETEO non è raggiungibile. Verificare il runtime locale e riprovare.";
