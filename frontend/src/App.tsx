@@ -40,7 +40,7 @@ export default function App() {
           }}
           style={{ color: path === "/" ? "#fff" : "#9ca3af", textDecoration: "none", fontWeight: 700 }}
         >
-          TL Chat
+          Chat
         </a>
         <a
           href="/tl-board"
