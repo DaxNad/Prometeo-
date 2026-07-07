@@ -32,6 +32,7 @@ from tools.tl_chat_context_reader_bridge import (
 )
 
 router = APIRouter(prefix="/tl", tags=["tl-chat"])
+public_router = APIRouter(tags=["chat"])
 
 ROOT = Path(__file__).resolve().parents[3]
 CONFIRMATION_12514_PATH = ROOT / "data" / "local_reports" / "spec_intake_confirmation" / "12514_confirmation.json"
@@ -2552,6 +2553,7 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     )
 
 
+@public_router.post("/chat", response_model=TLChatResponse)
 @router.post("/chat", response_model=TLChatResponse)
 def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     """
