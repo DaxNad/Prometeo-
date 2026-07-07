@@ -60,6 +60,12 @@ Nessuna nuova architettura.
 Nessun runtime se non autorizzato.
 
 ### 5. Terminale
+Regole:
+- eseguire Python esclusivamente tramite `./tools/py`;
+- verificare percorso corrente e stato reale prima del comando;
+- non ripetere comandi falliti senza correggerne la causa;
+- usare patch con guard espliciti sui marker attesi.
+
 Eseguire:
 - test mirati;
 - `git status --short`;
