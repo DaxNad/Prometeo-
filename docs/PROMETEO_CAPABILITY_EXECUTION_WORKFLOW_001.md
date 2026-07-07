@@ -84,17 +84,19 @@ Chiudere la capability:
 - verdict finale;
 - prossima mossa unica, solo se necessaria.
 
-## External Timer Rule
-Quando una fase richiede di attendere un intervallo temporale esplicito:
+## Immediate Remote Status Rule
+Per CI, mergeability, review state e altri stati remoti:
 
-- ChatGPT non deve stimare mentalmente il tempo trascorso;
-- deve creare un timer esterno reale con offset esatto;
-- il timer deve essere associato all'azione da eseguire allo scadere;
-- allo scadere deve verificare lo stato reale prima di procedere;
-- in caso di failure, stato inatteso o scope change deve fermarsi;
-- non deve dichiarare che il tempo è trascorso senza una schedulazione effettiva.
+- eseguire subito un controllo dello stato reale;
+- se lo stato è pronto, completare automaticamente la sequenza già autorizzata;
+- se lo stato è pendente, ritornare immediatamente al prompt;
+- non simulare attese;
+- non mantenere il turno bloccato;
+- non creare timer per retry tecnici di pochi secondi;
+- effettuare un nuovo controllo solo su nuova richiesta o tramite automazione realmente asincrona;
+- fermarsi su failure, conflitto, head SHA cambiato, scope inatteso o stato ambiguo.
 
-Questa regola si applica a verifiche CI, retry tecnici, attese operative e controlli differiti.
+Le automazioni sono riservate ad attività future, ricorrenti o condizionali, non alle attese tecniche ordinarie.
 
 ## Anti-Entropy Rule
 Non aprire nuovi documenti, capability, guard, eval o runtime se la capability corrente è già chiudibile.

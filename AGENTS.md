@@ -79,6 +79,11 @@ Quando esistono più opzioni implementative, seguire questa priorità:
 - Dopo ogni patch verificare `git status --short`, diff circoscritto e test mirati.
 - Fermarsi su failure reale, diff inatteso, cambio di scope o modifica architetturale.
 - Non ripetere un comando già fallito senza averne identificato e corretto la causa.
+- Per CI, mergeability e stati remoti eseguire sempre un controllo immediato.
+- Se lo stato è pronto, completare automaticamente la sequenza autorizzata.
+- Se lo stato è pendente, ritornare subito al prompt senza attese simulate.
+- Non usare timer o automazioni per attese tecniche brevi.
+- Usare automazioni solo per attività realmente future o controlli asincroni esplicitamente richiesti.
 
 ## 7) Regole di verifica finale (obbligatorie in chiusura)
 In ogni chiusura modifica Codex deve dichiarare esplicitamente:
