@@ -47,6 +47,10 @@ def _registry_path() -> Path | None:
     return None
 
 
+def get_article_operational_registry_path() -> Path | None:
+    return _registry_path()
+
+
 def _load_cache() -> dict[str, Any]:
     global _CACHE_LOADED, _CACHE_DATA
 
