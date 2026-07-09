@@ -72,7 +72,7 @@ export type TLChatResponse = {
 };
 
 export async function tlChat(payload: TLChatRequest) {
-  return apiPost<TLChatResponse>("/chat", payload);
+  return apiPost<TLChatResponse>("/tl/chat", payload);
 }
 
 export type MachineLoadItem = {
