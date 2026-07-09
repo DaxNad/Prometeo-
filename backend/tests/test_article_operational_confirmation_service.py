@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import inspect
 import json
+from pathlib import Path
 
 from app.domain.article_operational_registry import (
     get_operational_registry_entry,
@@ -487,12 +488,13 @@ def test_confirm_operational_status_updates_legacy_record_without_history(
 
 
 def test_contract_documents_planner_eligible_limits():
-    text = (
-        "docs/ARTICLE_OPERATIONAL_CONFIRMATION_SERVICE_CONTRACT_001.md"
+    contract_path = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "ARTICLE_OPERATIONAL_CONFIRMATION_SERVICE_CONTRACT_001.md"
     )
-    from pathlib import Path
 
-    content = Path(text).read_text(encoding="utf-8")
+    content = contract_path.read_text(encoding="utf-8")
     assert "planner_eligible=true" in content
     assert "ordine autorizzato" in content
     assert "quantità autorizzata" in content
