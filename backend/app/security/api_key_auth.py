@@ -23,6 +23,9 @@ def _get_key(request: Request):
 def install_auth(app):
     @app.middleware("http")
     async def auth(request: Request, call_next):
+        if request.method == "OPTIONS":
+            return await call_next(request)
+
         path = request.url.path
 
         if path in PUBLIC_PATHS:
