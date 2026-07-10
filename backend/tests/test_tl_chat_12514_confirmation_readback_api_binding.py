@@ -13,7 +13,7 @@ client = TestClient(app)
 class _StubReadback:
     found: bool = True
     rendered_text: str = (
-        "Evidenza TL persistita: presente\n"
+        "Evidenza responsabile di produzione persistita: presente\n"
         "confirmation_status: TL_CONFIRMED_PREVIEW\n"
         "confidence=DA_VERIFICARE\n"
         "requires_confirmation=true\n"
@@ -69,7 +69,7 @@ def test_12514_confirmation_rendering_uses_readback_service_binding(
     response = client.post(
         "/tl/chat",
         json={
-            "question": "Render conferma TL per articolo 12514",
+            "question": "Render conferma responsabile di produzione per articolo 12514",
             "context": {"article": "12514"},
         },
     )
@@ -87,7 +87,8 @@ def test_12514_confirmation_rendering_uses_readback_service_binding(
     assert data["ok"] is True
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
-    assert "Evidenza TL persistita: presente" in data["answer"]
+    assert "Evidenza responsabile di produzione persistita: presente" in data["answer"]
+    assert "Evidenza TL persistita" not in data["answer"]
     assert "planner_eligible=false" in data["answer"]
     assert "promoted_to_certo=false" in data["answer"]
     assert "non autorizza pianificazione" in data["risk"]

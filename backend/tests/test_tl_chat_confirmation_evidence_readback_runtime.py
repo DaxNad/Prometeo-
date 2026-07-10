@@ -45,7 +45,8 @@ def test_readback_keeps_non_operational_invariants(tmp_path):
     assert result.planner_eligible is False
     assert result.promoted_to_certo is False
     assert result.confirmed_fields == ("codice", "disegno", "rev")
-    assert "Evidenza TL persistita: presente" in result.rendered_text
+    assert "Evidenza responsabile di produzione persistita: presente" in result.rendered_text
+    assert "Evidenza TL persistita" not in result.rendered_text
     assert "confidence=DA_VERIFICARE" in result.rendered_text
     assert "requires_confirmation=true" in result.rendered_text
     assert "requires_persistence_review=true" in result.rendered_text

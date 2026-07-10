@@ -56,7 +56,7 @@ def test_context_reader_bridge_resolves_authorized_source_through_resolver(tmp_p
     assert result["source_status"] == "SOURCE_FOUND"
     assert result["reader_status"] == "READ_OK"
     assert result["confidence"] == "DA_VERIFICARE"
-    assert result["missing_data"] == "nessun dato certo promosso; conferma TL richiesta"
+    assert result["missing_data"] == "nessun dato certo promosso; conferma del responsabile di produzione richiesta"
     assert "non applicare decisioni operative" in result["next_safe_action"]
     assert result["requires_tl_confirmation"] is True
     assert result["planner_eligible"] is False

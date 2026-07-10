@@ -43,9 +43,9 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
                 "criticalities": [
                     f"Codice noto da registro operativo: {description}.",
                     f"Disegno associato: {drawing}.",
-                    f"Classe operativa {operational_policy['operational_class']}: non entra nel planner standard senza ordine esplicito o conferma TL.",
+                    f"Classe operativa {operational_policy['operational_class']}: non entra nel planner standard senza ordine esplicito o conferma del responsabile di produzione.",
                 ],
-                "tl_action": "Usare come riferimento/ricambio/one-shot; non pianificare automaticamente senza ordine esplicito o conferma TL.",
+                "tl_action": "Usare come riferimento/ricambio/one-shot; non pianificare automaticamente senza ordine esplicito o conferma del responsabile di produzione.",
                 "summary": (
                     f"Articolo {article_code} — noto in registro operativo "
                     f"come {operational_policy['operational_class']}. "
@@ -80,7 +80,7 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     if not operational_policy["planner_eligible"]:
         criticalities.append(
             f"Classe operativa {operational_policy['operational_class']}: "
-            "non entra nel planner standard senza ordine esplicito o conferma TL."
+            "non entra nel planner standard senza ordine esplicito o conferma del responsabile di produzione."
         )
 
     primary_zaw = signals.get("primary_zaw_station")
@@ -138,9 +138,9 @@ def build_article_tl_summary(article_code: str) -> dict[str, Any]:
     route_text = " → ".join(route) if route else "route non disponibile"
     confidence = str(profile.get("confidence") or "DA_VERIFICARE")
 
-    tl_action = "Seguire route confermata e usare criticità come checklist TL."
+    tl_action = "Seguire route confermata e usare criticità come checklist operativa."
     if discrepancies:
-        tl_action = "Seguire route confermata; non usare fonti discordanti senza verifica TL."
+        tl_action = "Seguire route confermata; non usare fonti discordanti senza verifica del responsabile di produzione."
 
     return {
         "ok": True,

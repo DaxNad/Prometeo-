@@ -14,6 +14,10 @@ This is a document-only review. It does not promote any value to CERTO and does 
 
 ## Current preview state
 
+This section describes the historical PREVIEW_ONLY state of the
+`spec_intake_preview` source. It is still valid as source history, but it is no
+longer the current authority for the operational status of article 12514.
+
 | Field | Value | Status |
 |---|---|---|
 | capability | SPEC_INTAKE_12514_PREVIEW_001 | PREVIEW_ONLY |
@@ -25,6 +29,30 @@ This is a document-only review. It does not promote any value to CERTO and does 
 | planner_eligible | false | BLOCKED |
 | requires_tl_confirmation | true | CONFIRMATION_REQUIRED |
 | confidence | DA_VERIFICARE | UNCERTAIN |
+
+## Conferma operativa autorevole successiva
+
+Il Team Leader responsabile del processo operativo ha successivamente
+confermato che l'articolo 12514 appartiene alla produzione ordinaria ed è
+attivo per l'assemblaggio ordinario.
+
+Questa conferma è registrata come evidenza distinta in
+`data/local_smf/finiture/article_operational_registry.json` con:
+
+- `operational_class = STANDARD`;
+- `planner_eligible = true`;
+- `tl_confirmation_required = false`;
+- origine: conferma umana esplicita;
+- autorità: Team Leader responsabile del processo operativo.
+
+La conferma operativa autorevole prevale sullo stato PREVIEW_ONLY per lo stato
+operativo corrente. Non autorizza quantità, turno, sequenziamento o
+pianificazione automatica.
+
+La fonte `spec_intake_preview` resta storica e tracciabile come evidenza
+separata. Può continuare a fornire riferimenti, operazioni e componenti per il
+rendering, ma non viene fusa con il registry operativo e non determina da sola
+lo stato di produzione ordinaria.
 
 ## Candidate fields for TL confirmation
 
@@ -113,6 +141,61 @@ The following conclusions must remain blocked:
 | ZAW station resolution | DA_VERIFICARE | Two ZAW passes do not imply ZAW2 |
 | planner eligibility | BLOCKED | Explicitly false in preview |
 | production authorization | BLOCKED | Out of governed retrieval scope |
+
+## Normalizzazione operativa confermata — collaudo a pressione
+
+**Ambito:** rendering user-facing della TL Chat per dati provenienti da
+`spec_intake_preview`.
+
+**Regola confermata:**
+
+L’unica denominazione operativa valida è:
+
+`COLLAUDO A PRESSIONE VERTICALE`
+
+La voce:
+
+`COLLAUDO A PRESSIONE`
+
+deve essere interpretata come denominazione incompleta o ripetizione della
+stessa operazione, non come fase produttiva distinta.
+
+**Normalizzazione applicata:**
+
+`COLLAUDO A PRESSIONE`
+→
+`COLLAUDO A PRESSIONE VERTICALE`
+
+La normalizzazione deve avvenire prima della deduplicazione del rendering.
+
+**Governance:**
+
+- la fonte originale non viene modificata;
+- il payload sorgente non viene mutato;
+- il file preview non viene corretto automaticamente;
+- la normalizzazione riguarda solo il rendering operativo;
+- la regola è registrata come conferma operativa;
+- l’identità della fonte originale resta disponibile nel payload interno;
+- la normalizzazione non promuove il dato a `CERTO`;
+- eventuali divergenze future nella specifica devono restare visibili in audit.
+
+**Autorità della regola:**
+
+Regola confermata dal responsabile di produzione.
+
+## Regola architetturale non negoziabile
+
+**Fonti distinte e non fuse.**
+
+Ogni fonte deve mantenere:
+- identità;
+- stato;
+- affidabilità;
+- evidenza;
+- tracciabilità.
+
+Il renderer può normalizzare o tradurre il dato per l’utente, ma non deve
+cancellare, fondere o sostituire l’evidenza originale.
 
 ## Recommended next capability
 

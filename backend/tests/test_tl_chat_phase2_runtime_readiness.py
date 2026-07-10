@@ -31,7 +31,7 @@ def test_tl_chat_phase2_governed_retrieval_runtime_fallback():
     assert "nessuna decisione automatica" in data["answer"]
 
     assert data["risk"] == "Risposta basata su retrieval governato preview-only."
-    assert "conferma TL richiesta" in data["recommended_action"]
+    assert "conferma del responsabile di produzione richiesta" in data["recommended_action"]
 
     evidence_pack = data.get("evidence_pack")
     assert isinstance(evidence_pack, dict)
@@ -61,7 +61,7 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
 
     preview_root = tmp_path / "spec_intake_preview"
     preview_root.mkdir(parents=True, exist_ok=True)
-    (preview_root / "12514_metadata_preview.json").write_text(
+    (preview_root / "54321_metadata_preview.json").write_text(
         json.dumps(
             {
                 "status": "PREVIEW_ONLY",
@@ -70,7 +70,7 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
                 "requires_tl_confirmation": True,
                 "confidence": "DA_VERIFICARE",
                 "article": {
-                    "articolo": "12514",
+                    "articolo": "54321",
                     "codice": "7056055000A0",
                     "disegno": "A1675003603",
                 },
@@ -97,7 +97,7 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
         json={
             "question": "Spiegami il retrieval governato e le fonti disponibili per questo articolo.",
             "context": {
-                "article": "12514",
+                "article": "54321",
             },
         },
     )
@@ -114,7 +114,7 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     evidence_pack = data.get("evidence_pack")
     assert isinstance(evidence_pack, dict)
     assert evidence_pack["mode"] == "GOVERNED_RETRIEVAL_001"
-    assert evidence_pack["article"] == "12514"
+    assert evidence_pack["article"] == "54321"
 
     assert "spec_intake_preview" in evidence_pack["allowed_sources"]
     assert "read-only" in evidence_pack["constraints"]
@@ -126,9 +126,9 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert isinstance(evidence, list)
     assert any(
         item["source_type"] == "spec_intake_preview"
-        and item["source_id"] == "spec_intake_preview:12514"
+        and item["source_id"] == "spec_intake_preview:54321"
         and item["confidence"] == "PREVIEW_ONLY"
-        and "12514 trovato in spec_intake_preview" in item["text"]
+        and "54321 trovato in spec_intake_preview" in item["text"]
         and "no planner eligibility" in item["text"]
         for item in evidence
     )
@@ -138,17 +138,22 @@ def test_tl_chat_phase2_evidence_pack_includes_spec_intake_preview_for_article(m
     assert data["semantic_status"] == "DA_VERIFICARE"
     assert data["missing_data"] == ["Revisione disegno"]
 
-    assert "Articolo 12514" in data["answer"]
-    assert "Dati disponibili:" in data["answer"]
-    assert "Fonte:" in data["answer"]
-    assert "- spec_intake_preview" in data["answer"]
+    assert "Articolo 54321" in data["answer"]
+    assert "Riferimenti disponibili:" in data["answer"]
+    assert "Operazioni disponibili:" in data["answer"]
     assert "planner_eligible=" not in data["answer"]
     assert "can_promote=" not in data["answer"]
     assert "Codice cliente: 7056055000A0" in data["answer"]
     assert "Disegno: A1675003603" in data["answer"]
     assert "Stato: PREVIEW_ONLY" not in data["answer"]
-    assert "Affidabilità:" in data["answer"]
-    assert "- DA_VERIFICARE" in data["answer"]
     assert "Dati mancanti:" in data["answer"]
-    assert "Richiesta al TL:" in data["answer"]
-    assert "- Puoi fornire o confermare: Revisione disegno?" in data["answer"]
+    assert "Verifica richiesta" in data["answer"]
+    assert "I dati non sono ancora confermati." in data["answer"]
+    assert (
+        "Prima dell’utilizzo operativo, verificarli con il responsabile di produzione."
+        in data["answer"]
+    )
+    assert (
+        "Queste informazioni non autorizzano pianificazione o decisioni operative automatiche."
+        in data["answer"]
+    )

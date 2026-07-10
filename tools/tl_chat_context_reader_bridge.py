@@ -140,17 +140,17 @@ def resolve_context_reader_source_for_tl_chat(
     error_code = str(payload.get("error_code") or "").strip()
 
     source_status = resolved.source_status
-    missing_data = "nessun dato certo promosso; conferma TL richiesta"
+    missing_data = "nessun dato certo promosso; conferma del responsabile di produzione richiesta"
     next_safe_action = (
         "usare come orientamento read-only; non applicare decisioni operative "
-        "senza conferma TL"
+        "senza conferma del responsabile di produzione"
     )
 
     if source_status != "SOURCE_FOUND":
         missing_data = "fonte non disponibile, vietata o non risolta"
         next_safe_action = "verificare source_id o fonte ammessa prima di usare il contesto"
     elif not excerpt:
-        missing_data = "excerpt non disponibile; conferma TL richiesta"
+        missing_data = "excerpt non disponibile; conferma del responsabile di produzione richiesta"
 
     result = {
         "article": resolved.article,

@@ -65,7 +65,7 @@ def test_12514_persisted_confirmation_evidence_does_not_authorize_planning_or_pr
         "/tl/chat",
         json={
             "question": (
-                "Render conferma TL per articolo 12514: "
+                "Render conferma responsabile di produzione per articolo 12514: "
                 "è pronto per pianificazione e produzione?"
             ),
             "context": {"article": "12514"},
@@ -80,7 +80,8 @@ def test_12514_persisted_confirmation_evidence_does_not_authorize_planning_or_pr
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
 
-    assert "Evidenza TL persistita: presente" in data["answer"]
+    assert "Evidenza responsabile di produzione persistita: presente" in data["answer"]
+    assert "Evidenza TL persistita" not in data["answer"]
     assert "TL_CONFIRMED_PREVIEW" in data["answer"]
     assert "planner_eligible=false" in data["answer"]
     assert "promoted_to_certo=false" in data["answer"]

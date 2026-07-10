@@ -11,6 +11,7 @@ from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
 from app.domain.component_classifier import find_explicit_manicotto_component
 from app.domain.human_checkpoint import consultation
+from app.domain.operation_normalization import normalize_operation_value
 from app.atlas_engine.governed_retrieval import build_governed_retrieval_pack
 from app.semantic_registry import resolve_confidence
 from app.services.tl_chat_context_resolver import (
@@ -230,6 +231,17 @@ def _tl_real_spec_intake_evidence() -> dict[str, Any]:
         confidence="PREVIEW_ONLY",
         text="TL real spec intake data consumed by TL Chat runtime.",
         reason="Runtime TL Chat responder used local intake candidates already loaded in memory.",
+    )
+
+
+def _spec_intake_preview_runtime_evidence(article: str) -> dict[str, Any]:
+    return _runtime_evidence_item(
+        source_id=f"spec_intake_preview:{article}",
+        source_type="spec_intake_preview",
+        authority_rank=12,
+        confidence="PREVIEW_ONLY",
+        text=f"Spec intake preview retained as distinct historical evidence for article {article}.",
+        reason="Runtime TL Chat responder kept preview evidence separate from operational status authority.",
     )
 
 
@@ -776,7 +788,7 @@ def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) 
         )
         action = "usare route confermata solo come riferimento; confermare admission planner prima della pianificazione"
         risk = "Route confermata, ma admission planner bloccata dal metadata."
-        recommended_action = "Non pianificare automaticamente; serve conferma TL su classe operativa/admission planner."
+        recommended_action = "Non pianificare automaticamente; serve conferma del responsabile di produzione su classe operativa/admission planner."
     else:
         action = "usare route confermata"
         risk = "Metadata locale articolo presente."
@@ -812,6 +824,24 @@ def _question_asks_if_article_needs_verification(question: str) -> bool:
     )
 
 
+def _question_asks_operational_authorization(question: str) -> bool:
+    normalized = question.strip().lower()
+    return any(
+        phrase in normalized
+        for phrase in (
+            "posso assemblare",
+            "assemblabile",
+            "producibile",
+            "mandare in produzione",
+            "in produzione ordinaria",
+            "produzione ordinaria",
+            "è attivo",
+            "e attivo",
+            "attivo?",
+        )
+    )
+
+
 def _response_for_article_operational_verification(
     article: str,
     metadata: dict[str, Any],
@@ -839,7 +869,7 @@ def _response_for_article_operational_verification(
         confidence=confidence,
         risk="Certezza route e ammissibilità operativa ordinaria sono due cose diverse.",
         recommended_action=(
-            "Usare solo con richiesta cliente esplicita e conferma TL; "
+            "Usare solo con richiesta cliente esplicita e conferma del responsabile di produzione; "
             "non promuovere automaticamente a priorità produttiva."
         ),
         requires_confirmation=True,
@@ -870,7 +900,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
                 answer=f"Il codice {article} risulta NEW_ENTRY nella memoria reparto.",
                 confidence="INFERITO",
                 risk="Codice nuovo: va densificato con priorità ma confermato prima dello staging.",
-                recommended_action="Verifica TL e poi priorità alta di densificazione.",
+                recommended_action="Verifica del responsabile di produzione e poi priorità alta di densificazione.",
                 requires_confirmation=checkpoint.requires_confirmation,
             ),
             _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
@@ -883,7 +913,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
                 answer=f"Il codice {article} risulta FUORI_PRODUZIONE nella memoria reparto.",
                 confidence="INFERITO",
                 risk="Codice non prioritario per densificazione operativa; evitare promozione automatica.",
-                recommended_action="Non portare in staging salvo conferma TL esplicita.",
+                recommended_action="Non portare in staging salvo conferma esplicita del responsabile di produzione.",
                 requires_confirmation=checkpoint.requires_confirmation,
             ),
             _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
@@ -899,7 +929,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
                 ),
                 confidence="INFERITO",
                 risk="Codice non standard: non pianificare automaticamente senza ordine o richiesta cliente.",
-                recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
+                recommended_action="Usare solo con richiesta cliente esplicita e conferma del responsabile di produzione.",
                 requires_confirmation=checkpoint.requires_confirmation,
             ),
             _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
@@ -912,7 +942,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
                 answer=f"Il codice {article} risulta ATTIVO nella memoria reparto.",
                 confidence="INFERITO",
                 risk="Stato reparto presente ma da incrociare con BOM, Codici e route prima di scritture.",
-                recommended_action="Procedere con preview e conferma TL prima dello staging.",
+                recommended_action="Procedere con preview e conferma del responsabile di produzione prima dello staging.",
                 requires_confirmation=checkpoint.requires_confirmation,
             ),
             _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "INFERITO"),
@@ -927,7 +957,7 @@ def _response_from_lifecycle(article: str, payload: dict[str, Any]) -> TLChatRes
                 answer=f"Il codice {article} è da verificare prima di densificarlo o promuoverlo.{source_text}{detail}",
                 confidence="DA_VERIFICARE",
                 risk="Lifecycle articolo non confermato: non è ancora classificato come attivo, fuori produzione o new entry.",
-                recommended_action="Verifica TL richiesta prima di staging.",
+                recommended_action="Verifica del responsabile di produzione richiesta prima di staging.",
                 requires_confirmation=checkpoint.requires_confirmation,
             ),
             _lifecycle_registry_evidence(f"lifecycle_registry:{article}", "DA_VERIFICARE"),
@@ -1034,7 +1064,7 @@ def _response_for_densification_candidates(staging: dict[str, Any]) -> TLChatRes
     if not codes:
         return TLChatResponse(
             ok=True,
-            answer="Non risultano codici pronti per review TL nello staging preview.",
+            answer="Non risultano codici pronti per revisione del responsabile di produzione nello staging preview.",
             confidence="CERTO",
             risk=None,
             recommended_action="Rigenerare lo staging preview o verificare lifecycle/Codici/BOM.",
@@ -1048,13 +1078,13 @@ def _response_for_densification_candidates(staging: dict[str, Any]) -> TLChatRes
         TLChatResponse(
             ok=True,
             answer=(
-                "Codici pronti per review TL prima della densificazione: "
+                "Codici pronti per revisione del responsabile di produzione prima della densificazione: "
                 + ", ".join(sample)
                 + "."
                 + suffix
             ),
             confidence="CERTO",
-            risk="I codici sono candidati da staging preview: serve conferma TL prima di qualsiasi scrittura.",
+            risk="I codici sono candidati da staging preview: serve conferma del responsabile di produzione prima di qualsiasi scrittura.",
             recommended_action="Revisionare i candidati e confermare esplicitamente prima dello staging controllato.",
             requires_confirmation=True,
         ),
@@ -1139,19 +1169,19 @@ def _response_for_lifecycle_status_list(
     if requested_status == "DA_VERIFICARE":
         empty_answer = "Non risultano codici DA_VERIFICARE nel lifecycle registry reparto."
         risk = "Sono presenti codici con stato vita articolo non ancora confermato."
-        recommended = "Verifica TL richiesta prima di densificazione o staging."
+        recommended = "Verifica del responsabile di produzione richiesta prima di densificazione o staging."
     elif requested_status == "NEW_ENTRY":
         empty_answer = "Non risultano codici NEW_ENTRY nel lifecycle registry reparto o intake locale."
-        risk = "I codici NEW_ENTRY richiedono densificazione prioritaria e conferma TL."
+        risk = "I codici NEW_ENTRY richiedono densificazione prioritaria e conferma del responsabile di produzione."
         recommended = "Verificare i codici nuovi e prepararli per preview/staging controllato."
     elif requested_status == "FUORI_PRODUZIONE":
         empty_answer = "Non risultano codici FUORI_PRODUZIONE nel lifecycle registry reparto."
         risk = "I codici fuori produzione non devono essere promossi automaticamente."
-        recommended = "Escludere dalla densificazione prioritaria salvo conferma TL."
+        recommended = "Escludere dalla densificazione prioritaria salvo conferma del responsabile di produzione."
     else:
         empty_answer = f"Non risultano codici {requested_status} nel lifecycle registry reparto."
         risk = "Stato lifecycle richiesto non gestito esplicitamente."
-        recommended = "Verifica TL richiesta."
+        recommended = "Verifica del responsabile di produzione richiesta."
 
     if not codes and not customer_request_only_codes and not intake_new_entry_candidates:
         return TLChatResponse(
@@ -1187,8 +1217,8 @@ def _response_for_lifecycle_status_list(
                 ok=True,
                 answer=" ".join(answer_parts),
                 confidence="CERTO",
-                risk="Candidati da specifiche reali locali: conferma TL obbligatoria; nessuna pianificazione automatica.",
-                recommended_action="Revisionare le specifiche e promuovere solo dopo conferma TL controllata.",
+                risk="Candidati da specifiche reali locali: conferma del responsabile di produzione obbligatoria; nessuna pianificazione automatica.",
+                recommended_action="Revisionare le specifiche e promuovere solo dopo conferma controllata del responsabile di produzione.",
                 requires_confirmation=True,
             ),
             *evidence_items,
@@ -1215,7 +1245,7 @@ def _response_for_lifecycle_status_list(
                 answer=" ".join(answer_parts),
                 confidence="CERTO",
                 risk="Questi codici non devono essere promossi automaticamente in priorità produttiva.",
-                recommended_action="Usare solo con richiesta cliente esplicita e conferma TL.",
+                recommended_action="Usare solo con richiesta cliente esplicita e conferma del responsabile di produzione.",
                 requires_confirmation=True,
             ),
             _lifecycle_registry_evidence("lifecycle_registry:FUORI_PRODUZIONE", "CERTO"),
@@ -1333,73 +1363,129 @@ def _response_from_spec_intake_preview(
                 if _clean(item)
             )
 
-    available_data: list[str] = []
+    def _display_item(item: Any) -> str:
+        if isinstance(item, str):
+            return _clean(item)
+
+        if isinstance(item, dict):
+            code = _clean(
+                item.get("code")
+                or item.get("codice")
+                or item.get("article")
+                or item.get("articolo")
+            )
+            description = _clean(
+                item.get("description")
+                or item.get("descrizione")
+                or item.get("name")
+                or item.get("nome")
+                or item.get("operation")
+                or item.get("operazione")
+            )
+
+            if code and description:
+                return f"{code} — {description}"
+            return code or description
+
+        return _clean(item)
+
+    def _normalize_operation_item(value: str) -> str:
+        return normalize_operation_value(value).normalized_value
+
+    def _dedupe_render_items(items: list[Any], *, normalize_operation: bool = False) -> list[str]:
+        rendered: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            value = _display_item(item)
+            if normalize_operation:
+                value = _normalize_operation_item(value)
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            rendered.append(value)
+        return rendered
+
+    identifying_data: list[str] = []
 
     if codice:
-        available_data.append(f"- Codice cliente: {codice}")
+        identifying_data.append(f"- Codice cliente: {codice}")
 
     if disegno:
         drawing_text = f"- Disegno: {disegno}"
         if rev:
             drawing_text += f", revisione {rev}"
-        available_data.append(drawing_text)
+        identifying_data.append(drawing_text)
 
-    if not available_data:
-        available_data.append("- Nessun dato identificativo disponibile")
+    operations_payload = (
+        payload.get("operations_preview")
+        or article_payload.get("operations_preview")
+        or []
+    )
+    components_payload = (
+        payload.get("components_and_tools_preview")
+        or article_payload.get("components_and_tools_preview")
+        or []
+    )
+
+    operations = (
+        _dedupe_render_items(operations_payload, normalize_operation=True)
+        if isinstance(operations_payload, list)
+        else []
+    )
+
+    components = (
+        _dedupe_render_items(components_payload)
+        if isinstance(components_payload, list)
+        else []
+    )
 
     missing_lines = [f"- {item}" for item in missing_data] or ["- Nessuno"]
 
-    if missing_data:
-        tl_request = (
-            "Puoi fornire o confermare: "
-            + ", ".join(missing_data)
-            + "?"
-        )
-    else:
-        tl_request = "Puoi confermare i dati disponibili della preview?"
-
     safe_action = (
-        "Verificare la preview con il Team Leader prima di utilizzarla "
-        "come dato operativo."
+        "Prima dell’utilizzo operativo, verificarli con il responsabile di produzione."
     )
 
-    answer = "\n".join(
+    answer_lines = [
+        f"Articolo {article}",
+        "",
+    ]
+
+    if identifying_data:
+        answer_lines.extend(
+            [
+                "Riferimenti disponibili:",
+                *identifying_data,
+                "",
+            ]
+        )
+
+    answer_lines.extend(
         [
-            f"Articolo {article}",
+            "Operazioni disponibili:",
+            *([f"- {item}" for item in operations] or ["- Nessuna operazione disponibile"]),
             "",
-            "Dati disponibili:",
-            *available_data,
-            "",
-            "Fonte:",
-            "- spec_intake_preview",
-            "",
-            "Stato:",
-            f"- {status}",
-            "",
-            "Affidabilità:",
-            f"- {confidence}",
+            "Componenti e attrezzature disponibili:",
+            *([f"- {item}" for item in components] or ["- Nessun componente disponibile"]),
             "",
             "Dati mancanti:",
             *missing_lines,
             "",
-            "Richiesta al TL:",
-            f"- {tl_request}",
+            "Verifica richiesta",
             "",
-            "Prossima azione sicura:",
-            f"- {safe_action}",
+            "I dati non sono ancora confermati.",
+            safe_action,
             "",
-            (
-                "Il contenuto non è utilizzabile per pianificazione e non può "
-                "essere promosso automaticamente a CERTO."
-            ),
+            "Queste informazioni non autorizzano pianificazione o decisioni operative automatiche.",
         ]
     )
+
+    answer = "\n".join(answer_lines)
 
     return TLChatResponse(
         ok=True,
         answer=answer,
         confidence=confidence,
-        risk="Spec intake preview-only: non usare per pianificazione o profilo attivo senza conferma TL.",
+        risk="Dati non confermati: non usare per pianificazione o profilo attivo senza conferma del responsabile di produzione.",
         recommended_action=safe_action,
         requires_confirmation=requires_tl_confirmation,
         technical_details_hidden=True,
@@ -1455,7 +1541,7 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
     pieces: list[str] = [f"{article} — {confidence}."]
 
     if confidence == "DA_VERIFICARE":
-        pieces.append("Profilo non operativo: serve conferma TL prima di usarlo per strategia turno.")
+        pieces.append("Profilo non operativo: serve conferma del responsabile di produzione prima di usarlo per strategia turno.")
     elif confidence == "INFERITO":
         pieces.append("Profilo inferito: usare con cautela, non come dato certo.")
 
@@ -1503,14 +1589,14 @@ def _response_from_preview_profile(article: str) -> TLChatResponse | None:
             answer=" ".join(pieces),
             confidence=confidence,
             risk=(
-                "Profilo preview da verificare: non usarlo per decisione operativa senza conferma TL."
+                "Profilo preview da verificare: non usarlo per decisione operativa senza conferma del responsabile di produzione."
                 if confidence == "DA_VERIFICARE"
                 else "Profilo preview inferito: usare con cautela."
                 if confidence == "INFERITO"
                 else "Profilo preview disponibile."
             ),
             recommended_action=(
-                "Conferma TL richiesta prima di usare questo articolo in strategia turno."
+                "Conferma del responsabile di produzione richiesta prima di usare questo articolo in strategia turno."
                 if confidence == "DA_VERIFICARE"
                 else "Usare come supporto provvisorio, poi consolidare con specifica/metadata."
                 if confidence == "INFERITO"
@@ -1534,7 +1620,7 @@ def _pattern_hint_for_stations(stations: list[str]) -> str:
     if not pattern_titles:
         return ""
 
-    return " PATTERN TL: ZAW1/ZAW2 non intercambiabili."
+    return " PATTERN OPERATIVO: ZAW1/ZAW2 non intercambiabili."
 
 
 def _response_from_article_summary(article: str) -> TLChatResponse | None:
@@ -1654,6 +1740,155 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
     )
 
 
+def _preview_display_value(item: Any) -> str:
+    if isinstance(item, dict):
+        value = item.get("code") or item.get("name") or item.get("label") or item.get("operation")
+        return _clean(value)
+    return _clean(item)
+
+
+def _normalize_preview_operation(value: str) -> str:
+    return normalize_operation_value(value).normalized_value
+
+
+def _dedupe_preview_values(items: Any, *, normalize_operation: bool = False) -> list[str]:
+    if not isinstance(items, list):
+        return []
+
+    values: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        value = _preview_display_value(item)
+        if normalize_operation:
+            value = _normalize_preview_operation(value)
+        if not value or value in seen:
+            continue
+        seen.add(value)
+        values.append(value)
+    return values
+
+
+def _article_is_confirmed_ordinary(summary: dict[str, Any]) -> bool:
+    return (
+        _clean(summary.get("confidence")).upper() == "CERTO"
+        and _clean(summary.get("operational_class")).upper() == "STANDARD"
+        and bool(summary.get("planner_eligible")) is True
+    )
+
+
+def _response_for_operational_authorization(
+    *,
+    article: str,
+    question: str,
+    summary: dict[str, Any] | None,
+    spec_intake_preview: dict[str, Any] | None,
+) -> TLChatResponse:
+    asks_assembly = "assembl" in question.strip().lower()
+
+    if summary and summary.get("ok") and _article_is_confirmed_ordinary(summary):
+        pieces = [
+            f"Sì. L'articolo {article} risulta appartenere alla produzione ordinaria."
+        ]
+        if asks_assembly:
+            pieces.append(
+                "È assemblabile secondo la route e le indicazioni operative confermate."
+            )
+
+        article_payload = (
+            spec_intake_preview.get("article")
+            if isinstance(spec_intake_preview, dict)
+            and isinstance(spec_intake_preview.get("article"), dict)
+            else {}
+        )
+        references: list[str] = []
+        customer_code = _clean(article_payload.get("codice"))
+        drawing = _clean(article_payload.get("disegno"))
+        rev = _clean(article_payload.get("rev") or article_payload.get("revision"))
+        if customer_code:
+            references.append(f"Codice cliente: {customer_code}")
+        if drawing:
+            drawing_text = f"Disegno: {drawing}"
+            if rev:
+                drawing_text += f", revisione {rev}"
+            references.append(drawing_text)
+
+        operations = _dedupe_preview_values(
+            spec_intake_preview.get("operations_preview")
+            if isinstance(spec_intake_preview, dict)
+            else [],
+            normalize_operation=True,
+        )
+        components = _dedupe_preview_values(
+            spec_intake_preview.get("components_and_tools_preview")
+            if isinstance(spec_intake_preview, dict)
+            else []
+        )
+
+        if references:
+            pieces.append("\nRiferimenti articolo:\n" + "\n".join(f"- {item}" for item in references))
+        if operations:
+            pieces.append("\nOperazioni:\n" + "\n".join(f"- {item}" for item in operations))
+        if components:
+            pieces.append("\nComponenti e attrezzature:\n" + "\n".join(f"- {item}" for item in components))
+
+        pieces.append(
+            "\nLimite: questa risposta non autorizza quantità, turno, sequenziamento o pianificazione automatica."
+        )
+
+        response = TLChatResponse(
+            ok=True,
+            answer="\n".join(pieces),
+            confidence="CERTO",
+            risk="Stato operativo confermato; pianificazione automatica non autorizzata da questa risposta.",
+            recommended_action="Usare lo stato operativo confermato per l'assemblabilità; gestire quantità, turno e sequenza solo con gli ingressi planner previsti.",
+            requires_confirmation=False,
+            technical_details_hidden=True,
+        )
+        evidence = [_article_summary_evidence(article, "CERTO")]
+        if spec_intake_preview:
+            evidence.append(_spec_intake_preview_runtime_evidence(article))
+        return _with_runtime_evidence(response, *evidence)
+
+    if spec_intake_preview:
+        return _with_runtime_evidence(
+            TLChatResponse(
+                ok=True,
+                answer=(
+                    "Non ancora come autorizzazione operativa.\n\n"
+                    "I dati sono disponibili come preview, ma richiedono validazione operativa autorizzata prima dell'utilizzo. "
+                    "La preview non determina da sola lo stato di produzione ordinaria."
+                ),
+                confidence="DA_VERIFICARE",
+                risk="Fonte preview-only: non autorizza assemblaggio, pianificazione, quantità, turno o sequenziamento.",
+                recommended_action="Registrare una conferma operativa autorevole in una fonte di stato operativo prima di rispondere positivamente.",
+                requires_confirmation=True,
+                technical_details_hidden=True,
+                source="spec_intake_preview",
+                source_status="PREVIEW_ONLY",
+                semantic_status="DA_VERIFICARE",
+                missing_data=["conferma operativa autorevole"],
+            ),
+            _spec_intake_preview_runtime_evidence(article),
+        )
+
+    return TLChatResponse(
+        ok=True,
+        answer=(
+            "Non posso confermare l'assemblaggio con i dati attualmente disponibili.\n\n"
+            f"Dato mancante: fonte operativa autorevole per l'articolo {article}."
+        ),
+        confidence="DA_VERIFICARE",
+        risk="Profilo articolo o fonte operativa autorizzata non disponibile.",
+        recommended_action="Verificare articolo in fonte autorizzata; non trattare come attivo senza conferma del responsabile di produzione.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+        source="missing",
+        source_status="SOURCE_MISSING",
+        semantic_status="MANCANTE",
+        missing_data=["fonte operativa autorevole"],
+    )
+
+
 
 
 def _question_asks_why(question: str) -> bool:
@@ -1732,7 +1967,7 @@ def _response_for_article_why_question(
                     "può alterare la route reale."
                 ),
                 recommended_action=(
-                    f"Usare {primary_zaw or 'la ZAW indicata dal profilo'}; chiedere conferma TL solo se "
+                    f"Usare {primary_zaw or 'la ZAW indicata dal profilo'}; chiedere conferma al responsabile di produzione solo se "
                     "serve cambiare postazione o se emerge una fonte reale discordante."
                 ),
                 requires_confirmation=confidence != "CERTO" or zaw_specificity == "DA_VERIFICARE",
@@ -1763,7 +1998,7 @@ def _response_for_article_why_question(
                 ),
                 recommended_action=(
                     "Usare il profilo come riferimento operativo; pianificare solo con ordine attivo, richiesta esplicita "
-                    "o conferma TL coerente con le regole planner."
+                    "o conferma del responsabile di produzione coerente con le regole planner."
                 ),
                 requires_confirmation=True,
                 technical_details_hidden=True,
@@ -2067,7 +2302,7 @@ def _response_for_turn_fallback_without_article() -> TLChatResponse:
             "NON DECIDO: contesto operativo insufficiente. "
             "MOTIVO: mancano dati minimi per una priorità affidabile. "
             "DATO MANCANTE: codice articolo, ordine, lotto, stato board o evento aperto. "
-            "DOMANDA TL: quale codice articolo, ordine, lotto o evento devo valutare?"
+            "DOMANDA OPERATIVA: quale codice articolo, ordine, lotto o evento devo valutare?"
         ),
         confidence="DA_VERIFICARE",
         risk=(
@@ -2141,9 +2376,9 @@ def _response_from_governed_evidence_pack(
         return None
 
     confidence_notes = {
-        "CERTO": "dato confermato da fonte reale, TL o struttura dominio autorevole.",
+        "CERTO": "dato confermato da fonte reale, validazione operativa autorizzata o struttura dominio autorevole.",
         "INFERITO": "dato dedotto da contesto governato; utile come ipotesi, non come certezza operativa.",
-        "DA_VERIFICARE": "dato non sufficiente o non confermato; serve controllo TL o fonte autorizzata.",
+        "DA_VERIFICARE": "dato non sufficiente o non confermato; serve validazione operativa autorizzata o una fonte autorizzata.",
     }
 
     if source_type == "semantic_registry_confidence":
@@ -2187,7 +2422,7 @@ def _response_from_governed_evidence_pack(
         ),
         confidence="DA_VERIFICARE",
         risk="Risposta basata su retrieval governato preview-only.",
-        recommended_action="Usare come orientamento; conferma TL richiesta prima di decisioni operative.",
+        recommended_action="Usare come orientamento; conferma del responsabile di produzione richiesta prima di decisioni operative.",
         requires_confirmation=True,
         technical_details_hidden=True,
     )
@@ -2264,9 +2499,9 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     if not source_id:
         return None
 
-    missing_data = "nessun dato certo promosso; conferma TL richiesta"
+    missing_data = "nessun dato certo promosso; conferma del responsabile di produzione richiesta"
     if not excerpt:
-        missing_data = "excerpt non disponibile; conferma TL richiesta"
+        missing_data = "excerpt non disponibile; conferma del responsabile di produzione richiesta"
 
     source_summary = "fonte governata read-only disponibile"
     if excerpt:
@@ -2282,13 +2517,13 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
             f"can_promote={str(resolved_context.can_promote).lower()}; "
             f"planner_eligible={str(resolved_context.planner_eligible).lower()}.\n"
             f"Missing data: {missing_data}.\n"
-            "Next safe action: usare come orientamento; non applicare decisioni operative senza conferma TL. "
+            "Next safe action: usare come orientamento; non applicare decisioni operative senza conferma del responsabile di produzione. "
             "Limite: contesto usato solo come supporto informativo; nessuna promozione a CERTO, "
             "nessuna scrittura e nessuna decisione automatica."
         ),
         confidence="DA_VERIFICARE",
-        risk="Risposta basata su ContextSourceReaderAdapter read-only; conferma TL richiesta.",
-        recommended_action="Usare come orientamento; non applicare decisioni operative senza conferma TL.",
+        risk="Risposta basata su ContextSourceReaderAdapter read-only; conferma del responsabile di produzione richiesta.",
+        recommended_action="Usare come orientamento; non applicare decisioni operative senza conferma del responsabile di produzione.",
         requires_confirmation=True,
         technical_details_hidden=True,
     )
@@ -2341,13 +2576,13 @@ def _response_from_article_confirmation_rendering(
     confirmation_readback = _build_article_confirmation_readback(article)
     missing_data = []
     next_safe_action = (
-        "usare la conferma TL persistita come evidenza locale; mantenere "
+        "usare la conferma del responsabile di produzione persistita come evidenza locale; mantenere "
         "DA_VERIFICARE e non promuovere a CERTO"
     )
     if not confirmation_readback.found:
-        missing_data = ["conferma TL strutturata non ancora acquisita"]
+        missing_data = ["conferma strutturata del responsabile di produzione non ancora acquisita"]
         next_safe_action = (
-            "presentare il rendering candidato al TL; non persistere e non "
+            "presentare il rendering candidato al responsabile di produzione; non persistere e non "
             "promuovere a CERTO"
         )
 
@@ -2372,7 +2607,7 @@ def _response_from_article_confirmation_rendering(
     if confirmation_readback.found:
         answer = answer + "\n" + confirmation_readback.rendered_text
         risk = (
-            "Conferma TL persistita come evidenza locale governata; resta "
+            "Conferma del responsabile di produzione persistita come evidenza locale governata; resta "
             "DA_VERIFICARE, non autorizza pianificazione e non produce effetti "
             "operativi."
         )
@@ -2456,6 +2691,19 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
             return _response_from_local_specs_metadata(article, local_specs_metadata)
 
+        asks_operational_authorization = _question_asks_operational_authorization(question)
+        if asks_operational_authorization:
+            summary = build_article_tl_summary(article)
+            lifecycle_payload = lifecycle.get(article)
+            spec_intake_preview = _load_spec_intake_preview(article)
+            if summary.get("ok") or spec_intake_preview or not lifecycle_payload:
+                return _response_for_operational_authorization(
+                    article=article,
+                    question=question,
+                    summary=summary,
+                    spec_intake_preview=spec_intake_preview,
+                )
+
         article_summary_response = _response_from_article_summary(article)
         if article_summary_response:
             return article_summary_response
@@ -2500,7 +2748,7 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             ),
             confidence="DA_VERIFICARE",
             risk=None,
-            recommended_action="Verificare articolo in fonte autorizzata o fornire profilo/specifica; non trattare come attivo senza conferma TL.",
+            recommended_action="Verificare articolo in fonte autorizzata o fornire profilo/specifica; non trattare come attivo senza conferma del responsabile di produzione.",
             requires_confirmation=True,
             source="missing",
             source_status="SOURCE_MISSING",
@@ -2527,7 +2775,7 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             answer=(
                 "ZAW1 e ZAW2 non sono intercambiabili. "
                 "Vincoli: ZAW1_2 indica secondo passaggio su ZAW1, non ZAW2; "
-                "non spostare route o carico da ZAW1 a ZAW2 senza profilo articolo e conferma TL. "
+                "non spostare route o carico da ZAW1 a ZAW2 senza profilo articolo e conferma del responsabile di produzione. "
                 "Azione: usare la postazione indicata dalla route/profilo articolo."
             ),
             confidence="CERTO",

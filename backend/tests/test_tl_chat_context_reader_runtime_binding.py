@@ -95,7 +95,7 @@ def test_tl_chat_runtime_uses_readonly_context_reader_bridge(monkeypatch, tmp_pa
     assert data["requires_confirmation"] is True
     assert data["technical_details_hidden"] is True
     assert data["recommended_action"] == (
-        "Usare come orientamento; non applicare decisioni operative senza conferma TL."
+        "Usare come orientamento; non applicare decisioni operative senza conferma del responsabile di produzione."
     )
 
     answer = data["answer"]
@@ -107,7 +107,7 @@ def test_tl_chat_runtime_uses_readonly_context_reader_bridge(monkeypatch, tmp_pa
     assert "requires_tl_confirmation=true" in answer
     assert "can_promote=false" in answer
     assert "planner_eligible=false" in answer
-    assert "Missing data: nessun dato certo promosso; conferma TL richiesta" in answer
+    assert "Missing data: nessun dato certo promosso; conferma del responsabile di produzione richiesta" in answer
     assert "nessuna promozione a CERTO" in answer
     assert "nessuna scrittura" in answer
     assert "nessuna decisione automatica" in answer

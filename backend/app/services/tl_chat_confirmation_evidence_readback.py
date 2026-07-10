@@ -106,7 +106,7 @@ def _closed(code: str, status: str, missing: tuple[str, ...]) -> ConfirmationEvi
         missing_data=missing,
         rendered_text=(
             f"Articolo: {code}\n"
-            f"Evidenza TL persistita: non utilizzabile ({status})\n"
+            f"Evidenza responsabile di produzione persistita: non utilizzabile ({status})\n"
             "confidence=DA_VERIFICARE\n"
             "requires_confirmation=true\n"
             "requires_persistence_review=true\n"
@@ -120,7 +120,7 @@ def _render_found(code: str, fields: tuple[str, ...]) -> str:
     return "\n".join(
         [
             f"Articolo: {code}",
-            "Evidenza TL persistita: presente",
+            "Evidenza responsabile di produzione persistita: presente",
             "confirmation_status: TL_CONFIRMED_PREVIEW",
             "confidence=DA_VERIFICARE",
             "requires_confirmation=true",
@@ -138,7 +138,7 @@ def _render_missing(code: str) -> str:
     return "\n".join(
         [
             f"Articolo: {code}",
-            "Evidenza TL persistita: assente",
+            "Evidenza responsabile di produzione persistita: assente",
             "confidence=DA_VERIFICARE",
             "requires_confirmation=true",
             "requires_persistence_review=true",

@@ -39,7 +39,8 @@ def test_build_confirmation_rendering_returns_non_persistent_candidate():
 
     assert "Articolo: 12514" in result.rendered_text
     assert "Domanda: Q1 - article_identity" in result.rendered_text
-    assert "Risposta TL: YES" in result.rendered_text
+    assert "Risposta di conferma: YES" in result.rendered_text
+    assert "Risposta TL:" not in result.rendered_text
     assert "Stato risultante: CANDIDATE_CONFIRMATION" in result.rendered_text
     assert "Confidenza: DA_VERIFICARE" in result.rendered_text
     assert RUNTIME_EFFECTS_STATEMENT in result.rendered_text
