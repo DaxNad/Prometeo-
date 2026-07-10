@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import inspect
 import json
 
 from fastapi.testclient import TestClient
 
 from app.main import app
 from app.api import tl_chat as tl_chat_api
+from app.domain.article_operational_registry import reset_article_operational_registry_cache
 
 
 def _evidence_item(source_id: str, source_type: str = "existing") -> dict:
@@ -118,7 +120,7 @@ def test_tl_chat_contract_reads_12402_from_lifecycle_registry(monkeypatch, tmp_p
     assert data["technical_details_hidden"] is True
     assert "99997" in data["answer"]
     assert "riunione_aziendale_memoria_tl" in data["answer"]
-    assert "Verifica TL richiesta" in data["recommended_action"]
+    assert "Verifica del responsabile di produzione richiesta" in data["recommended_action"]
 
 
 def test_tl_chat_contract_handles_new_entry_from_lifecycle_registry(monkeypatch, tmp_path):
@@ -308,7 +310,7 @@ def test_tl_chat_contract_lists_codes_da_verificare(monkeypatch, tmp_path):
     assert "99997" in data["answer"]
     assert "12053" not in data["answer"]
     assert "12410" not in data["answer"]
-    assert "Verifica TL richiesta" in data["recommended_action"]
+    assert "Verifica del responsabile di produzione richiesta" in data["recommended_action"]
 
 
 def test_tl_chat_contract_lists_no_codes_da_verificare(monkeypatch, tmp_path):
@@ -498,7 +500,7 @@ def test_tl_chat_contract_lists_customer_request_only_with_fuori_produzione(monk
     assert "12410" not in data["answer"]
     assert "richiesta cliente" in data["answer"].lower()
     assert "non devono essere promossi automaticamente" in data["risk"].lower()
-    assert "conferma TL" in data["recommended_action"]
+    assert "conferma del responsabile di produzione" in data["recommended_action"]
 
 def test_tl_chat_contract_lists_densification_candidates(monkeypatch, tmp_path):
     staging = tmp_path / "codici_staging_preview.json"
@@ -551,7 +553,7 @@ def test_tl_chat_contract_lists_densification_candidates(monkeypatch, tmp_path):
     assert "12056" in data["answer"]
     assert "12410" in data["answer"]
     assert "12402" not in data["answer"]
-    assert "conferma TL" in data["risk"]
+    assert "conferma del responsabile di produzione" in data["risk"]
 
 
 def test_tl_chat_contract_handles_missing_staging_preview(monkeypatch, tmp_path):
@@ -1286,7 +1288,7 @@ def test_tl_chat_reference_only_confirmed_route_still_requires_tl_confirmation(m
     assert "planner_eligible=false" in data["answer"]
     assert "Non va pianificato automaticamente" in data["answer"]
     assert "richiesta cliente esplicita" in data["recommended_action"].lower()
-    assert "conferma TL" in data["recommended_action"]
+    assert "conferma del responsabile di produzione" in data["recommended_action"]
 
 
 def test_tl_chat_answers_12402_confirmed_double_zaw_pidmill_profile(monkeypatch, tmp_path):
@@ -1596,7 +1598,7 @@ def test_tl_chat_rendering_turn_fallback_uses_non_decido_sections():
 
     assert "NON DECIDO" in answer
     assert "DATO MANCANTE:" in answer
-    assert "DOMANDA TL:" in answer
+    assert "DOMANDA OPERATIVA:" in answer
     assert "codice articolo" in answer.lower()
     assert "ordine" in answer.lower()
     assert "lotto" in answer.lower()
@@ -1637,18 +1639,18 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     preview_root = tmp_path / "spec_intake_preview"
     preview_root.mkdir(parents=True, exist_ok=True)
 
-    preview_file = preview_root / "12514_metadata_preview.json"
+    preview_file = preview_root / "54321_metadata_preview.json"
     preview_file.write_text(
         json.dumps(
             {
-                "capability": "SPEC_INTAKE_12514_PREVIEW_001",
+                "capability": "SPEC_INTAKE_SYNTHETIC_PREVIEW_001",
                 "status": "PREVIEW_ONLY",
                 "runtime_impact": "NONE",
                 "planner_eligible": False,
                 "requires_tl_confirmation": True,
                 "confidence": "DA_VERIFICARE",
                 "article": {
-                    "articolo": "12514",
+                    "articolo": "54321",
                     "codice": "7056055000A0",
                     "disegno": "A1675003603",
                     "rev": "6",
@@ -1664,7 +1666,7 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
 
     response = client.post(
         "/tl/chat",
-        json={"question": "12514"},
+        json={"question": "54321"},
     )
 
     assert response.status_code == 200
@@ -1680,13 +1682,14 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     assert data["semantic_status"] == "DA_VERIFICARE"
     assert data["missing_data"] == []
 
-    assert "Articolo 12514" in data["answer"]
-    assert "Dati disponibili:" in data["answer"]
-    assert "Fonte:" in data["answer"]
-    assert "Stato:" in data["answer"]
-    assert "Affidabilità:" in data["answer"]
+    assert "Articolo 54321" in data["answer"]
+    assert "Riferimenti disponibili:" in data["answer"]
+    assert "Operazioni disponibili:" in data["answer"]
+    assert "Componenti e attrezzature disponibili:" in data["answer"]
+    assert "Verifica richiesta" in data["answer"]
     assert "Dati mancanti:" in data["answer"]
-    assert "Prossima azione sicura:" in data["answer"]
+    assert "I dati non sono ancora confermati." in data["answer"]
+    assert "Queste informazioni non autorizzano pianificazione" in data["answer"]
     assert "7056055000A0" in data["answer"]
     assert "A1675003603" in data["answer"]
     assert "planner_eligible=false" not in data["answer"]
@@ -1694,7 +1697,7 @@ def test_tl_chat_contract_answers_article_from_spec_intake_preview(monkeypatch, 
     assert "can_promote=false" not in data["answer"]
 
     assert "pianificazione" in data["risk"].lower()
-    assert "team leader" in data["recommended_action"].lower()
+    assert "responsabile di produzione" in data["recommended_action"].lower()
 
 def test_tl_chat_uses_governed_retrieval_when_no_article_context():
     client = TestClient(app)
@@ -1854,12 +1857,12 @@ def test_tl_chat_real_question_validation_contract_001(monkeypatch, tmp_path):
         {
             "name": "article-specific preview question",
             "payload": {"question": "Cosa sai del 12514?"},
-            "required": [
-                "Articolo 12514",
-                "7056055000A0",
-                "A1675003603",
-                "Prossima azione sicura",
-            ],
+                "required": [
+                    "Articolo 12514",
+                    "7056055000A0",
+                    "A1675003603",
+                    "Verifica richiesta",
+                ],
             "forbidden": [
                 "planner_eligible=true",
                 "planner_eligible=false",
@@ -2025,7 +2028,9 @@ def test_tl_chat_real_question_rendering_improvement_001(monkeypatch, tmp_path):
     assert unknown_data["ok"] is True
     assert unknown_data["confidence"] == "DA_VERIFICARE"
     assert unknown_data["requires_confirmation"] is True
-    assert "NON DISPONIBILE NEL PROFILO ATTIVO" in unknown_data["answer"]
+    assert unknown_data["answer"].startswith(
+        "Non posso confermare l'assemblaggio con i dati attualmente disponibili."
+    )
     assert unknown_data["recommended_action"]
     assert "fonte autorizzata" in unknown_data["recommended_action"]
     assert "non trattare come attivo" in unknown_data["recommended_action"]
@@ -2112,7 +2117,7 @@ def test_tl_chat_12514_confirmation_rendering_api_binding_returns_candidate_only
     response = client.post(
         "/tl/chat",
         json={
-            "question": "Render conferma TL per articolo 12514",
+            "question": "Render conferma responsabile di produzione per articolo 12514",
             "context": {"article": "12514"},
         },
     )
@@ -2126,7 +2131,8 @@ def test_tl_chat_12514_confirmation_rendering_api_binding_returns_candidate_only
     assert data["technical_details_hidden"] is True
     assert "Articolo: 12514" in data["answer"]
     assert "Domanda: Q1 - article_identity" in data["answer"]
-    assert "Risposta TL: UNKNOWN" in data["answer"]
+    assert "Risposta di conferma: UNKNOWN" in data["answer"]
+    assert "Risposta TL:" not in data["answer"]
     assert "Stato risultante: DA_VERIFICARE" in data["answer"]
     assert "codice 7056055000A0" in data["answer"]
     assert "disegno A1675003603" in data["answer"]
@@ -2192,9 +2198,8 @@ def test_tl_chat_12514_confirmation_rendering_api_binding_keeps_preview_fallback
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
     assert data["missing_data"] == []
-    assert "Dati disponibili:" in data["answer"]
-    assert "Fonte:" in data["answer"]
-    assert "- spec_intake_preview" in data["answer"]
+    assert "Riferimenti disponibili:" in data["answer"]
+    assert "Operazioni disponibili:" in data["answer"]
     assert "planner_eligible=" not in data["answer"]
     assert "requires_tl_confirmation=" not in data["answer"]
     assert "can_promote=" not in data["answer"]
@@ -2258,7 +2263,7 @@ def test_tl_chat_12514_confirmation_rendering_reads_persisted_evidence_without_p
     response = client.post(
         "/tl/chat",
         json={
-            "question": "Render conferma TL per articolo 12514",
+            "question": "Render conferma responsabile di produzione per articolo 12514",
             "context": {"article": "12514"},
         },
     )
@@ -2272,7 +2277,8 @@ def test_tl_chat_12514_confirmation_rendering_reads_persisted_evidence_without_p
     assert data["technical_details_hidden"] is True
 
     assert "Articolo: 12514" in data["answer"]
-    assert "Evidenza TL persistita: presente" in data["answer"]
+    assert "Evidenza responsabile di produzione persistita: presente" in data["answer"]
+    assert "Evidenza TL persistita" not in data["answer"]
     assert "TL_CONFIRMED_PREVIEW" in data["answer"]
     assert "confirmed_fields: codice, disegno, rev" in data["answer"]
     assert "requires_persistence_review=true" in data["answer"]
@@ -2499,9 +2505,9 @@ def test_tl_chat_contract_preview_source_is_not_bypassed_by_context_reader(monke
     assert data["source_status"] == "PREVIEW_ONLY"
     assert data["semantic_status"] == "DA_VERIFICARE"
     assert data["missing_data"] == ["Revisione disegno"]
-    assert "Dati disponibili:" in data["answer"]
-    assert "Fonte:" in data["answer"]
-    assert "- spec_intake_preview" in data["answer"]
+    assert "Riferimenti disponibili:" in data["answer"]
+    assert "Operazioni disponibili:" in data["answer"]
+    assert "Verifica richiesta" in data["answer"]
     assert "context_access_binding" not in data["answer"]
     assert "planner_eligible=" not in data["answer"]
     assert "requires_tl_confirmation=" not in data["answer"]
@@ -2554,7 +2560,8 @@ def test_spec_intake_preview_asks_tl_only_for_missing_operational_data(
     assert "Disegno" in data["answer"]
     assert "Revisione disegno" in data["answer"]
 
-    assert "Puoi fornire o confermare" in data["answer"]
+    assert "Verifica richiesta" in data["answer"]
+    assert "I dati non sono ancora confermati." in data["answer"]
 
     assert data["missing_data"] == [
         "Disegno",
@@ -2564,8 +2571,250 @@ def test_spec_intake_preview_asks_tl_only_for_missing_operational_data(
     assert "Abilitazione all'uso per pianificazione" not in data["answer"]
     assert "Autorizzazione alla promozione a CERTO" not in data["answer"]
 
-    assert "non è utilizzabile per pianificazione" in data["answer"]
+    assert "Queste informazioni non autorizzano pianificazione" in data["answer"]
     assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+
+def _rendered_section_lines(answer: str, heading: str) -> list[str]:
+    lines = answer.splitlines()
+    start = lines.index(heading) + 1
+    section: list[str] = []
+    for line in lines[start:]:
+        if not line:
+            break
+        section.append(line)
+    return section
+
+
+def test_spec_intake_preview_deduplicates_operations_rendering_only(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    preview_file = preview_root / "77771_metadata_preview.json"
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "77771",
+            "codice": "TEST-OPS",
+            "disegno": "DRAW-OPS",
+            "rev": "1",
+        },
+        "operations_preview": [
+            "LAVAGGIO",
+            "ASSEMBLAGGIO",
+            "MACCHINA CRIMP RING ZAW",
+            "ASSEMBLAGGIO",
+            "COLLAUDO",
+        ],
+        "components_and_tools_preview": ["468922"],
+    }
+    preview_file.write_text(json.dumps(preview_payload), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Cosa sai dell'articolo 77771?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    operation_lines = _rendered_section_lines(data["answer"], "Operazioni disponibili:")
+
+    assert operation_lines == [
+        "- LAVAGGIO",
+        "- ASSEMBLAGGIO",
+        "- MACCHINA CRIMP RING ZAW",
+        "- COLLAUDO",
+    ]
+    assert operation_lines.count("- ASSEMBLAGGIO") == 1
+    assert json.loads(preview_file.read_text(encoding="utf-8")) == preview_payload
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+
+def test_spec_intake_preview_normalizes_incomplete_pressure_test_operation_only(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    preview_file = preview_root / "77773_metadata_preview.json"
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "77773",
+            "codice": "TEST-COLL",
+            "disegno": "DRAW-COLL",
+            "rev": "1",
+        },
+        "operations_preview": [
+            "LAVAGGIO",
+            "COLLAUDO A PRESSIONE",
+            "ASSEMBLAGGIO",
+        ],
+        "components_and_tools_preview": ["COLLAUDO A PRESSIONE"],
+    }
+    preview_file.write_text(json.dumps(preview_payload), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Cosa sai dell'articolo 77773?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    operation_lines = _rendered_section_lines(data["answer"], "Operazioni disponibili:")
+    component_lines = _rendered_section_lines(
+        data["answer"],
+        "Componenti e attrezzature disponibili:",
+    )
+
+    assert operation_lines == [
+        "- LAVAGGIO",
+        "- COLLAUDO A PRESSIONE VERTICALE",
+        "- ASSEMBLAGGIO",
+    ]
+    assert "- COLLAUDO A PRESSIONE" not in operation_lines
+    assert component_lines == ["- COLLAUDO A PRESSIONE"]
+    assert json.loads(preview_file.read_text(encoding="utf-8")) == preview_payload
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+
+def test_spec_intake_preview_normalizes_then_deduplicates_pressure_test_operation(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    preview_file = preview_root / "77774_metadata_preview.json"
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "77774",
+            "codice": "TEST-COLL-DEDUP",
+            "disegno": "DRAW-COLL-DEDUP",
+            "rev": "1",
+        },
+        "operations_preview": [
+            "LAVAGGIO",
+            "COLLAUDO A PRESSIONE",
+            "ASSEMBLAGGIO",
+            "COLLAUDO A PRESSIONE VERTICALE",
+            "COLLAUDO",
+        ],
+        "components_and_tools_preview": ["468922"],
+    }
+    preview_file.write_text(json.dumps(preview_payload), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Cosa sai dell'articolo 77774?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    operation_lines = _rendered_section_lines(data["answer"], "Operazioni disponibili:")
+
+    assert operation_lines == [
+        "- LAVAGGIO",
+        "- COLLAUDO A PRESSIONE VERTICALE",
+        "- ASSEMBLAGGIO",
+        "- COLLAUDO",
+    ]
+    assert operation_lines.count("- COLLAUDO A PRESSIONE VERTICALE") == 1
+    assert json.loads(preview_file.read_text(encoding="utf-8")) == preview_payload
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["semantic_status"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+
+def test_spec_intake_preview_deduplicates_components_rendering_only(
+    monkeypatch,
+    tmp_path,
+):
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    preview_file = preview_root / "77772_metadata_preview.json"
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "77772",
+            "codice": "TEST-COMP",
+            "disegno": "DRAW-COMP",
+            "rev": "1",
+        },
+        "operations_preview": ["ASSEMBLAGGIO"],
+        "components_and_tools_preview": [
+            "468922",
+            "468796",
+            "CRT004",
+            "468796",
+        ],
+    }
+    preview_file.write_text(json.dumps(preview_payload), encoding="utf-8")
+
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "_response_from_article_summary", lambda _article: None)
+
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Cosa sai dell'articolo 77772?"},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    component_lines = _rendered_section_lines(
+        data["answer"],
+        "Componenti e attrezzature disponibili:",
+    )
+
+    assert component_lines == [
+        "- 468922",
+        "- 468796",
+        "- CRT004",
+    ]
+    assert component_lines.count("- 468796") == 1
+    assert json.loads(preview_file.read_text(encoding="utf-8")) == preview_payload
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["semantic_status"] == "DA_VERIFICARE"
     assert data["requires_confirmation"] is True
 
 
@@ -2576,16 +2825,16 @@ def test_spec_intake_preview_reports_missing_assembly_data_for_real_question(
     preview_root = tmp_path / "spec_intake_preview"
     preview_root.mkdir(parents=True)
 
-    (preview_root / "12514_metadata_preview.json").write_text(
+    (preview_root / "54321_metadata_preview.json").write_text(
         json.dumps(
             {
-                "capability": "SPEC_INTAKE_12514_PREVIEW_001",
+                "capability": "SPEC_INTAKE_SYNTHETIC_PREVIEW_001",
                 "status": "PREVIEW_ONLY",
                 "confidence": "DA_VERIFICARE",
                 "planner_eligible": False,
                 "requires_tl_confirmation": True,
                 "article": {
-                    "articolo": "12514",
+                    "articolo": "54321",
                     "codice": "7056055000A0",
                     "disegno": "A1675003603",
                     "rev": "6",
@@ -2640,7 +2889,7 @@ def test_spec_intake_preview_reports_missing_assembly_data_for_real_question(
         json={
             "question": (
                 "Quali dati operativi mancano per completare le indicazioni "
-                "di assemblaggio dell'articolo 12514?"
+                "di assemblaggio dell'articolo 54321?"
             )
         },
     )
@@ -2667,10 +2916,196 @@ def test_spec_intake_preview_reports_missing_assembly_data_for_real_question(
     ]
 
     assert "Dati mancanti:" in data["answer"]
-    assert "Richiesta al TL:" in data["answer"]
-    assert (
-        "Puoi fornire o confermare: Confermare se i due passaggi ZAW "
-        "sono entrambi ZAW1 o coinvolgono altra postazione."
-        in data["answer"]
+    assert "Verifica richiesta" in data["answer"]
+
+
+def test_operational_authorization_uses_human_confirmed_registry_before_preview(
+    monkeypatch,
+    tmp_path,
+):
+    registry_path = tmp_path / "article_operational_registry.json"
+    registry_payload = {
+        "version": "test",
+        "articles": {
+            "12514": {
+                "material": "7056055000A0",
+                "drawing": "A1675003603",
+                "description": "Articolo 12514 confermato in produzione ordinaria",
+                "operational_class": "STANDARD",
+                "planner_eligible": True,
+                "tl_confirmation_required": False,
+                "source": "human_operational_confirmation",
+                "source_authority": "Team Leader responsabile del processo operativo",
+                "confirmation_origin": "conferma umana esplicita",
+            }
+        },
+    }
+    registry_path.write_text(json.dumps(registry_payload), encoding="utf-8")
+    monkeypatch.setenv("OPERATIONAL_REGISTRY_PATH", str(registry_path))
+    reset_article_operational_registry_cache()
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    preview_payload = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "DA_VERIFICARE",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "12514",
+            "codice": "7056055000A0",
+            "disegno": "A1675003603",
+            "rev": "6",
+        },
+        "operations_preview": [
+            "LAVAGGIO",
+            "ASSEMBLAGGIO",
+            "COLLAUDO A PRESSIONE",
+            "COLLAUDO A PRESSIONE VERTICALE",
+        ],
+        "components_and_tools_preview": [
+            {"code": "468922", "type": "component"},
+            {"code": "CRT004", "type": "tooling"},
+        ],
+    }
+    preview_file = preview_root / "12514_metadata_preview.json"
+    preview_file.write_text(json.dumps(preview_payload), encoding="utf-8")
+
+    lifecycle = tmp_path / "article_lifecycle_registry.json"
+    lifecycle.write_text(json.dumps({}), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", lifecycle)
+
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Posso assemblare il 12514?",
+            "context": {"article": "12514"},
+        },
     )
-    assert "Dati mancanti:\n- Nessuno" not in data["answer"]
+
+    assert response.status_code == 200
+    data = response.json()
+
+    assert data["answer"].startswith(
+        "Sì. L'articolo 12514 risulta appartenere alla produzione ordinaria."
+    )
+    assert "È assemblabile secondo la route e le indicazioni operative confermate." in data["answer"]
+    assert "Operazioni:" in data["answer"]
+    assert data["answer"].count("- COLLAUDO A PRESSIONE VERTICALE") == 1
+    assert "quantità" in data["answer"]
+    assert "turno" in data["answer"]
+    assert "sequenziamento" in data["answer"]
+    assert "pianificazione automatica" in data["answer"]
+    assert data["confidence"] == "CERTO"
+    assert data["requires_confirmation"] is False
+
+    evidence = data["evidence_pack"]["evidence"]
+    assert any(item["source_id"] == "article_tl_summary:12514" for item in evidence)
+    assert any(
+        item["source_id"] == "spec_intake_preview:12514"
+        and item["confidence"] == "PREVIEW_ONLY"
+        for item in evidence
+    )
+    assert json.loads(preview_file.read_text(encoding="utf-8")) == preview_payload
+
+    reset_article_operational_registry_cache()
+
+
+def test_operational_authorization_preview_only_stays_prudent(
+    monkeypatch,
+    tmp_path,
+):
+    registry_path = tmp_path / "article_operational_registry.json"
+    registry_path.write_text(json.dumps({"articles": {}}), encoding="utf-8")
+    monkeypatch.setenv("OPERATIONAL_REGISTRY_PATH", str(registry_path))
+    reset_article_operational_registry_cache()
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    (preview_root / "54321_metadata_preview.json").write_text(
+        json.dumps(
+            {
+                "status": "PREVIEW_ONLY",
+                "confidence": "DA_VERIFICARE",
+                "planner_eligible": False,
+                "requires_tl_confirmation": True,
+                "article": {"articolo": "54321"},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    lifecycle = tmp_path / "article_lifecycle_registry.json"
+    lifecycle.write_text(json.dumps({}), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", lifecycle)
+
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Posso assemblare il 54321?",
+            "context": {"article": "54321"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"].startswith("Non ancora come autorizzazione operativa.")
+    assert data["source"] == "spec_intake_preview"
+    assert data["source_status"] == "PREVIEW_ONLY"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+
+    reset_article_operational_registry_cache()
+
+
+def test_operational_authorization_unknown_article_is_not_confirmed(
+    monkeypatch,
+    tmp_path,
+):
+    registry_path = tmp_path / "article_operational_registry.json"
+    registry_path.write_text(json.dumps({"articles": {}}), encoding="utf-8")
+    monkeypatch.setenv("OPERATIONAL_REGISTRY_PATH", str(registry_path))
+    reset_article_operational_registry_cache()
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    lifecycle = tmp_path / "article_lifecycle_registry.json"
+    lifecycle.write_text(json.dumps({}), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", lifecycle)
+
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={
+            "question": "Posso assemblare il 99998?",
+            "context": {"article": "99998"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["answer"].startswith(
+        "Non posso confermare l'assemblaggio con i dati attualmente disponibili."
+    )
+    assert data["source_status"] == "SOURCE_MISSING"
+    assert data["semantic_status"] == "MANCANTE"
+
+    reset_article_operational_registry_cache()
+
+
+def test_operational_authorization_helpers_do_not_hardcode_article_12514():
+    checked = (
+        tl_chat_api._question_asks_operational_authorization,
+        tl_chat_api._response_for_operational_authorization,
+    )
+
+    for helper in checked:
+        assert "12514" not in inspect.getsource(helper)

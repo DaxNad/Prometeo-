@@ -212,7 +212,7 @@ def _render_text(
         [
             f"Articolo: {article}",
             f"Domanda: {question_id} - {field_group}",
-            f"Risposta TL: {tl_answer_state}",
+            f"Risposta di conferma: {tl_answer_state}",
             f"Stato risultante: {resulting_status}",
             f"Dati candidati: {candidate_data_text}",
             "Confidenza: DA_VERIFICARE",

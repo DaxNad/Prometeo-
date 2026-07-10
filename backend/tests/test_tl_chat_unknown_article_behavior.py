@@ -36,7 +36,7 @@ def test_tl_chat_unknown_article_preserves_safe_missing_behavior(monkeypatch, tm
     recommended_action = data["recommended_action"].lower()
     assert "fonte autorizzata" in recommended_action
     assert "profilo" in recommended_action or "specifica" in recommended_action
-    assert "conferma tl" in recommended_action
+    assert "conferma del responsabile di produzione" in recommended_action
 
     answer_and_action = f"{data['answer']} {data['recommended_action']}".lower()
     forbidden_operational_claims = (

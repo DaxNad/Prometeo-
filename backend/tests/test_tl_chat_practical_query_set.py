@@ -128,7 +128,7 @@ def test_practical_q1_certain_article_12066(monkeypatch, isolated_tl_sources):
             "criticalities": [
                 "Discrepanza confermata da TL: ZAW1 obbligatoria, ZAW2 non automatica."
             ],
-            "tl_action": "Seguire route confermata e usare criticita come checklist TL.",
+            "tl_action": "Seguire route confermata e usare criticita come checklist operativa.",
         }
 
     monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", summary)
@@ -211,7 +211,7 @@ def test_practical_runtime_provenance_completeness(
                     "cp_required": True,
                 },
                 "criticalities": [],
-                "tl_action": "Seguire route confermata e usare criticita come checklist TL.",
+                "tl_action": "Seguire route confermata e usare criticita come checklist operativa.",
             }
 
         monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", summary)
@@ -333,7 +333,7 @@ def test_practical_runtime_provenance_exceptions_keep_empty_evidence(isolated_tl
     "question",
     [
         "Quali codici sono pronti per la densificazione?",
-        "Quali codici sono pronti per review TL prima della densificazione?",
+        "Quali codici sono pronti per revisione del responsabile di produzione prima della densificazione?",
     ],
 )
 def test_practical_global_intent_recognizes_densification_phrasings(
@@ -365,7 +365,7 @@ def test_practical_global_intent_recognizes_densification_phrasings(
     data = _ask(question)
 
     assert "richiede almeno un articolo" not in data["answer"]
-    assert "Codici pronti per review TL prima della densificazione" in data["answer"]
+    assert "Codici pronti per revisione del responsabile di produzione prima della densificazione" in data["answer"]
     assert data["confidence"] == "CERTO"
     assert data["requires_confirmation"] is True
     assert "12056" in data["answer"]
@@ -478,7 +478,7 @@ def test_practical_q3_lists_codes_to_verify(isolated_tl_sources):
     assert "DA_VERIFICARE" in data["answer"]
     assert "12053" not in data["answer"]
     assert "12410" not in data["answer"]
-    assert "Verifica TL richiesta" in data["recommended_action"]
+    assert "Verifica del responsabile di produzione richiesta" in data["recommended_action"]
 
 
 def test_practical_q4_lists_densification_candidates_without_planner_promotion(isolated_tl_sources):
@@ -518,7 +518,7 @@ def test_practical_q4_lists_densification_candidates_without_planner_promotion(i
     assert "12410" in data["answer"]
     assert "12402" not in data["answer"]
     assert "staging preview" in data["risk"]
-    assert "conferma TL" in data["risk"]
+    assert "conferma del responsabile di produzione" in data["risk"]
 
 
 def test_practical_q5_lists_fuori_produzione_as_consultive_only(isolated_tl_sources):
@@ -569,7 +569,7 @@ def test_practical_q6_lists_new_entry_as_consultable_not_auto_plannable(isolated
     assert "NEW_ENTRY" in data["answer"]
     assert "12402" not in data["answer"]
     assert "12053" not in data["answer"]
-    assert "conferma TL" in data["risk"]
+    assert "conferma del responsabile di produzione" in data["risk"]
 
 
 def test_practical_q7_12402_verification_respects_customer_request_only(isolated_tl_sources):
