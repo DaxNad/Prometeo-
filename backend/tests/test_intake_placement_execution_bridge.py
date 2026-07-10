@@ -93,7 +93,10 @@ def test_ready_human_confirmation_calls_writer_once(monkeypatch):
     result = execute_intake_placement(plan)
 
     assert len(calls) == 1
-    assert calls[0] == dict(plan.payload_preview["writer_arguments"])
+    assert calls[0] == {
+        **dict(plan.payload_preview["writer_arguments"]),
+        "source_evidence": dict(plan.payload_preview["source_evidence"]),
+    }
     assert result.ok is True
     assert result.status == PlacementExecutionStatus.EXECUTED
     assert result.writer_called is True

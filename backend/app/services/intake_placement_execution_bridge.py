@@ -96,7 +96,10 @@ def execute_intake_placement(
     writer_arguments = payload["writer_arguments"]
     source_evidence = payload["source_evidence"]
 
-    writer_result = confirm_article_operational_status(**dict(writer_arguments))
+    writer_result = confirm_article_operational_status(
+        **dict(writer_arguments),
+        source_evidence=dict(source_evidence),
+    )
 
     return IntakePlacementExecutionResult(
         ok=writer_result.ok,

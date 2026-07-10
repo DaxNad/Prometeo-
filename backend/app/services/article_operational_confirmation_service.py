@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import copy
@@ -31,6 +32,17 @@ ERROR_AUDIT_NOTE_REQUIRED = "AUDIT_NOTE_REQUIRED"
 ERROR_INVALID_REGISTRY = "INVALID_REGISTRY"
 ERROR_WRITE_FAILED = "WRITE_FAILED"
 ERROR_WRITE_SUCCEEDED_READBACK_FAILED = "WRITE_SUCCEEDED_READBACK_FAILED"
+ERROR_INVALID_SOURCE_EVIDENCE = "INVALID_SOURCE_EVIDENCE"
+
+SOURCE_EVIDENCE_FIELDS = frozenset(
+    {
+        "source_id",
+        "source_type",
+        "source_status",
+        "semantic_status",
+        "matched_rules",
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -60,10 +72,20 @@ def confirm_article_operational_status(
     drawing: str | None = None,
     description: str | None = None,
     confirmation_origin: str = "HUMAN_EXPLICIT_CONFIRMATION",
+    source_evidence: Mapping[str, Any] | None = None,
 ) -> ArticleOperationalConfirmationResult:
     code = _normalize_article(article)
     registry_path = get_article_operational_registry_path()
     registry_path_text = str(registry_path) if registry_path is not None else None
+    normalized_source_evidence = _normalize_source_evidence(source_evidence)
+
+    if source_evidence is not None and normalized_source_evidence is None:
+        return ArticleOperationalConfirmationResult(
+            ok=False,
+            article=code,
+            registry_path=registry_path_text,
+            error_code=ERROR_INVALID_SOURCE_EVIDENCE,
+        )
 
     validation_error = _validate_input(
         article=code,
@@ -134,6 +156,7 @@ def confirm_article_operational_status(
         material=material,
         drawing=drawing,
         description=description,
+        source_evidence=normalized_source_evidence,
     ):
         existing_confirmed_at = _clean(previous_record.get("confirmed_at"))
         return ArticleOperationalConfirmationResult(
@@ -172,6 +195,7 @@ def confirm_article_operational_status(
         drawing=drawing,
         description=description,
         confirmation_origin=confirmation_origin,
+        source_evidence=normalized_source_evidence,
     )
 
     updated_registry = copy.deepcopy(registry)
@@ -305,6 +329,7 @@ def _build_record(
     drawing: str | None,
     description: str | None,
     confirmation_origin: str,
+    source_evidence: dict[str, Any] | None,
 ) -> dict[str, Any]:
     record = copy.deepcopy(previous_record) if previous_record else {}
     record.update(
@@ -343,6 +368,9 @@ def _build_record(
             if cleaned:
                 record[key] = cleaned
 
+    if source_evidence is not None:
+        record["source_evidence"] = copy.deepcopy(source_evidence)
+
     record.setdefault("article", code)
     return record
 
@@ -358,6 +386,7 @@ def _has_substantial_change(
     material: str | None,
     drawing: str | None,
     description: str | None,
+    source_evidence: dict[str, Any] | None,
 ) -> bool:
     expected = {
         "operational_class": _normalize_token(operational_class),
@@ -379,6 +408,9 @@ def _has_substantial_change(
     ):
         if value is not None and str(value).strip() and previous_record.get(key) != str(value).strip():
             return True
+
+    if source_evidence is not None and previous_record.get("source_evidence") != source_evidence:
+        return True
 
     return False
 
@@ -403,6 +435,7 @@ def _build_confirmation_history_entry(
         "material",
         "drawing",
         "description",
+        "source_evidence",
     ):
         if key in previous_record:
             entry[key] = copy.deepcopy(previous_record[key])
@@ -487,3 +520,38 @@ def _normalize_token(value: Any) -> str:
 
 def _clean(value: Any) -> str:
     return str(value or "").strip()
+
+
+def _normalize_source_evidence(
+    source_evidence: Mapping[str, Any] | None,
+) -> dict[str, Any] | None:
+    if source_evidence is None:
+        return None
+    if not isinstance(source_evidence, Mapping):
+        return None
+    if not set(source_evidence).issubset(SOURCE_EVIDENCE_FIELDS):
+        return None
+
+    source_id = _clean(source_evidence.get("source_id"))
+    if not source_id:
+        return None
+
+    normalized: dict[str, Any] = {"source_id": source_id}
+    for field in ("source_type", "source_status", "semantic_status"):
+        if field not in source_evidence:
+            continue
+        value = source_evidence.get(field)
+        if value is not None and not isinstance(value, str):
+            return None
+        normalized[field] = _clean(value) or None
+
+    matched_rules = source_evidence.get("matched_rules")
+    if matched_rules is not None:
+        if not isinstance(matched_rules, (list, tuple)):
+            return None
+        cleaned_rules = [_clean(rule) for rule in matched_rules]
+        if any(not rule for rule in cleaned_rules):
+            return None
+        normalized["matched_rules"] = cleaned_rules
+
+    return normalized

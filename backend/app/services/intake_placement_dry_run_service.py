@@ -609,6 +609,7 @@ def _human_confirmation_payload(
         "writer_arguments": dict(writer_arguments),
         "source_evidence": {
             "source_id": item.source_id,
+            "source_type": item.source_type,
             "source_status": item.source_status,
             "semantic_status": item.semantic_status,
             "matched_rules": classification.matched_rules,
