@@ -1714,8 +1714,10 @@ def _response_from_article_summary(article: str) -> TLChatResponse | None:
 
     if summary.get("planner_eligible") is False:
         action = "usa solo con ordine attivo"
-    else:
+    elif route_from_summary and confidence == "CERTO":
         action = "usa route confermata"
+    else:
+        action = "stato articolo confermato; route da verificare"
 
     pattern_hint = _pattern_hint_for_stations(route_parts)
 
