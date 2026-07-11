@@ -14,6 +14,9 @@ from app.ingest.article_specification_image_acquisition import (
 from app.services.article_specification_intake_binding import (
     bind_article_specification_acquisition,
 )
+from app.services.article_specification_tesseract_ocr import (
+    build_article_specification_ocr_adapter,
+)
 
 
 router = APIRouter(
@@ -27,14 +30,12 @@ class ArticleSpecificationAcquisitionRequest(BaseModel):
 
 
 def get_article_specification_ocr_adapter() -> ArticleSpecificationOCRAdapter | None:
-    """
-    Runtime OCR dependency boundary.
+    """Resolve the explicitly configured local OCR provider.
 
-    No concrete OCR adapter is currently configured in PROMETEO. The endpoint
-    therefore fails closed with OCR_ADAPTER_REQUIRED unless deployment wiring or
-    a test dependency override supplies an adapter implementing extract_text().
+    The default remains fail-closed: without an enabled and available provider,
+    acquisition returns OCR_ADAPTER_REQUIRED.
     """
-    return None
+    return build_article_specification_ocr_adapter()
 
 
 @router.post("/acquire")
