@@ -2698,7 +2698,11 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             summary = build_article_tl_summary(article)
             lifecycle_payload = lifecycle.get(article)
             spec_intake_preview = _load_spec_intake_preview(article)
-            if summary.get("ok") or spec_intake_preview or not lifecycle_payload:
+            if (
+                _article_is_confirmed_ordinary(summary)
+                or spec_intake_preview
+                or (not summary.get("ok") and not lifecycle_payload)
+            ):
                 return _response_for_operational_authorization(
                     article=article,
                     question=question,
