@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import ProductionDashboard from "./pages/ProductionDashboard";
 import TLBoardPage from "./pages/TLBoardPage";
 import TLChatPage from "./pages/TLChatPage";
+import ArticleSpecificationAcquisitionPage from "./pages/ArticleSpecificationAcquisitionPage";
 
 export default function App() {
   const [path, setPath] = useState<string>(typeof window !== "undefined" ? window.location.pathname : "/");
@@ -62,9 +63,30 @@ export default function App() {
         >
           Dashboard
         </a>
+        <a
+          href="/article-specification/acquire"
+          onClick={(e) => {
+            e.preventDefault();
+            nav("/article-specification/acquire");
+          }}
+          style={{
+            color: path === "/article-specification/acquire" ? "#fff" : "#9ca3af",
+            textDecoration: "none",
+          }}
+        >
+          Acquisisci specifica
+        </a>
       </nav>
 
-      {path === "/tl-board" ? <TLBoardPage /> : path === "/dashboard" ? <ProductionDashboard /> : <TLChatPage />}
+      {path === "/tl-board" ? (
+        <TLBoardPage />
+      ) : path === "/dashboard" ? (
+        <ProductionDashboard />
+      ) : path === "/article-specification/acquire" ? (
+        <ArticleSpecificationAcquisitionPage />
+      ) : (
+        <TLChatPage />
+      )}
     </div>
   );
 }
