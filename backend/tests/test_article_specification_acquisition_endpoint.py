@@ -115,10 +115,19 @@ def test_article_specification_acquisition_endpoint_rejects_invalid_base64():
 
 
 def test_article_specification_acquisition_router_is_registered_in_main_app():
-    paths = {
-        route.path
-        for route in main_app.routes
-        if isinstance(getattr(route, "path", None), str)
-    }
+    main_app.dependency_overrides[get_article_specification_ocr_adapter] = (
+        lambda: FakeOCRAdapter()
+    )
+    try:
+        response = TestClient(main_app).post(
+            "/article-specification/acquire",
+            json=_payload(),
+        )
+    finally:
+        main_app.dependency_overrides.pop(
+            get_article_specification_ocr_adapter,
+            None,
+        )
 
-    assert "/article-specification/acquire" in paths
+    assert response.status_code == 200
+    assert response.json()["status"] == "BOUND"
