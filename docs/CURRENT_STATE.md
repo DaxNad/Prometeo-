@@ -31,6 +31,11 @@ Non è ancora un prodotto SaaS/MES completo.
   esplicita, con timeout, rimozione dei file temporanei e nessun servizio cloud;
 - esposizione UI operativa dell'acquisizione specifica tramite route dedicata,
   riuso del client API esistente e visualizzazione review-only degli esiti;
+- conferma umana autorevole dalla UI tramite endpoint governato separato,
+  senza promozione automatica dei dati OCR e con assunzione esplicita
+  dell'autorità operativa;
+- gestione UI degli esiti di persistenza positivi, dei fallimenti governati
+  e degli errori di trasporto senza dichiarare persistenza inesistente;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
@@ -46,7 +51,9 @@ Non è ancora un prodotto SaaS/MES completo.
 
 ## Aperto
 
-- conferma umana prima di qualsiasi persistenza autorevole dei dati estratti.
+- nessuna capability successiva autorizzata in questo documento;
+- la prossima capability deve essere selezionata dopo nuova verifica del
+  repository, dei test e delle priorità di prodotto.
 
 ## Fuori fase
 
@@ -63,7 +70,10 @@ Non è ancora un prodotto SaaS/MES completo.
 - Privacy Guard: PASS;
 - Data Leak Guard: PASS;
 - acquisizione specifica + binding + endpoint + OCR Tesseract: 27 test PASS;
-- UI acquisizione specifica: 5 test frontend PASS e build PASS;
+- UI acquisizione e conferma specifica: 6 test mirati PASS;
+- suite frontend: 8 test PASS;
+- build TypeScript/Vite: PASS;
+- CI PR #469: 6 workflow PASS;
 - backend guard: 1141 test PASS, 3 deselected;
 - real code registry preview: 30 test PASS;
 - quality gate: PASS;

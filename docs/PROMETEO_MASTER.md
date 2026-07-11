@@ -77,6 +77,13 @@ Qualunque sviluppo futuro deve allinearsi prima a questi due documenti.
 Riferimento di disciplina per la chiusura dello sviluppo:
 `docs/PROMETEO_DEVELOPMENT_CLOSURE_CANON_001.md`.
 
+Riferimento operativo portabile per il lavoro multi-modello:
+`docs/PROMETEO_PORTABLE_WORK_METHOD_001.md`.
+
+Questo metodo rende esplicite le fonti canoniche e consente continuità
+operativa tra assistenti cloud, strumenti di coding e modelli locali.
+Non sostituisce il MASTER, `CURRENT_STATE.md`, il codice o i test.
+
 Questo canone non sostituisce il MASTER e non introduce autorità semantica di dominio.
 Serve a valutare scope creep, anti-entropia, chiusura capability, agenti governati,
 eval, output strutturato e fine-tuning prematuro.
