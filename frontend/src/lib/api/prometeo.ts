@@ -75,6 +75,50 @@ export async function tlChat(payload: TLChatRequest) {
   return apiPost<TLChatResponse>("/tl/chat", payload);
 }
 
+export type ArticleSpecificationAcquisitionRequest = {
+  image_base64: string;
+};
+
+export type ArticleSpecificationAcquisitionDetails = {
+  ok: boolean;
+  status: string;
+  source_id: string | null;
+  source_hash: string | null;
+  media_type: string | null;
+  error_code: string | null;
+};
+
+export type ArticleSpecificationFacadeResult = {
+  ok: boolean;
+  status: string;
+  writer_called: boolean;
+  source_id: string | null;
+  error_code: string | null;
+};
+
+export type ArticleSpecificationAcquisitionResponse = {
+  ok: boolean;
+  status: string;
+  source_id: string | null;
+  semantic_status: string | null;
+  writer_called: boolean;
+  persisted: boolean;
+  requires_review: boolean;
+  error_code: string | null;
+  acquisition: ArticleSpecificationAcquisitionDetails;
+  review_payloads: Record<string, unknown>[];
+  facade_results: ArticleSpecificationFacadeResult[];
+};
+
+export async function acquireArticleSpecification(
+  payload: ArticleSpecificationAcquisitionRequest
+) {
+  return apiPost<ArticleSpecificationAcquisitionResponse>(
+    "/article-specification/acquire",
+    payload
+  );
+}
+
 export type MachineLoadItem = {
   station: string;
   orders_total: number;
