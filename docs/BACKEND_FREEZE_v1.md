@@ -1,5 +1,10 @@
 # PROMETEO BACKEND FREEZE v1
 
+Lifecycle: `ARCHIVED`
+
+Freeze storico concluso. Per stato e priorità correnti usare
+`docs/CURRENT_STATE.md`.
+
 ## Scopo
 Congelare lo stato attuale del backend PROMETEO come baseline operativa stabile.
 
