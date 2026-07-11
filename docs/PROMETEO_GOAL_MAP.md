@@ -1,5 +1,11 @@
 # PROMETEO Goal Map
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. La mappa resta una descrizione utile
+delle capability originarie, ma stati e gap non sono aggiornati al runtime
+corrente.
+
 Scopo: trasformare la visione PROMETEO in capacita verificabili, senza usare dati reali nel documento.
 
 Fonte primaria: `docs/PROMETEO_MASTER.md` e `docs/architecture/PROMETEO_MANIFESTO_v1.md`.
