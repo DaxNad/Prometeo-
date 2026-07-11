@@ -23,12 +23,14 @@ Non è ancora un prodotto SaaS/MES completo.
 - rilevazione delle discrepanze negli input intake strutturati;
 - persistenza governata della conferma operativa articolo;
 - acquisizione PNG/JPEG con boundary OCR e parser specifica;
+- binding governato acquisizione specifica → facade intake, mantenuto
+  `DA_VERIFICARE` e senza persistenza;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
 
-- acquisizione immagine e facade intake esistono ma non sono ancora collegate
-  in un unico ingresso operativo;
+- il binding immagine → facade esiste come servizio, ma non è ancora esposto da
+  un ingresso API/UI operativo;
 - la persistenza autorevole copre la conferma stato articolo, non tutte le
   destinazioni classificate;
 - planner presente ma non validato su uno scenario turno completo;
@@ -38,14 +40,10 @@ Non è ancora un prodotto SaaS/MES completo.
 - Pattern Learning presente ma non alimentato end-to-end dalla nuova catena
   intake.
 
-## Aperto, ma posticipato
+## Aperto
 
-Binding minimo:
-
-`ArticleSpecificationImageAcquisitionResult`
-→ `process_structured_intake_payload`
-
-La capability è deliberatamente posticipata durante la bonifica documentale.
+- esposizione governata del binding tramite un ingresso API/UI dedicato;
+- conferma umana prima di qualsiasi persistenza autorevole dei dati estratti.
 
 ## Fuori fase
 
