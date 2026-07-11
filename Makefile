@@ -13,7 +13,8 @@ doctor:
 docs-catalog:
 	./tools/py scripts/build_documentation_catalog.py
 
-docs-check: docs-catalog
+docs-check:
+	./tools/py scripts/build_documentation_catalog.py --check
 	./tools/py scripts/check_documentation_integrity.py
 	./tools/py scripts/docs_authority_guard.py
 
