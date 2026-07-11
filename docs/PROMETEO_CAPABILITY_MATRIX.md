@@ -1,5 +1,10 @@
 # PROMETEO Capability Matrix
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Conservata come baseline storica; non
+usare la colonna “Prossimo passo” per scegliere il lavoro corrente.
+
 Scopo: rendere visibile il gap tra lavoro svolto e meta, collegando capacita, fonte, modulo, test e prossimo passo.
 
 ## Stati
