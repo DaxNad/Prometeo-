@@ -1,5 +1,11 @@
 # PROMETEO_PRODUCT_CORE_CLOSURE_V1
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md` per lo stato corrente. Questo documento
+resta attivo esclusivamente come contratto del gate storico
+`product-core-closure-v1`; il suo `NON_PASS` non è una fotografia aggiornata.
+
 ## SCOPO
 
 Questo gate verifica se PROMETEO possiede oggi un core prodotto minimo
