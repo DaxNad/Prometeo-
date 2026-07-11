@@ -3064,6 +3064,52 @@ def test_operational_authorization_preview_only_stays_prudent(
     reset_article_operational_registry_cache()
 
 
+def test_operational_authorization_preserves_known_non_standard_summary(
+    monkeypatch,
+    tmp_path,
+):
+    summary = {
+        "ok": True,
+        "article": "54321",
+        "confidence": "DA_VERIFICARE",
+        "operational_class": "CUSTOMER_REQUEST_ONLY",
+        "planner_eligible": False,
+        "route": ["ASSEMBLAGGIO"],
+        "signals": {},
+        "criticalities": [],
+        "tl_action": "Usare solo con ordine attivo e conferma autorizzata.",
+    }
+    monkeypatch.setattr(tl_chat_api, "build_article_tl_summary", lambda article: summary)
+
+    preview_root = tmp_path / "spec_intake_preview"
+    preview_root.mkdir(parents=True)
+    lifecycle = tmp_path / "article_lifecycle_registry.json"
+    lifecycle.write_text(json.dumps({}), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "SPEC_INTAKE_PREVIEW_ROOT", preview_root)
+    monkeypatch.setattr(tl_chat_api, "SPECS_ROOT", tmp_path / "specs_finitura")
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", lifecycle)
+
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={
+            "question": "Posso assemblare il 54321?",
+            "context": {"article": "54321"},
+        },
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data.get("source_status") != "SOURCE_MISSING"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "54321" in data["answer"]
+    assert "usa solo con ordine attivo" in data["answer"].lower()
+    assert any(
+        item["source_id"] == "article_tl_summary:54321"
+        for item in data["evidence_pack"]["evidence"]
+    )
+
+
 def test_operational_authorization_unknown_article_is_not_confirmed(
     monkeypatch,
     tmp_path,
