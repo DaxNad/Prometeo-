@@ -91,6 +91,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `REFERENCE` | `REFERENCE` | `docs/PROMETEO_NUCLEO.md` | PROMETEO - NUCLEO | `` |
 | `REFERENCE` | `ACTIVE` | `docs/PROMETEO_PATTERN_LEARNING_IMPERATIVE.md` | PROMETEO — PATTERN LEARNING IMPERATIVE | `` |
 | `REFERENCE` | `REFERENCE` | `docs/PROMETEO_PATTERN_LEARNING_RUNTIME_V1.md` | PROMETEO — PATTERN LEARNING RUNTIME V1 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/PROMETEO_PORTABLE_WORK_METHOD_001.md` | PROMETEO Portable Work Method 001 | `` |
 | `REFERENCE` | `ACTIVE` | `docs/PROMETEO_PRODUCT_COMPLETE_ROADMAP_V1.md` | PROMETEO_PRODUCT_COMPLETE_ROADMAP_V1 | `` |
 | `EVIDENCE` | `SUPERSEDED` | `docs/PROMETEO_PRODUCT_CORE_CLOSURE_V1.md` | PROMETEO_PRODUCT_CORE_CLOSURE_V1 | `docs/CURRENT_STATE.md` |
 | `REFERENCE` | `REFERENCE` | `docs/PROMETEO_SUMMA_REFLECTION_001.md` | PROMETEO_SUMMA_REFLECTION_001 | `` |
@@ -185,6 +186,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **167**.
+Totale documenti catalogati: **168**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
