@@ -30,6 +30,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `CONTRACT` | `ACTIVE` | `docs/ANTI_ENTROPY_GATE_CONTRACT_001.md` | ANTI_ENTROPY_GATE_CONTRACT_001 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/APP_RUNTIME_CLOSURE_001.md` | APP RUNTIME CLOSURE 001 | `` |
 | `CONTRACT` | `ACTIVE` | `docs/ARTICLE_OPERATIONAL_CONFIRMATION_SERVICE_CONTRACT_001.md` | ARTICLE_OPERATIONAL_CONFIRMATION_SERVICE_CONTRACT_001 | `` |
+| `EVIDENCE` | `ARCHIVED` | `docs/ARTICLE_SPECIFICATION_ACQUISITION_API_CLOSURE_001.md` | ARTICLE SPECIFICATION ACQUISITION API CLOSURE 001 | `` |
 | `CONTRACT` | `ACTIVE` | `docs/ARTICLE_SPECIFICATION_INTAKE_BINDING_CONTRACT_001.md` | ARTICLE_SPECIFICATION_INTAKE_BINDING_CONTRACT_001 | `` |
 | `REFERENCE` | `ARCHIVED` | `docs/BACKEND_FREEZE_v1.md` | PROMETEO BACKEND FREEZE v1 | `` |
 | `CONTRACT` | `ACTIVE` | `docs/CONTROLLED_IMPORT_APPLY_CONTRACT_V1.md` | CONTROLLED_IMPORT_APPLY_CONTRACT_V1 | `` |
@@ -162,6 +163,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `REFERENCE` | `REFERENCE` | `docs/examples/tl_semantic_eval_cli_001.md` | TL semantic eval CLI 001 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/examples/tl_semantic_eval_matrix_001.md` | TL semantic eval matrix 001 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/examples/tl_semantic_eval_runner_001.md` | TL semantic eval runner 001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/memory/PROMETEO_MEMORY.md` | PROMETEO — Memoria Operativa Consolidata | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/memory_archive/PROMETEO_CODEX_GOVERNED_LAUNCH_PROMPT.md` | PROMETEO — Codex governed launch prompt | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/memory_archive/PROMETEO_COLLABORAZIONE_TEMPO_PROGETTO.md` | PROMETEO — Nota collaborazione e tempo progetto | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/memory_archive/PROMETEO_OCR_GOVERNED_CYCLE_CLOSURE.md` | PROMETEO — Chiusura ciclo OCR governato | `` |
@@ -181,6 +183,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **163**.
+Totale documenti catalogati: **165**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
