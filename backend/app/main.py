@@ -23,6 +23,9 @@ from .api.ai import router as ai_router
 from .api.article_specification_acquisition import (
     router as article_specification_acquisition_router,
 )
+from .api.article_specification_confirmation import (
+    router as article_specification_confirmation_router,
+)
 from .api.controlled_import import router as controlled_import_router
 from .api.real_ingest import router as real_ingest_router
 from .api.tl import router as tl_router
@@ -180,6 +183,7 @@ app.include_router(dev_executor_router)
 app.include_router(ai_state_router)
 app.include_router(ai_router)
 app.include_router(article_specification_acquisition_router)
+app.include_router(article_specification_confirmation_router)
 app.include_router(controlled_import_router)
 app.include_router(real_ingest_router)
 app.include_router(tl_router)
