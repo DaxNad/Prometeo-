@@ -25,12 +25,15 @@ Non è ancora un prodotto SaaS/MES completo.
 - acquisizione PNG/JPEG con boundary OCR e parser specifica;
 - binding governato acquisizione specifica → facade intake, mantenuto
   `DA_VERIFICARE` e senza persistenza;
+- esposizione governata del binding tramite `POST /article-specification/acquire`,
+  con input Base64, review obbligatoria e comportamento fail-closed senza adapter
+  OCR runtime;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
 
-- il binding immagine → facade esiste come servizio, ma non è ancora esposto da
-  un ingresso API/UI operativo;
+- l'ingresso API di acquisizione specifica è disponibile, ma non è ancora
+  collegato a un adapter OCR runtime concreto né a una UI operativa;
 - la persistenza autorevole copre la conferma stato articolo, non tutte le
   destinazioni classificate;
 - planner presente ma non validato su uno scenario turno completo;
@@ -42,7 +45,8 @@ Non è ancora un prodotto SaaS/MES completo.
 
 ## Aperto
 
-- esposizione governata del binding tramite un ingresso API/UI dedicato;
+- integrazione di un adapter OCR runtime conforme al boundary esistente;
+- esposizione UI operativa dell'ingresso di acquisizione specifica;
 - conferma umana prima di qualsiasi persistenza autorevole dei dati estratti.
 
 ## Fuori fase
@@ -59,7 +63,11 @@ Non è ancora un prodotto SaaS/MES completo.
 - TL semantic eval: PASS;
 - Privacy Guard: PASS;
 - Data Leak Guard: PASS;
-- intake + TL Chat mirati: 234 test PASS.
+- acquisizione specifica + binding + endpoint: 20 test PASS;
+- backend guard: 1134 test PASS, 3 deselected;
+- real code registry preview: 30 test PASS;
+- quality gate: PASS;
+- schema guard: PASS.
 
 Questa pagina descrive stato e gap. Non autorizza modifiche operative né
 sostituisce specifica reale, conferma umana o contratti di capability.
