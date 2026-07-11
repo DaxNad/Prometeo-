@@ -29,12 +29,12 @@ Non è ancora un prodotto SaaS/MES completo.
   con input Base64, review obbligatoria e comportamento fail-closed;
 - adapter OCR runtime locale Tesseract, attivabile solo tramite configurazione
   esplicita, con timeout, rimozione dei file temporanei e nessun servizio cloud;
+- esposizione UI operativa dell'acquisizione specifica tramite route dedicata,
+  riuso del client API esistente e visualizzazione review-only degli esiti;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
 
-- l'ingresso API di acquisizione specifica e l'adapter OCR locale sono
-  disponibili, ma non sono ancora collegati a una UI operativa;
 - la persistenza autorevole copre la conferma stato articolo, non tutte le
   destinazioni classificate;
 - planner presente ma non validato su uno scenario turno completo;
@@ -46,7 +46,6 @@ Non è ancora un prodotto SaaS/MES completo.
 
 ## Aperto
 
-- esposizione UI operativa dell'ingresso di acquisizione specifica;
 - conferma umana prima di qualsiasi persistenza autorevole dei dati estratti.
 
 ## Fuori fase
@@ -64,6 +63,7 @@ Non è ancora un prodotto SaaS/MES completo.
 - Privacy Guard: PASS;
 - Data Leak Guard: PASS;
 - acquisizione specifica + binding + endpoint + OCR Tesseract: 27 test PASS;
+- UI acquisizione specifica: 5 test frontend PASS e build PASS;
 - backend guard: 1141 test PASS, 3 deselected;
 - real code registry preview: 30 test PASS;
 - quality gate: PASS;
