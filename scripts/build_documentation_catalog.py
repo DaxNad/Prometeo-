@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
+import argparse
 from pathlib import Path
 
 
@@ -96,7 +97,7 @@ def title(path: Path) -> str:
     return path.stem.replace("_", " ")
 
 
-def main() -> int:
+def render_catalog() -> str:
     paths = sorted(
         path
         for root in ROOTS
@@ -146,7 +147,25 @@ def main() -> int:
             "",
         ]
     )
-    OUTPUT.write_text("\n".join(lines), encoding="utf-8")
+    return "\n".join(lines)
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--check", action="store_true")
+    args = parser.parse_args()
+    rendered = render_catalog()
+
+    if args.check:
+        current = OUTPUT.read_text(encoding="utf-8") if OUTPUT.is_file() else ""
+        if current != rendered:
+            print("[PROMETEO DOCUMENTATION CATALOG] FAIL stale generated catalog")
+            print("Run: make docs-catalog")
+            return 1
+        print("[PROMETEO DOCUMENTATION CATALOG] OK")
+        return 0
+
+    OUTPUT.write_text(rendered, encoding="utf-8")
     return 0
 
 
