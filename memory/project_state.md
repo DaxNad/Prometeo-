@@ -9,6 +9,11 @@ sensitive: false
 last_review: 2026-06-12
 title: PROMETEO project state summary
 ---
+
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Non usare questa memoria datata come
+stato tecnico corrente.
 # Project State
 
 ## FATTO
