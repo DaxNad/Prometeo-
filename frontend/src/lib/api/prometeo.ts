@@ -119,6 +119,40 @@ export async function acquireArticleSpecification(
   );
 }
 
+export type ArticleSpecificationConfirmationRequest = {
+  article: string;
+  operational_class: string;
+  planner_eligible: boolean;
+  tl_confirmation_required: boolean;
+  authority_role: string;
+  audit_note: string;
+  source_id?: string;
+  confirmed_at?: string;
+  material?: string;
+  drawing?: string;
+  description?: string;
+};
+
+export type ArticleSpecificationConfirmationResponse = {
+  ok: boolean;
+  status: string;
+  source_id: string;
+  writer_called: boolean;
+  persisted: boolean;
+  created: boolean;
+  updated: boolean;
+  error_code: string | null;
+};
+
+export async function confirmArticleSpecification(
+  payload: ArticleSpecificationConfirmationRequest
+) {
+  return apiPost<ArticleSpecificationConfirmationResponse>(
+    "/article-specification/confirm",
+    payload
+  );
+}
+
 export type MachineLoadItem = {
   station: string;
   orders_total: number;

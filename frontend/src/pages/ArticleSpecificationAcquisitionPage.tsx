@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import {
   acquireArticleSpecification,
+  confirmArticleSpecification,
   type ArticleSpecificationAcquisitionResponse,
+  type ArticleSpecificationConfirmationResponse,
 } from "../lib/api/prometeo";
 
 async function fileToBase64(file: File): Promise<string> {
@@ -36,12 +38,71 @@ function booleanLabel(value: boolean): string {
   return value ? "true" : "false";
 }
 
+function reviewValue(
+  result: ArticleSpecificationAcquisitionResponse,
+  fieldName: string
+): string {
+  const payload = result.review_payloads.find(
+    (item) => item.field_name === fieldName
+  );
+  return typeof payload?.value === "string" ? payload.value : "";
+}
+
 export default function ArticleSpecificationAcquisitionPage() {
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] =
     useState<ArticleSpecificationAcquisitionResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [operationalClass, setOperationalClass] =
+    useState("DA_VERIFICARE");
+  const [plannerEligible, setPlannerEligible] = useState(false);
+  const [tlConfirmationRequired, setTlConfirmationRequired] = useState(true);
+  const [auditNote, setAuditNote] = useState("");
+  const [authorityConfirmed, setAuthorityConfirmed] = useState(false);
+  const [confirmationResult, setConfirmationResult] =
+    useState<ArticleSpecificationConfirmationResponse | null>(null);
+  const [confirmationError, setConfirmationError] = useState("");
+  const [confirming, setConfirming] = useState(false);
+
+  async function confirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    if (!result || confirming) return;
+
+    const article = reviewValue(result, "article");
+    if (!article || !auditNote.trim() || !authorityConfirmed) return;
+
+    setConfirming(true);
+    setConfirmationError("");
+    setConfirmationResult(null);
+
+    try {
+      const response = await confirmArticleSpecification({
+        article,
+        operational_class: operationalClass,
+        planner_eligible: plannerEligible,
+        tl_confirmation_required: tlConfirmationRequired,
+        authority_role: "RESPONSABILE_PRODUZIONE",
+        audit_note: auditNote.trim(),
+        source_id: result.source_id ?? undefined,
+        drawing: reviewValue(result, "drawing") || undefined,
+        material: reviewValue(result, "material") || undefined,
+        description: reviewValue(result, "description") || undefined,
+      });
+      setConfirmationResult(response);
+    } catch (caughtError) {
+      const message =
+        caughtError instanceof Error ? caughtError.message : "";
+      setConfirmationError(
+        message.includes("POST /article-specification/confirm failed")
+          ? "Conferma non completata: PROMETEO ha rifiutato la richiesta."
+          : "Conferma non completata. Verificare i dati e riprovare."
+      );
+    } finally {
+      setConfirming(false);
+    }
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -58,6 +119,13 @@ export default function ArticleSpecificationAcquisitionPage() {
         image_base64: imageBase64,
       });
       setResult(response);
+      setOperationalClass("DA_VERIFICARE");
+      setPlannerEligible(false);
+      setTlConfirmationRequired(true);
+      setAuditNote("");
+      setAuthorityConfirmed(false);
+      setConfirmationResult(null);
+      setConfirmationError("");
     } catch (caughtError) {
       setError(normalizeError(caughtError));
     } finally {
@@ -105,6 +173,8 @@ export default function ArticleSpecificationAcquisitionPage() {
                 setFile(event.target.files?.[0] ?? null);
                 setResult(null);
                 setError("");
+                setConfirmationResult(null);
+                setConfirmationError("");
               }}
             />
           </label>
@@ -221,6 +291,158 @@ export default function ArticleSpecificationAcquisitionPage() {
               {result.acquisition.error_code ?? "nessuno"}
             </dd>
           </dl>
+
+          {result.ok && reviewValue(result, "article") && (
+            <form
+              aria-label="Conferma umana"
+              onSubmit={confirm}
+              style={{
+                display: "grid",
+                gap: 12,
+                borderTop: "1px solid #27272a",
+                paddingTop: 14,
+              }}
+            >
+              <div>
+                <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>
+                  Conferma umana autorevole
+                </h3>
+                <div style={{ color: "#a1a1aa", fontSize: 14 }}>
+                  La conferma è separata dall’acquisizione e può attivare il
+                  writer governato.
+                </div>
+              </div>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Articolo</span>
+                <input
+                  aria-label="Articolo da confermare"
+                  value={reviewValue(result, "article")}
+                  readOnly
+                />
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Classe operativa</span>
+                <select
+                  aria-label="Classe operativa"
+                  value={operationalClass}
+                  onChange={(event) =>
+                    setOperationalClass(event.target.value)
+                  }
+                  disabled={confirming}
+                >
+                  <option value="DA_VERIFICARE">DA_VERIFICARE</option>
+                  <option value="STANDARD">STANDARD</option>
+                  <option value="RICAMBIO">RICAMBIO</option>
+                  <option value="ONE_SHOT">ONE_SHOT</option>
+                  <option value="REFERENCE_ONLY">REFERENCE_ONLY</option>
+                </select>
+              </label>
+
+              <label>
+                <input
+                  aria-label="Planner eligible"
+                  type="checkbox"
+                  checked={plannerEligible}
+                  onChange={(event) =>
+                    setPlannerEligible(event.target.checked)
+                  }
+                  disabled={confirming}
+                />{" "}
+                planner_eligible
+              </label>
+
+              <label>
+                <input
+                  aria-label="Conferma TL richiesta"
+                  type="checkbox"
+                  checked={tlConfirmationRequired}
+                  onChange={(event) =>
+                    setTlConfirmationRequired(event.target.checked)
+                  }
+                  disabled={confirming}
+                />{" "}
+                tl_confirmation_required
+              </label>
+
+              <label>
+                <input
+                  aria-label="Conferma autorità responsabile produzione"
+                  type="checkbox"
+                  checked={authorityConfirmed}
+                  onChange={(event) =>
+                    setAuthorityConfirmed(event.target.checked)
+                  }
+                  disabled={confirming}
+                />{" "}
+                Confermo di operare con autorità
+                RESPONSABILE_PRODUZIONE
+              </label>
+
+              <label style={{ display: "grid", gap: 6 }}>
+                <span>Nota audit</span>
+                <textarea
+                  aria-label="Nota audit"
+                  value={auditNote}
+                  onChange={(event) => setAuditNote(event.target.value)}
+                  disabled={confirming}
+                  rows={3}
+                />
+              </label>
+
+              <button
+                type="submit"
+                disabled={
+                  !auditNote.trim() ||
+                  !authorityConfirmed ||
+                  confirming
+                }
+                style={{ justifySelf: "start" }}
+              >
+                {confirming
+                  ? "Conferma in corso…"
+                  : "Conferma e persisti"}
+              </button>
+
+              {confirmationError && (
+                <div role="alert">{confirmationError}</div>
+              )}
+
+              {confirmationResult && (
+                <section aria-label="Esito conferma">
+                  <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>
+                    Esito conferma
+                  </h3>
+                  <dl
+                    style={{
+                      margin: 0,
+                      display: "grid",
+                      gridTemplateColumns: "minmax(180px, auto) 1fr",
+                      gap: "8px 14px",
+                    }}
+                  >
+                    <dt>Stato</dt>
+                    <dd style={{ margin: 0 }}>
+                      {confirmationResult.status}
+                    </dd>
+                    <dt>Writer chiamato</dt>
+                    <dd style={{ margin: 0 }}>
+                      {booleanLabel(confirmationResult.writer_called)}
+                    </dd>
+                    <dt>Persistito</dt>
+                    <dd style={{ margin: 0 }}>
+                      {booleanLabel(confirmationResult.persisted)}
+                    </dd>
+                    <dt>Errore</dt>
+                    <dd style={{ margin: 0 }}>
+                      {confirmationResult.error_code ?? "nessuno"}
+                    </dd>
+                  </dl>
+                </section>
+              )}
+            </form>
+          )}
 
           <div>
             <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>
