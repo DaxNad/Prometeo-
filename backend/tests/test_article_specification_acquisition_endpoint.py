@@ -115,6 +115,10 @@ def test_article_specification_acquisition_endpoint_rejects_invalid_base64():
 
 
 def test_article_specification_acquisition_router_is_registered_in_main_app():
-    paths = {route.path for route in main_app.routes}
+    paths = {
+        route.path
+        for route in main_app.routes
+        if isinstance(getattr(route, "path", None), str)
+    }
 
     assert "/article-specification/acquire" in paths
