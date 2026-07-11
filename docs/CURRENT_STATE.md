@@ -26,14 +26,15 @@ Non è ancora un prodotto SaaS/MES completo.
 - binding governato acquisizione specifica → facade intake, mantenuto
   `DA_VERIFICARE` e senza persistenza;
 - esposizione governata del binding tramite `POST /article-specification/acquire`,
-  con input Base64, review obbligatoria e comportamento fail-closed senza adapter
-  OCR runtime;
+  con input Base64, review obbligatoria e comportamento fail-closed;
+- adapter OCR runtime locale Tesseract, attivabile solo tramite configurazione
+  esplicita, con timeout, rimozione dei file temporanei e nessun servizio cloud;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
 
-- l'ingresso API di acquisizione specifica è disponibile, ma non è ancora
-  collegato a un adapter OCR runtime concreto né a una UI operativa;
+- l'ingresso API di acquisizione specifica e l'adapter OCR locale sono
+  disponibili, ma non sono ancora collegati a una UI operativa;
 - la persistenza autorevole copre la conferma stato articolo, non tutte le
   destinazioni classificate;
 - planner presente ma non validato su uno scenario turno completo;
@@ -45,7 +46,6 @@ Non è ancora un prodotto SaaS/MES completo.
 
 ## Aperto
 
-- integrazione di un adapter OCR runtime conforme al boundary esistente;
 - esposizione UI operativa dell'ingresso di acquisizione specifica;
 - conferma umana prima di qualsiasi persistenza autorevole dei dati estratti.
 
@@ -63,8 +63,8 @@ Non è ancora un prodotto SaaS/MES completo.
 - TL semantic eval: PASS;
 - Privacy Guard: PASS;
 - Data Leak Guard: PASS;
-- acquisizione specifica + binding + endpoint: 20 test PASS;
-- backend guard: 1134 test PASS, 3 deselected;
+- acquisizione specifica + binding + endpoint + OCR Tesseract: 27 test PASS;
+- backend guard: 1141 test PASS, 3 deselected;
 - real code registry preview: 30 test PASS;
 - quality gate: PASS;
 - schema guard: PASS.
