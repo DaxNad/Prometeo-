@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 from app.services.intake_destination_classifier import (
     IntakeClassificationResult,
@@ -16,6 +16,11 @@ from app.services.intake_placement_dry_run_service import (
 from app.services.intake_placement_execution_bridge import (
     IntakePlacementExecutionResult,
     execute_intake_placement,
+)
+from app.services.structured_intake_discrepancy_detector import (
+    IntakeDiscrepancyStatus,
+    StructuredIntakeDiscrepancyResult,
+    detect_structured_intake_discrepancy,
 )
 
 
@@ -35,6 +40,7 @@ class IntakeSingleItemOrchestrationResult:
     execution: IntakePlacementExecutionResult | None
     writer_called: bool
     source_id: str
+    discrepancy_result: StructuredIntakeDiscrepancyResult | None = None
     error_code: str | None = None
 
 
@@ -54,8 +60,11 @@ def orchestrate_intake_item(
             execution=None,
             writer_called=False,
             source_id=classification.source_id,
+            discrepancy_result=None,
             error_code=classification.error_code,
         )
+
+    discrepancy_result = detect_structured_intake_discrepancy(item)
 
     plan = plan_intake_placement(
         IntakePlacementDryRunRequest(
@@ -64,6 +73,32 @@ def orchestrate_intake_item(
             requested_by_role=requested_by_role,
         )
     )
+
+    if discrepancy_result.status in {
+        IntakeDiscrepancyStatus.DISCREPANCY_DETECTED,
+        IntakeDiscrepancyStatus.AUTHORITATIVE_READ_FAILED,
+    }:
+        plan = replace(
+            plan,
+            requires_review=True,
+            review_reason=discrepancy_result.review_reason,
+            ready_for_persistence=False,
+        )
+        return IntakeSingleItemOrchestrationResult(
+            ok=False,
+            status=IntakeOrchestrationStatus.NOT_EXECUTED,
+            classification=classification,
+            plan=plan,
+            execution=None,
+            writer_called=False,
+            source_id=plan.source_id,
+            discrepancy_result=discrepancy_result,
+            error_code=(
+                plan.error_code
+                or classification.error_code
+                or discrepancy_result.status.value
+            ),
+        )
 
     if (
         plan.status != PlacementDryRunStatus.READY
@@ -79,6 +114,7 @@ def orchestrate_intake_item(
             execution=None,
             writer_called=False,
             source_id=plan.source_id,
+            discrepancy_result=discrepancy_result,
             error_code=plan.error_code or classification.error_code,
         )
 
@@ -96,5 +132,6 @@ def orchestrate_intake_item(
         execution=execution,
         writer_called=execution.writer_called,
         source_id=execution.source_id,
+        discrepancy_result=discrepancy_result,
         error_code=execution.error_code,
     )
