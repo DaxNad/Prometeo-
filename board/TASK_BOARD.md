@@ -1,5 +1,10 @@
 # PROMETEO TASK BOARD
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Conservato per compatibilità DevOS e
+audit storico; i task elencati non costituiscono il backlog corrente.
+
 | ID | Modulo | Descrizione | Stato | Priorità | Note |
 |---|---|---|---|---|---|
 | T-001 | DEVELOPMENT OS | creare struttura board/docs/ai nel repository | COMPLETATO | ALTA | base organizzativa |

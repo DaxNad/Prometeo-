@@ -1,14 +1,19 @@
 ---
 memory_id: MEMORY_PROJECT_STATE_001
 type: persistent_memory
-status: active
+status: superseded
 authority: project_status_summary
 confidence: DA_VERIFICARE
-allowed_for_retrieval: true
+allowed_for_retrieval: false
 sensitive: false
 last_review: 2026-06-12
 title: PROMETEO project state summary
 ---
+
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Non usare questa memoria datata come
+stato tecnico corrente.
 # Project State
 
 ## FATTO

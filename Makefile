@@ -1,5 +1,5 @@
 
-.PHONY: setup run doctor tl-eval goal-complete-v1 goal-guard
+.PHONY: setup run doctor docs-catalog docs-check tl-eval goal-complete-v1 goal-guard
 setup:
 	bash scripts/setup_prometeo.sh
 
@@ -9,6 +9,14 @@ run:
 
 doctor:
 	bash scripts/product_doctor.sh
+
+docs-catalog:
+	./tools/py scripts/build_documentation_catalog.py
+
+docs-check:
+	./tools/py scripts/build_documentation_catalog.py --check
+	./tools/py scripts/check_documentation_integrity.py
+	./tools/py scripts/docs_authority_guard.py
 
 tl-eval:
 	./scripts/run_tl_eval.sh

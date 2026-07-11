@@ -1,5 +1,10 @@
 # PROMETEO PostgreSQL Consolidation v1
 
+Lifecycle: `ARCHIVED`
+
+Piano storico di consolidamento. Non rappresenta lo stato database corrente;
+usare `docs/CURRENT_STATE.md` e verificare il runtime prima di operare.
+
 ## Stato attuale
 Il sistema resta operativo su SQLite come baseline stabile.
 

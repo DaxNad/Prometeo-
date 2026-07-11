@@ -10,6 +10,9 @@ La documentazione backbone resta indicizzata qui per chiusura e runtime locale.
 
 ## Indice Operativo
 
+- [Documentation Catalog](docs/DOCUMENTATION_CATALOG.md)
+- [Documentation Governance](docs/DOCUMENTATION_GOVERNANCE.md)
+- [Current State](docs/CURRENT_STATE.md)
 - [PROMETEO_MASTER](docs/PROMETEO_MASTER.md)
 - [PROMETEO_GOAL_COMPLETE_V1](docs/PROMETEO_GOAL_COMPLETE_V1.md)
 - [GOAL_CLOSURE_BASELINE_001](docs/GOAL_CLOSURE_BASELINE_001.md)

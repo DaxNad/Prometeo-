@@ -1,5 +1,13 @@
 # PRODUCT_READINESS_AUDIT_001
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`.
+
+Questo audit conserva l'evidenza del momento in cui fu redatto. Le sue
+dichiarazioni su `make setup`, `make run` e `make doctor` non rappresentano più
+il repository corrente.
+
 Scope: gap audit verso `PRODUCT_LOCAL_EDGE_V1`.
 
 Questo documento valuta il repository corrente come prodotto locale/edge

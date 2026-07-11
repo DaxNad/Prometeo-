@@ -1,14 +1,19 @@
 ---
 memory_id: MEMORY_CAPABILITY_STATUS_001
 type: persistent_memory
-status: active
+status: superseded
 authority: capability_summary
 confidence: DA_VERIFICARE
-allowed_for_retrieval: true
+allowed_for_retrieval: false
 sensitive: false
 last_review: 2026-06-12
 title: PROMETEO capability status summary
 ---
+
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Le capability elencate rappresentano
+uno snapshot storico e non autorizzano la prossima mossa.
 # Capability Status
 
 ## FATTO

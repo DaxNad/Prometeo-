@@ -1,5 +1,10 @@
 # PROMETEO MASTER CONTROL
 
+Lifecycle: `SUPERSEDED`
+
+Superseded by: `docs/CURRENT_STATE.md`. Conservato perché gli endpoint DevOS
+storici ne leggono ancora il percorso; non usare per priorità o stato corrente.
+
 ## Stato generale
 
 | Modulo | Stato | Note |

@@ -205,6 +205,11 @@ Il lavoro da fare è chiudere le capability mancanti una alla volta.
 
 ## Prossima capability obbligatoria
 
-PROMETEO_PRODUCT_CORE_CLOSURE_V1
+Questa sezione registrava la prossima capability al momento di creazione della
+roadmap. Non determina più la prossima mossa corrente.
 
-Questa sarà la checklist tecnica verificabile per trasformare la roadmap in chiusura reale di backend, PWA, TL Chat, planner ed eventi.
+Stato e capability posticipate sono mantenuti esclusivamente in
+`docs/CURRENT_STATE.md`.
+
+`PROMETEO_PRODUCT_CORE_CLOSURE_V1` resta una checklist storica verificabile e
+non una dichiarazione di priorità attuale.
