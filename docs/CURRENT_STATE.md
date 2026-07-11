@@ -4,7 +4,9 @@ Lifecycle: `CANONICAL`
 
 Fonte semantica: `docs/PROMETEO_MASTER.md`.
 
-Verificato contro `main` al commit `ae9a1d0` il 2026-07-11.
+Verificato contro il `main` usato come base della modifica documentale il
+2026-07-11. Lo stato va riconfermato tramite codice e test a ogni aggiornamento,
+senza affidarsi a uno SHA incorporato nel documento.
 
 ## Stato sintetico
 
@@ -18,6 +20,7 @@ Non è ancora un prodotto SaaS/MES completo.
 - gestione esplicita di `CERTO`, `INFERITO`, `DA_VERIFICARE` e sorgenti mancanti;
 - guard privacy/data leak e TL semantic eval;
 - classificazione intake, placement dry-run e orchestrazione strutturata;
+- rilevazione delle discrepanze negli input intake strutturati;
 - persistenza governata della conferma operativa articolo;
 - acquisizione PNG/JPEG con boundary OCR e parser specifica;
 - target `make setup`, `make run` e `make doctor` presenti.
@@ -62,4 +65,3 @@ La capability è deliberatamente posticipata durante la bonifica documentale.
 
 Questa pagina descrive stato e gap. Non autorizza modifiche operative né
 sostituisce specifica reale, conferma umana o contratti di capability.
-
