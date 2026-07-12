@@ -49,11 +49,28 @@ Non è ancora un prodotto SaaS/MES completo.
 - Pattern Learning presente ma non alimentato end-to-end dalla nuova catena
   intake.
 
-## Aperto
+## Capability attiva
 
-- nessuna capability successiva autorizzata in questo documento;
-- la prossima capability deve essere selezionata dopo nuova verifica del
-  repository, dei test e delle priorità di prodotto.
+- `ACTIVE_CAPABILITY`: `TL_CHAT_UNIFIED_DATA_ACCESS_001`;
+- `STATUS`: `AUTHORIZED`;
+- `MODE`: `READ_ONLY_FIRST`;
+- fase corrente documentale e read-only-first: questa autorizzazione non
+  abilita ancora modifiche runtime;
+- prima iterazione ammessa:
+  - dati articolo;
+  - componenti e operazioni;
+  - ordini e date di spedizione;
+- vincoli:
+  - read-only;
+  - solo fonti autorizzate;
+  - nessun accesso a path arbitrari;
+  - nessuna mutazione dati;
+  - nessuna promozione automatica a `CERTO`;
+  - nessuna decisione autonoma di pianificazione;
+  - nessuna nuova UI;
+  - nessun OCR;
+  - nessun agente autonomo;
+  - nessun cloud per dati industriali.
 
 ## Fuori fase
 
