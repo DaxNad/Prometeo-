@@ -117,6 +117,32 @@ def _with_runtime_evidence(
     return response
 
 
+def _with_preview_evidence_status(
+    evidence_pack: dict[str, Any],
+    response: TLChatResponse,
+) -> dict[str, Any]:
+    if response.source != "spec_intake_preview" or not response.source_status:
+        return evidence_pack
+
+    evidence = evidence_pack.get("evidence")
+    if not isinstance(evidence, list):
+        return evidence_pack
+
+    normalized_evidence: list[Any] = []
+    for item in evidence:
+        if not isinstance(item, dict) or item.get("source_type") != "spec_intake_preview":
+            normalized_evidence.append(item)
+            continue
+
+        normalized_item = dict(item)
+        normalized_item.setdefault("status", response.source_status)
+        normalized_evidence.append(normalized_item)
+
+    normalized_pack = dict(evidence_pack)
+    normalized_pack["evidence"] = normalized_evidence
+    return normalized_pack
+
+
 def _merge_runtime_evidence(
     evidence_pack: dict[str, Any],
     runtime_items: list[dict[str, Any]],
@@ -1438,6 +1464,11 @@ def _response_from_spec_intake_preview(
         if isinstance(components_payload, list)
         else []
     )
+
+    if not operations and "operazion" in normalized_question:
+        missing_data.append("operations")
+    if not components and _question_asks_components(question):
+        missing_data.append("components")
 
     missing_lines = [f"- {item}" for item in missing_data] or ["- Nessuno"]
 
@@ -2840,6 +2871,7 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     if governed_response is not None:
         response = governed_response
 
+    evidence_pack = _with_preview_evidence_status(evidence_pack, response)
     evidence_pack = _merge_runtime_evidence(
         evidence_pack,
         response._evidence_items,
