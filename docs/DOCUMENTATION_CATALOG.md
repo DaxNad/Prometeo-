@@ -155,6 +155,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `HOW_TO` | `REFERENCE` | `docs/atlas_context/PROMETEO_SETUP.md` | SETUP OPERATIVO MAC M4 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/atlas_context/TL_logic.md` | PROMETEO — TL STRATEGY (ROBUST DOMAIN RULE) | `` |
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_001.md` | TL_CHAT_UNIFIED_DATA_ACCESS_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002.md` | TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/data_authority_audit_2026-05-11.md` | PROMETEO Data Authority Audit (2026-05-11) | `` |
 | `DECISION` | `REFERENCE` | `docs/decisions/ADR-001-event-engine.md` | ADR-001 — Event Engine come modulo separato | `` |
 | `DECISION` | `REFERENCE` | `docs/decisions/ADR-001-monorepo.md` | ADR-001 — Adozione monorepo PROMETEO | `` |
@@ -187,6 +188,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **169**.
+Totale documenti catalogati: **170**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
