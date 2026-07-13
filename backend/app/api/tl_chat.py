@@ -26,6 +26,9 @@ from app.services.tl_chat_confirmation_evidence_readback import (
     build_confirmation_evidence_readback,
 )
 from app.services.pattern_learning_registry import find_patterns_by_station
+from app.services.customer_demand_context_resolver_binding import (
+    resolve_customer_demand_context,
+)
 from tools.context_source_reader_adapter import ContextSourceReaderAdapter, ContextSourceReaderError
 from tools.tl_chat_context_reader_bridge import (
     _map_reader_error_to_source_status,
@@ -2562,6 +2565,114 @@ def _response_from_context_reader_bridge(article: str) -> TLChatResponse | None:
     )
 
 
+def _question_asks_customer_demand(question: str) -> bool:
+    normalized = str(question or "").strip().lower()
+    explicit_terms = (
+        "quantità cliente",
+        "quantita cliente",
+        "quantità richiesta",
+        "quantita richiesta",
+        "data richiesta dal cliente",
+        "data cliente",
+        "priorità cliente",
+        "priorita cliente",
+        "domanda cliente",
+        "richiesta cliente",
+    )
+    forbidden_only_terms = (
+        "data confermata",
+        "spedizione confermata",
+        "promessa al cliente",
+        "scadenza interna",
+        "sequenziamento",
+        "pianificazione",
+        "planner",
+        "turno",
+    )
+    if any(term in normalized for term in explicit_terms):
+        return True
+    return False if any(term in normalized for term in forbidden_only_terms) else False
+
+
+def _response_from_customer_demand_context(article: str) -> TLChatResponse:
+    resolved = resolve_customer_demand_context(articolo=article)
+    payload = resolved.payload if isinstance(resolved.payload, dict) else {}
+    records = payload.get("records") if isinstance(payload.get("records"), list) else []
+    missing_data = payload.get("missing_data")
+    if not isinstance(missing_data, list):
+        missing_data = []
+    semantic_status = _clean(payload.get("semantic_status")).upper() or "DA_VERIFICARE"
+
+    if resolved.source_status != "SOURCE_FOUND":
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"Articolo {article}: la fonte della domanda cliente non è disponibile. "
+                "Non espongo dettagli tecnici e non genero decisioni operative."
+            ),
+            confidence="DA_VERIFICARE",
+            risk="Fonte customer-demand autorizzata ma non disponibile.",
+            recommended_action="Verificare la disponibilità della fonte; non assumere quantità, date o priorità cliente.",
+            requires_confirmation=True,
+            technical_details_hidden=True,
+            source="customer_demand_registry",
+            source_status=resolved.source_status,
+            semantic_status="DA_VERIFICARE",
+            missing_data=missing_data or ["customer_demand_reader_unavailable"],
+        )
+
+    if not records:
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"Articolo {article}: nessuna domanda cliente registrata nella fonte autorizzata. "
+                "L'assenza del record non equivale a fonte mancante."
+            ),
+            confidence="DA_VERIFICARE",
+            risk="Lookup valido senza record customer-demand.",
+            recommended_action="Verificare il codice articolo o acquisire la richiesta cliente; non inventare quantità o date.",
+            requires_confirmation=True,
+            technical_details_hidden=True,
+            source="customer_demand_registry",
+            source_status="SOURCE_FOUND",
+            semantic_status=semantic_status,
+            missing_data=missing_data or ["record_customer_demand_not_found"],
+        )
+
+    lines = [f"Articolo {article} — domanda cliente registrata:"]
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        lines.extend(
+            [
+                f"- Articolo: {_clean(record.get('articolo')) or 'non disponibile'}",
+                f"  Codice articolo: {_clean(record.get('codice_articolo')) or 'non disponibile'}",
+                f"  Quantità richiesta: {_clean(record.get('quantita')) or 'non disponibile'}",
+                "  Data richiesta dal cliente registrata nella fonte: "
+                f"{_clean(record.get('data_spedizione')) or 'non disponibile'}",
+                f"  Priorità cliente: {_clean(record.get('priorita_cliente')) or 'non disponibile'}",
+            ]
+        )
+
+    lines.append(
+        "Limite: la data indicata non è una data confermata, una promessa al cliente, "
+        "una scadenza interna o un piano di produzione."
+    )
+    return TLChatResponse(
+        ok=True,
+        answer="\n".join(lines),
+        confidence="DA_VERIFICARE",
+        risk="Dati customer-demand con freshness non verificata; nessuna decisione automatica autorizzata.",
+        recommended_action="Usare come informazione read-only e richiedere conferma TL prima di decisioni operative.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+        source="customer_demand_registry",
+        source_status="SOURCE_FOUND",
+        semantic_status=semantic_status,
+        missing_data=missing_data or None,
+    )
+
+
 def _question_asks_confirmation_rendering(question: str) -> bool:
     normalized = str(question or "").strip().lower()
 
@@ -2722,7 +2833,11 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
                         ),
                     )
 
-            return _response_from_local_specs_metadata(article, local_specs_metadata)
+            if not _question_asks_customer_demand(question):
+                return _response_from_local_specs_metadata(article, local_specs_metadata)
+
+        if _question_asks_customer_demand(question):
+            return _response_from_customer_demand_context(article)
 
         asks_operational_authorization = _question_asks_operational_authorization(question)
         if asks_operational_authorization:
