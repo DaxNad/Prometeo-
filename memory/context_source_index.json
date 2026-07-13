@@ -354,6 +354,55 @@
       "bytes": 5088,
       "source_id": "mimo_minimax_m3_binding",
       "summary": "Binding documentale per uso controllato di MiMo MiniMax M3 nel perimetro PROMETEO."
+    },
+    {
+      "id": "customer_demand_registry",
+      "kind": "database_registry",
+      "tier": "B",
+      "authority": "derived_customer_demand_copy",
+      "role": "Governed registration for the structured customer demand registry. Runtime remains disabled until a separate reader capability is authorized.",
+      "access_mode": "read_only",
+      "runtime_enabled": false,
+      "allowed_for": [
+        "future_governed_retrieval",
+        "source_registration_only"
+      ],
+      "exists": true,
+      "source_id": "customer_demand_registry",
+      "structural_origin": "customer_demand",
+      "allowed_fields": [
+        "articolo",
+        "codice_articolo",
+        "quantita",
+        "data_spedizione",
+        "priorita_cliente"
+      ],
+      "field_semantics": {
+        "data_spedizione": "customer_requested_date_recorded"
+      },
+      "freshness": "UNKNOWN",
+      "semantic_status_policy": "DA_VERIFICARE_UNLESS_FRESHNESS_AND_AUTHORITY_ARE_VERIFIED",
+      "forbidden_dependencies": [
+        "SMF",
+        "real_excel",
+        "import_customer_demand",
+        "production_orders",
+        "board_state",
+        "planner",
+        "ZAW_views"
+      ],
+      "provenance_requirements": [
+        "source_id",
+        "structural_origin",
+        "retrieved_at",
+        "freshness",
+        "source_status",
+        "semantic_status",
+        "confidence",
+        "missing_data"
+      ],
+      "expected_source_status": "SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+      "summary": "Registrazione governata e non attiva del registry della domanda cliente; nessun reader, query o binding runtime autorizzato."
     }
   ]
 }
