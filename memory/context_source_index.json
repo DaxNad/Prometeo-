@@ -360,12 +360,11 @@
       "kind": "database_registry",
       "tier": "B",
       "authority": "derived_customer_demand_copy",
-      "role": "Governed registration for the structured customer demand registry. Runtime remains disabled until a separate reader capability is authorized.",
+      "role": "Governed read-only customer-demand registry authorized only for the dedicated TL Chat binding.",
       "access_mode": "read_only",
-      "runtime_enabled": false,
+      "runtime_enabled": true,
       "allowed_for": [
-        "future_governed_retrieval",
-        "source_registration_only"
+        "tl_chat_readonly_runtime"
       ],
       "exists": true,
       "source_id": "customer_demand_registry",
@@ -401,8 +400,8 @@
         "confidence",
         "missing_data"
       ],
-      "expected_source_status": "SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
-      "summary": "Registrazione governata e non attiva del registry della domanda cliente; nessun reader, query o binding runtime autorizzato."
+      "expected_source_status": "SOURCE_FOUND_OR_AUTHORIZED_BUT_UNAVAILABLE",
+      "summary": "Registry domanda cliente attivo esclusivamente tramite gate deterministico TL Chat read-only; nessuna scrittura o decisione automatica."
     }
   ]
 }
