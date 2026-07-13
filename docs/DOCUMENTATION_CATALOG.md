@@ -148,17 +148,30 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `REFERENCE` | `REFERENCE` | `docs/ai/PROMETEO_TASK_ROUTING.md` | PROMETEO TASK ROUTING | `` |
 | `REFERENCE` | `REFERENCE` | `docs/ai/prometeo_coder_profile.md` | PROMETEO — AI CODER PROFILE | `` |
 | `GOVERNANCE` | `CANONICAL` | `docs/architecture/PROMETEO_MANIFESTO_v1.md` | PROMETEO — MANIFESTO TECNICO PERMANENTE v1 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/archive/development/PROMETEO_DECISION_LOG_2026-07-13.md` | PROMETEO — DECISION LOG ARCHIVE | `` |
 | `DECISION` | `REFERENCE` | `docs/atlas/ADR_constraint_merge.md` | ADR: Constraint-Aware Decision Merge | `` |
 | `REFERENCE` | `REFERENCE` | `docs/atlas_context/PROMETEO_ARCHITECTURE.md` | ARCHITETTURA PROMETEO | `` |
 | `REFERENCE` | `REFERENCE` | `docs/atlas_context/PROMETEO_CONTEXT.md` | PROMETEO CONTEXT INIT | `` |
 | `REFERENCE` | `REFERENCE` | `docs/atlas_context/PROMETEO_RULES.md` | REGOLE OPERATIVE PROMETEO | `` |
 | `HOW_TO` | `REFERENCE` | `docs/atlas_context/PROMETEO_SETUP.md` | SETUP OPERATIVO MAC M4 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/atlas_context/TL_logic.md` | PROMETEO — TL STRATEGY (ROBUST DOMAIN RULE) | `` |
+| `CONTRACT` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_CONTEXT_RESOLVER_BINDING_001.md` | CUSTOMER_DEMAND_CONTEXT_RESOLVER_BINDING_001 | `` |
+| `GOVERNANCE` | `ACTIVE` | `docs/capabilities/CUSTOMER_DEMAND_GOVERNANCE_RUNTIME_ALIGNMENT_001.md` | CUSTOMER_DEMAND_GOVERNANCE_RUNTIME_ALIGNMENT_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_READONLY_READER_001.md` | CUSTOMER_DEMAND_READONLY_READER_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_SOURCE_INDEX_REGISTRATION_001.md` | CUSTOMER_DEMAND_SOURCE_INDEX_REGISTRATION_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_SOURCE_REGISTRATION_DATABASE_BOUNDARY_001.md` | CUSTOMER_DEMAND_SOURCE_REGISTRATION_DATABASE_BOUNDARY_001 | `` |
+| `CONTRACT` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_TL_CHAT_BINDING_001.md` | CUSTOMER_DEMAND_TL_CHAT_BINDING_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_TL_CHAT_E2E_RUNTIME_MAP_001.md` | CUSTOMER_DEMAND_TL_CHAT_E2E_RUNTIME_MAP_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/CUSTOMER_DEMAND_TL_CHAT_INTEGRATION_MAP_001.md` | CUSTOMER_DEMAND_TL_CHAT_INTEGRATION_MAP_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/DATABASE_REGISTRY_PATHLESS_CONTEXT_SOURCE_001.md` | DATABASE_REGISTRY_PATHLESS_CONTEXT_SOURCE_001 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_001.md` | TL_CHAT_UNIFIED_DATA_ACCESS_001 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002.md` | TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002 | `` |
+| `CONTRACT` | `ACTIVE` | `docs/contracts/CUSTOMER_DEMAND_READONLY_SOURCE_CONTRACT_001.md` | CUSTOMER_DEMAND_READONLY_SOURCE_CONTRACT_001 | `` |
+| `REFERENCE` | `REFERENCE` | `docs/contracts/CUSTOMER_DEMAND_RUNTIME_READONLY_PERIMETER_001.md` | CUSTOMER_DEMAND_RUNTIME_READONLY_PERIMETER_001 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/data_authority_audit_2026-05-11.md` | PROMETEO Data Authority Audit (2026-05-11) | `` |
 | `DECISION` | `REFERENCE` | `docs/decisions/ADR-001-event-engine.md` | ADR-001 — Event Engine come modulo separato | `` |
 | `DECISION` | `REFERENCE` | `docs/decisions/ADR-001-monorepo.md` | ADR-001 — Adozione monorepo PROMETEO | `` |
+| `REFERENCE` | `REFERENCE` | `docs/development/PROMETEO_INTERACTION_PREFLIGHT.md` | PROMETEO — INTERACTION PREFLIGHT | `` |
 | `HOW_TO` | `ACTIVE` | `docs/domain/TL_strategy_guideline.md` | PROMETEO — TL STRATEGY (ROBUST DOMAIN RULE) | `` |
 | `EVIDENCE` | `REFERENCE` | `docs/domain/validation_template.md` | VALIDAZIONE STANDARD PROMETEO | `` |
 | `REFERENCE` | `REFERENCE` | `docs/examples/tl_eval_guard_ci_001.md` | TL Eval Guard CI 001 | `` |
@@ -188,6 +201,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **170**.
+Totale documenti catalogati: **183**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
