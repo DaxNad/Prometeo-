@@ -40,12 +40,17 @@ Non è ancora un prodotto SaaS/MES completo.
   `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
 - `VERTICAL_SLICE_002` della capability
   `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
+- `VERTICAL_SLICE_003` della capability
+  `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
 - customer-demand registry registrato metadata-only con grant runtime separato,
   read-only e deny-by-default;
 - reader customer-demand, binding Context Resolver e risposta TL Chat limitata
   ai cinque campi autorizzati;
 - percorso deny verificato senza invocazione reader, connessione database o
   scrittura;
+- rilevazione deterministica dei conflitti tra fonti già autorizzate, con
+  `SOURCE_AMBIGUOUS`, `DA_VERIFICARE`, conferma TL obbligatoria e nessuna
+  riconciliazione automatica;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
@@ -66,6 +71,7 @@ Non è ancora un prodotto SaaS/MES completo.
 - stato slice:
   - `VERTICAL_SLICE_001`: chiusa, testata e mergiata;
   - `VERTICAL_SLICE_002`: chiusa, testata e mergiata;
+  - `VERTICAL_SLICE_003`: chiusa, testata e mergiata;
   - la capability non è interamente chiusa;
 - scope consegnato da `VERTICAL_SLICE_001`:
   - risposta TL Chat su articolo;
@@ -82,6 +88,16 @@ Non è ancora un prodotto SaaS/MES completo.
     deadline interna o decisione di piano;
   - `DA_VERIFICARE`, conferma TL richiesta, planner e promozione automatica
     disabilitati;
+- scope consegnato da `VERTICAL_SLICE_003`:
+  - confronto deterministico dei campi operativi sovrapposti tra fonti già
+    autorizzate;
+  - esclusione dei metadata di provenance e governance dal confronto;
+  - dichiarazione strutturale di campi, fonti e valori conflittuali;
+  - esito `SOURCE_AMBIGUOUS` con `DA_VERIFICARE`;
+  - conferma TL obbligatoria;
+  - `planner_eligible=false` e `can_promote=false`;
+  - priorità delle fonti invariata quando non esiste conflitto;
+  - nessuna riconciliazione automatica;
 - scope escluso dalle slice chiuse:
   - `SMFAdapter` activation;
   - database mutation;
@@ -92,7 +108,7 @@ Non è ancora un prodotto SaaS/MES completo.
   - cloud;
   - campi customer-demand aggiuntivi;
 - prossima slice: non autorizzata; serve una nuova decisione umana per aprire
-  `VERTICAL_SLICE_003` o altro perimetro;
+  `VERTICAL_SLICE_004` o altro perimetro;
 - nessuna nuova capability è autorizzata automaticamente da questa chiusura;
 - vincoli:
   - read-only;
@@ -161,6 +177,31 @@ della capability `TL_CHAT_UNIFIED_DATA_ACCESS_001`.
   - nessun accesso tramite generic filesystem reader;
   - nessuna nuova slice autorizzata.
 
+### VERTICAL_SLICE_003
+
+`VERTICAL_SLICE_003` registra la chiusura del conflict handling read-only tra
+fonti già autorizzate.
+
+- `SLICE_STATUS`: `CLOSED` / `TESTED` / `MERGED`;
+- `PR`: `#494`;
+- `MERGE_SHA`: `cbfa4793e2c914e2f75fab5fdc43a6ad1cbf8b8b`;
+- `RUNTIME_CHANGED`: `backend/app/services/tl_chat_context_resolver.py`;
+- `TESTS_ADDED`: `backend/tests/test_tl_chat_context_resolver_conflicts.py`;
+- `SOURCE_PRIORITY_CHANGED`: `false`;
+- `DATABASE_WRITE`: `NONE`;
+- `PLANNER_ELIGIBLE_ON_CONFLICT`: `false`;
+- `AUTOMATIC_PROMOTION_ON_CONFLICT`: `false`;
+- `REQUIRES_TL_CONFIRMATION_ON_CONFLICT`: `true`;
+- conflict status: `SOURCE_AMBIGUOUS`;
+- conflict confidence: `DA_VERIFICARE`;
+- sei workflow repository PASS;
+- anti-scope-creep:
+  - nessuna nuova fonte o campo;
+  - nessuna modifica API;
+  - nessuna riconciliazione automatica;
+  - nessun planner, importer, SMF, UI, OCR, agente o cloud;
+  - nessuna nuova slice autorizzata.
+
 ## Prove correnti
 
 I seguenti `PASS` derivano da esecuzioni registrate nelle rispettive closure o
@@ -171,6 +212,10 @@ CI; non sono risultati delle raccolte `collect-only` riportate più sotto:
 - `VERTICAL_SLICE_002` / PR #489: test dedicati e sei workflow repository PASS;
 - verifica post-merge slice 002: authorized path PASS, deny path PASS, reader
   non chiamato su deny, nessuna scrittura;
+- `VERTICAL_SLICE_003` / PR #494: test dedicati e sei workflow repository PASS;
+- conflict handling slice 003: valori equivalenti senza falso conflitto,
+  conflitto singolo e multiplo, preview coinvolta e metadata di provenance
+  esclusi dal confronto;
 - `make goal-complete-v1`: PASS;
 - TL Chat contract: 67 test PASS;
 - TL semantic eval: PASS;
