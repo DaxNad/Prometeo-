@@ -37,23 +37,24 @@ if article:
 
 La chiamata futura deve essere collocata:
 
-1. dopo il tentativo `article_summary_response = _response_from_article_summary(article)`;
-2. dopo il controllo `lifecycle_payload = lifecycle.get(article)` e il relativo return;
-3. prima di `_load_spec_intake_preview(article)`;
-4. prima di `_response_from_preview_profile(article)`;
-5. prima del fallback `ContextSourceReaderAdapter` generico;
-6. prima della risposta finale `SOURCE_MISSING`.
+1. dopo il blocco specialistico `local_specs_metadata`, che gestisce domande specifiche già supportate come motivazione, dima PIDMILL, componenti e verifica operativa;
+2. prima del fallback generico `article_summary_response = _response_from_article_summary(article)`;
+3. prima del controllo `lifecycle_payload = lifecycle.get(article)` e del relativo return;
+4. prima di `_load_spec_intake_preview(article)`;
+5. prima di `_response_from_preview_profile(article)`;
+6. prima del fallback `ContextSourceReaderAdapter` generico;
+7. prima della risposta finale `SOURCE_MISSING`.
 
 Posizione schematica:
 
 ```text
-local_specs_metadata
+local_specs_metadata handlers specialistici
+    ↓
+[FUTURE customer_demand_registry intent gate + resolver binding]
     ↓
 article_summary
     ↓
 lifecycle_registry
-    ↓
-[FUTURE customer_demand_registry intent gate + resolver binding]
     ↓
 spec_intake_preview
     ↓
@@ -64,7 +65,9 @@ context_source_reader_adapter
 missing
 ```
 
-Questa posizione è coerente con `SOURCE_PRIORITY`, dove `customer_demand_registry` segue le fonti autoritative e precede le fonti preview.
+Questa posizione è necessaria perché `article_summary` e `lifecycle_registry` possono produrre return anticipati. Una fonte con autorità maggiore ma non pertinente alla domanda non deve impedire il recupero della domanda cliente quando il gate di intent è esplicitamente soddisfatto.
+
+La priorità del resolver resta valida all'interno del flusso customer-demand: il candidate `customer_demand_registry` non diventa autoritativo, resta `DA_VERIFICARE`, non può essere promosso e non è eleggibile per il planner.
 
 ## Import futuro previsto
 
@@ -101,6 +104,30 @@ Non dovrà interpretare `data_spedizione` come:
 - data confermata di spedizione;
 - promessa al cliente;
 - piano o sequenza di produzione.
+
+## Regola di pertinenza
+
+L'ordine delle fonti non sostituisce il routing per intento.
+
+Per domande customer-demand esplicite:
+
+```text
+intent pertinente customer_demand_registry
+    ↓
+reader read-only
+    ↓
+Context Resolver
+```
+
+Per domande non customer-demand:
+
+```text
+customer_demand_registry non invocato
+    ↓
+flusso TL Chat esistente invariato
+```
+
+Il gate non deve scavalcare gli handler specialistici già presenti in `local_specs_metadata`, ma deve precedere i fallback generici che altrimenti terminerebbero la richiesta senza consultare la fonte pertinente.
 
 ## Input futuro
 
@@ -184,12 +211,12 @@ Non è necessario modificare reader, resolver, source index o schema database sa
 
 ## Test futuri minimi
 
-- domanda quantità cliente con articolo → usa `customer_demand_registry`;
+- domanda quantità cliente con articolo → usa `customer_demand_registry` anche se esistono article summary o lifecycle;
 - domanda data cliente → chiarisce la semantica non confermata;
 - domanda non relativa alla domanda cliente → reader non invocato;
+- handler specialistico `local_specs_metadata` pertinente → non viene scavalcato;
 - record assente → `SOURCE_FOUND` con `missing_data` specifico;
 - reader indisponibile → `SOURCE_AUTHORIZED_BUT_UNAVAILABLE`;
-- fonte autoritativa già risolutiva → non viene scavalcata;
 - nessuna promozione a `CERTO`;
 - nessuna eleggibilità planner;
 - nessun dettaglio database nella risposta.
@@ -203,7 +230,8 @@ La capability futura deve fermarsi se:
 - richiede scritture o aggiornamenti database;
 - richiede modifiche planner, ordini o board state;
 - richiede invocazione del reader per tutte le domande articolo senza intent gate;
-- richiede promozione automatica a `CERTO`.
+- richiede promozione automatica a `CERTO`;
+- colloca il gate dopo fallback generici con return anticipato.
 
 ## Esclusioni della presente slice
 
@@ -219,14 +247,8 @@ La capability futura deve fermarsi se:
 
 ## Criterio di accettazione
 
-La mappatura è accettata se identifica un solo insertion point, preserva l'ordine di autorità già esistente, richiede un intent gate deterministico e non introduce alcun effetto runtime.
+La mappatura è accettata se identifica un solo insertion point, preserva gli handler specialistici già esistenti, applica la pertinenza dell'intento prima dei fallback generici con return anticipato, richiede un intent gate deterministico e non introduce alcun effetto runtime.
 
 ## NEXT_MOVE
 
-Revisionare questa mappatura ed emettere uno dei seguenti esiti:
-
-```text
-MAP_ACCEPTED
-ONE_REQUIRED_CHANGE
-STOP
-```
+Dopo review e merge, aprire una capability implementativa separata per il solo binding TL Chat customer-demand con test route dedicati.
