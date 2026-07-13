@@ -2,13 +2,13 @@
 
 ## Stato
 
-- `CAPABILITY_STATUS`: `AUTHORIZED_FOR_IMPLEMENTATION_REVIEW`
-- `IMPLEMENTATION_STATUS`: `NOT_STARTED`
+- `CAPABILITY_STATUS`: `IMPLEMENTED`
+- `IMPLEMENTATION_STATUS`: `COMPLETED`
 - `SOURCE_ID`: `customer_demand_registry`
 - `TARGET_ROUTE`: `backend/app/api/tl_chat.py`
 - `TARGET_DISPATCHER`: `_build_contract_response`
-- `RUNTIME_BINDING_CURRENT`: `NOT_IMPLEMENTED`
-- `TL_CHAT_BINDING_CURRENT`: `NOT_IMPLEMENTED`
+- `RUNTIME_BINDING_CURRENT`: `IMPLEMENTED_READ_ONLY`
+- `TL_CHAT_BINDING_CURRENT`: `IMPLEMENTED`
 - `DATABASE_ACCESS_MODE`: `READ_ONLY`
 - `PLANNER_ELIGIBLE`: `false`
 - `AUTOMATIC_PROMOTION`: `FORBIDDEN`
@@ -17,7 +17,7 @@
 
 Autorizzare una futura vertical slice implementativa minima che colleghi il binding read-only `customer_demand_registry` alla route TL Chat esclusivamente per domande pertinenti alla domanda cliente, con intent gate deterministico, rendering controllato e test route dedicati.
 
-Questa capability non implementa il binding nella presente PR.
+La capability è implementata nella route TL Chat con intent gate deterministico, rendering read-only e test route dedicati.
 
 ## Prerequisiti consolidati
 
@@ -236,12 +236,10 @@ La futura implementazione deve fermarsi se:
 
 La capability è accettata quando autorizza una sola futura slice TL Chat, mantiene il runtime invariato nella presente PR, definisce intent gate, insertion point, rendering, stati e test minimi senza espandere reader, resolver o database.
 
-## NEXT_MOVE
+## Chiusura
 
-Revisionare esclusivamente questa capability ed emettere:
-
-```text
-CAPABILITY_ACCEPTED
-ONE_REQUIRED_CHANGE
-STOP
-```
+- `IMPLEMENTATION_ACCEPTED`: `VERIFIED_FOR_MERGE`
+- `DATABASE_WRITE`: `NONE`
+- `PLANNER_ELIGIBLE`: `false`
+- `AUTOMATIC_PROMOTION`: `FORBIDDEN`
+- `NEXT_MOVE`: unire la PR dopo il completamento dei controlli obbligatori, senza aprire ulteriori capability.

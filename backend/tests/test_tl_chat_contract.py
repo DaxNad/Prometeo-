@@ -3155,3 +3155,156 @@ def test_operational_authorization_helpers_do_not_hardcode_article_12514():
 
     for helper in checked:
         assert "12514" not in inspect.getsource(helper)
+
+
+def _customer_demand_resolved(*, records=None, source_status="SOURCE_FOUND", missing_data=None):
+    from app.services.tl_chat_context_resolver import TLChatResolvedContext
+
+    return TLChatResolvedContext(
+        article="12514",
+        selected_source="customer_demand_registry",
+        source_status=source_status,
+        confidence="DA_VERIFICARE",
+        planner_eligible=False,
+        requires_tl_confirmation=True,
+        can_promote=False,
+        reason="test customer demand",
+        payload={
+  "source_id": "customer_demand_registry",
+  "records": records or [],
+  "freshness": "UNKNOWN",
+  "semantic_status": "DA_VERIFICARE",
+  "missing_data": missing_data or [],
+        },
+    )
+
+
+def test_tl_chat_customer_demand_quantity_uses_dedicated_binding(monkeypatch):
+    calls = []
+
+    def resolve_customer_demand_context(**kwargs):
+        calls.append(kwargs)
+        return _customer_demand_resolved(
+  records=[{
+      "articolo": "12514",
+      "codice_articolo": "7056055000A0",
+      "quantita": 94,
+      "data_spedizione": "2026-07-20",
+      "priorita_cliente": "ALTA",
+      "forbidden": "hidden",
+  }]
+        )
+
+    monkeypatch.setattr(tl_chat_api, "resolve_customer_demand_context", resolve_customer_demand_context)
+    client = TestClient(app)
+    response = client.post(
+        "/tl/chat",
+        json={"question": "Qual è la quantità richiesta dal cliente?", "context": {"article": "12514"}},
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert calls == [{"articolo": "12514"}]
+    assert data["source"] == "customer_demand_registry"
+    assert data["source_status"] == "SOURCE_FOUND"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "Quantità richiesta: 94" in data["answer"]
+    assert "hidden" not in data["answer"]
+    assert "forbidden" not in data["answer"]
+
+
+def test_tl_chat_customer_demand_date_preserves_requested_date_semantics(monkeypatch):
+    monkeypatch.setattr(
+        tl_chat_api,
+        "resolve_customer_demand_context",
+        lambda **kwargs: _customer_demand_resolved(records=[{
+  "articolo": "12514",
+  "codice_articolo": "7056055000A0",
+  "quantita": 94,
+  "data_spedizione": "2026-07-20",
+  "priorita_cliente": "ALTA",
+        }]),
+    )
+    data = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Qual è la data richiesta dal cliente?", "context": {"article": "12514"}},
+    ).json()
+
+    assert "Data richiesta dal cliente registrata nella fonte: 2026-07-20" in data["answer"]
+    assert "non è una data confermata" in data["answer"]
+    assert data["semantic_status"] == "DA_VERIFICARE"
+
+
+def test_tl_chat_non_customer_demand_does_not_invoke_binding(monkeypatch):
+    def fail_if_called(**kwargs):
+        raise AssertionError("customer demand binding must not be invoked")
+
+    monkeypatch.setattr(tl_chat_api, "resolve_customer_demand_context", fail_if_called)
+    response = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Quali componenti usa questo articolo?", "context": {"article": "12514"}},
+    )
+    assert response.status_code == 200
+
+
+def test_tl_chat_customer_demand_intent_precedes_lifecycle_fallback(monkeypatch, tmp_path):
+    registry = tmp_path / "article_lifecycle_registry.json"
+    registry.write_text(json.dumps({"12514": {"status": "ATTIVO", "source": "test"}}), encoding="utf-8")
+    monkeypatch.setattr(tl_chat_api, "LIFECYCLE_REGISTRY", registry)
+    monkeypatch.setattr(
+        tl_chat_api,
+        "resolve_customer_demand_context",
+        lambda **kwargs: _customer_demand_resolved(records=[{
+  "articolo": "12514",
+  "codice_articolo": "7056055000A0",
+  "quantita": 94,
+  "data_spedizione": None,
+  "priorita_cliente": "ALTA",
+        }]),
+    )
+    data = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Mostra la priorità cliente", "context": {"article": "12514"}},
+    ).json()
+
+    assert data["source"] == "customer_demand_registry"
+    assert "Priorità cliente: ALTA" in data["answer"]
+
+
+def test_tl_chat_customer_demand_empty_record_keeps_source_found(monkeypatch):
+    monkeypatch.setattr(
+        tl_chat_api,
+        "resolve_customer_demand_context",
+        lambda **kwargs: _customer_demand_resolved(
+  records=[], missing_data=["record_customer_demand_not_found"]
+        ),
+    )
+    data = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Esiste una domanda cliente?", "context": {"article": "12514"}},
+    ).json()
+
+    assert data["source_status"] == "SOURCE_FOUND"
+    assert data["missing_data"] == ["record_customer_demand_not_found"]
+
+
+def test_tl_chat_customer_demand_unavailable_hides_database_detail(monkeypatch):
+    monkeypatch.setattr(
+        tl_chat_api,
+        "resolve_customer_demand_context",
+        lambda **kwargs: _customer_demand_resolved(
+  source_status="SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+  missing_data=["customer_demand_reader_unavailable"],
+        ),
+    )
+    data = TestClient(app).post(
+        "/tl/chat",
+        json={"question": "Qual è la quantità cliente?", "context": {"article": "12514"}},
+    ).json()
+
+    assert data["source_status"] == "SOURCE_AUTHORIZED_BUT_UNAVAILABLE"
+    assert data["missing_data"] == ["customer_demand_reader_unavailable"]
+    assert "database" not in data["answer"].lower()
+    assert data["requires_confirmation"] is True
+
