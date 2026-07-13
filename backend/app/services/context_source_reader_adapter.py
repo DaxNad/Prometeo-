@@ -7,6 +7,7 @@ from typing import Any
 
 EXPECTED_SCHEMA = "PROMETEO_CONTEXT_SOURCE_INDEX_001"
 EXPECTED_STATUS = "documental_index_only"
+PATHLESS_SOURCE_KINDS = frozenset({"database_registry"})
 
 ALLOWED_SOURCE_PREFIXES = (
     "docs/",
@@ -28,6 +29,7 @@ FORBIDDEN_SOURCE_PREFIXES = (
     ".venv/",
 )
 
+
 class ContextSourceReaderAdapterError(ValueError):
     """Raised only for invalid adapter input, not for invalid index content."""
 
@@ -43,9 +45,9 @@ def read_context_source_index(
     """
     Read the governed context source index in read-only mode.
 
-    This adapter intentionally returns only minimal source metadata.
-    It does not open indexed source files, does not bind runtime, and does not
-    import TL Chat, ATLAS, planner, FastAPI app, LLM, DB or executor modules.
+    File-backed sources expose only governed repository metadata. Logical
+    registries such as ``database_registry`` are metadata-only and do not
+    require or authorize a filesystem path.
     """
     if max_sources is not None and max_sources < 0:
         raise ContextSourceReaderAdapterError("max_sources must be >= 0")
@@ -87,14 +89,10 @@ def read_context_source_index(
 
     for requested_id in requested_source_ids:
         if requested_id not in known_ids:
-            rejected.append({
-                "id": requested_id,
-                "reason": "SOURCE_ID_NOT_FOUND",
-            })
+            rejected.append({"id": requested_id, "reason": "SOURCE_ID_NOT_FOUND"})
 
     for source in sources:
         normalized, reason = _normalize_source(source, include_bytes=include_bytes)
-
         if normalized is None:
             rejected.append({
                 "id": source.get("id") if isinstance(source, dict) else None,
@@ -186,17 +184,12 @@ def _normalize_source(
         return None, "SOURCE_NOT_OBJECT"
 
     source_id = source.get("id")
+    source_kind = source.get("kind")
     source_path = source.get("path")
     allowed_for = source.get("allowed_for")
 
     if not isinstance(source_id, str) or not source_id.strip():
         return None, "SOURCE_ID_INVALID"
-
-    if not isinstance(source_path, str) or not source_path.strip():
-        return None, "SOURCE_PATH_INVALID"
-
-    if not _is_allowed_relative_source_path(source_path):
-        return None, "SOURCE_PATH_BLOCKED"
 
     if source.get("access_mode") != "read_only":
         return None, "ACCESS_MODE_NOT_READ_ONLY"
@@ -207,10 +200,19 @@ def _normalize_source(
     if not isinstance(allowed_for, list) or not all(isinstance(item, str) for item in allowed_for):
         return None, "ALLOWED_FOR_INVALID"
 
-    normalized = {
+    pathless = source_kind in PATHLESS_SOURCE_KINDS
+    if pathless:
+        if isinstance(source_path, str) and source_path.strip():
+            return None, "NON_FILE_SOURCE_PATH_FORBIDDEN"
+    else:
+        if not isinstance(source_path, str) or not source_path.strip():
+            return None, "SOURCE_PATH_INVALID"
+        if not _is_allowed_relative_source_path(source_path):
+            return None, "SOURCE_PATH_BLOCKED"
+
+    normalized: dict[str, Any] = {
         "id": source_id,
-        "path": source_path,
-        "kind": source.get("kind"),
+        "kind": source_kind,
         "tier": source.get("tier"),
         "authority": source.get("authority"),
         "role": source.get("role"),
@@ -220,8 +222,19 @@ def _normalize_source(
         "exists": bool(source.get("exists")),
     }
 
-    if include_bytes:
-        normalized["bytes"] = source.get("bytes")
+    if pathless:
+        normalized.update({
+            "path": f"memory/logical_registry/{source_id}",
+            "locator_mode": "logical_registry",
+            "structural_origin": source.get("structural_origin"),
+        })
+    else:
+        normalized.update({
+            "path": source_path,
+            "locator_mode": "repository_path",
+        })
+        if include_bytes:
+            normalized["bytes"] = source.get("bytes")
 
     return normalized, "OK"
 
@@ -229,10 +242,7 @@ def _normalize_source(
 def _is_allowed_relative_source_path(source_path: str) -> bool:
     normalized = source_path.replace("\\", "/").strip()
 
-    if not normalized:
-        return False
-
-    if normalized.startswith("/"):
+    if not normalized or normalized.startswith("/"):
         return False
 
     parts = normalized.split("/")
@@ -240,7 +250,6 @@ def _is_allowed_relative_source_path(source_path: str) -> bool:
         return False
 
     lowered = normalized.lower()
-
     if lowered == ".env" or lowered.startswith(".env/"):
         return False
 
