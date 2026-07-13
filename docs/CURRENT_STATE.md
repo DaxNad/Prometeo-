@@ -42,6 +42,9 @@ Non è ancora un prodotto SaaS/MES completo.
   `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
 - `VERTICAL_SLICE_003` della capability
   `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
+- `VERTICAL_SLICE_004` della capability
+  `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
+- capability `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
 - customer-demand registry registrato metadata-only con grant runtime separato,
   read-only e deny-by-default;
 - reader customer-demand, binding Context Resolver e risposta TL Chat limitata
@@ -51,6 +54,7 @@ Non è ancora un prodotto SaaS/MES completo.
 - rilevazione deterministica dei conflitti tra fonti già autorizzate, con
   `SOURCE_AMBIGUOUS`, `DA_VERIFICARE`, conferma TL obbligatoria e nessuna
   riconciliazione automatica;
+- percorso `/tl/chat` multi-fonte con conflict readback strutturato end-to-end;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
@@ -64,15 +68,16 @@ Non è ancora un prodotto SaaS/MES completo.
 - Pattern Learning presente ma non alimentato end-to-end dalla nuova catena
   intake.
 
-## Capability attiva
+## Capability chiusa
 
-- `ACTIVE_CAPABILITY`: `TL_CHAT_UNIFIED_DATA_ACCESS_001`;
-- `STATUS`: `ACTIVE` / `READ_ONLY_FIRST`;
+- `CAPABILITY`: `TL_CHAT_UNIFIED_DATA_ACCESS_001`;
+- `STATUS`: `CLOSED` / `TESTED` / `MERGED`;
+- `MODE`: `READ_ONLY_FIRST`;
 - stato slice:
   - `VERTICAL_SLICE_001`: chiusa, testata e mergiata;
   - `VERTICAL_SLICE_002`: chiusa, testata e mergiata;
   - `VERTICAL_SLICE_003`: chiusa, testata e mergiata;
-  - la capability non è interamente chiusa;
+  - `VERTICAL_SLICE_004`: chiusa, testata e mergiata;
 - scope consegnato da `VERTICAL_SLICE_001`:
   - risposta TL Chat su articolo;
   - risposta TL Chat su componenti e operazioni;
@@ -98,19 +103,25 @@ Non è ancora un prodotto SaaS/MES completo.
   - `planner_eligible=false` e `can_promote=false`;
   - priorità delle fonti invariata quando non esiste conflitto;
   - nessuna riconciliazione automatica;
-- scope escluso dalle slice chiuse:
-  - `SMFAdapter` activation;
-  - database mutation;
-  - planner;
-  - agent runtime;
-  - nuova UI;
-  - nuovo OCR;
-  - cloud;
-  - campi customer-demand aggiuntivi;
-- prossima slice: non autorizzata; serve una nuova decisione umana per aprire
-  `VERTICAL_SLICE_004` o altro perimetro;
+- scope consegnato da `VERTICAL_SLICE_004`:
+  - un percorso `/tl/chat` usa due fonti già autorizzate;
+  - confronto limitato a `codice`, `disegno` e `rev`;
+  - conflict readback strutturato con campo, fonti e valori grezzi;
+  - valori equivalenti preservano il comportamento precedente;
+  - conflitto esposto come `SOURCE_AMBIGUOUS` / `DA_VERIFICARE`;
+  - conferma TL obbligatoria e nessuna promozione o eligibility planner;
+  - nessuna modifica al resolver o alla priorità delle fonti;
+  - nessuna scrittura;
+- criteri di chiusura capability soddisfatti:
+  - accesso TL Chat a più fonti autorizzate;
+  - source, status e confidence preservati;
+  - conflitti e dati mancanti dichiarati;
+  - `PREVIEW_ONLY` non promosso;
+  - assenza di scritture;
+  - copertura di fonte presente, mancante, vietata, ambigua e conflittuale;
+- nessuna slice successiva è autorizzata;
 - nessuna nuova capability è autorizzata automaticamente da questa chiusura;
-- vincoli:
+- vincoli permanenti:
   - read-only;
   - solo fonti autorizzate;
   - nessun accesso a path arbitrari;
@@ -202,6 +213,38 @@ fonti già autorizzate.
   - nessun planner, importer, SMF, UI, OCR, agente o cloud;
   - nessuna nuova slice autorizzata.
 
+### VERTICAL_SLICE_004
+
+`VERTICAL_SLICE_004` registra la chiusura del percorso TL Chat multi-fonte e del
+conflict readback strutturato end-to-end.
+
+- `SLICE_STATUS`: `CLOSED` / `TESTED` / `MERGED`;
+- `PR`: `#497`;
+- `MERGE_SHA`: `a397b1df92886f23b70561379fca89eef242d562`;
+- `RUNTIME_CHANGED`: `backend/app/api/tl_chat.py`;
+- `TESTS_ADDED`: `backend/tests/test_tl_chat_multisource_conflict_endpoint.py`;
+- `RESOLVER_CHANGED`: `false`;
+- `SOURCE_PRIORITY_CHANGED`: `false`;
+- `NEW_SOURCE_REGISTERED`: `false`;
+- `DATABASE_WRITE`: `NONE`;
+- `PLANNER_ELIGIBLE_ON_CONFLICT`: `false`;
+- `AUTOMATIC_PROMOTION_ON_CONFLICT`: `false`;
+- `REQUIRES_TL_CONFIRMATION_ON_CONFLICT`: `true`;
+- test mirati locali: `9 passed`;
+- sei workflow repository PASS;
+- anti-scope-creep:
+  - nessuna nuova fonte o campo;
+  - nessuna riconciliazione automatica;
+  - nessun planner, importer, SMF, UI, OCR, agente o cloud;
+  - nessuna slice successiva autorizzata.
+
+## Verdetto finale capability
+
+`TL_CHAT_UNIFIED_DATA_ACCESS_001` è `CLOSED` / `TESTED` / `MERGED`.
+
+La chiusura è supportata dalle quattro slice consegnate e dai criteri del
+contratto canonico. Non resta un gap runtime interno al perimetro autorizzato.
+
 ## Prove correnti
 
 I seguenti `PASS` derivano da esecuzioni registrate nelle rispettive closure o
@@ -216,6 +259,9 @@ CI; non sono risultati delle raccolte `collect-only` riportate più sotto:
 - conflict handling slice 003: valori equivalenti senza falso conflitto,
   conflitto singolo e multiplo, preview coinvolta e metadata di provenance
   esclusi dal confronto;
+- `VERTICAL_SLICE_004` / PR #497: 9 test mirati locali e sei workflow repository PASS;
+- endpoint multi-fonte slice 004: valori equivalenti senza falso conflitto,
+  `SOURCE_AMBIGUOUS`, `DA_VERIFICARE`, readback strutturato e nessuna scrittura;
 - `make goal-complete-v1`: PASS;
 - TL Chat contract: 67 test PASS;
 - TL semantic eval: PASS;
