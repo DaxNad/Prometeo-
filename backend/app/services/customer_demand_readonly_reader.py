@@ -4,7 +4,7 @@ from collections.abc import Callable, Mapping, Sequence
 from datetime import date, datetime
 from typing import Any
 
-from backend.app.db import get_connection
+from app.db import get_connection
 
 SOURCE_ID = "customer_demand_registry"
 ALLOWED_FIELDS = (
