@@ -8,6 +8,7 @@ SOURCE_PRIORITY: dict[str, int] = {
     "local_specs_metadata": 10,
     "article_summary": 20,
     "lifecycle_registry": 30,
+    "customer_demand_registry": 35,
     "spec_intake_preview": 40,
     "route_matrix_preview": 50,
     "context_source_reader_adapter": 60,
