@@ -48,7 +48,8 @@ def read_customer_demand(
         if callable(set_session):
             set_session(readonly=True, autocommit=False)
         cursor = connection.cursor()
-        cursor.execute(_QUERIES[field], (value, limit))
+        statement = _statement_for_connection(connection, _QUERIES[field])
+        cursor.execute(statement, (value, limit))
         records = [_normalize(row) for row in cursor.fetchall()]
     finally:
         if cursor is not None and callable(getattr(cursor, "close", None)):
@@ -61,7 +62,7 @@ def read_customer_demand(
     return {
         "source_id": SOURCE_ID,
         "source_status": "SOURCE_FOUND",
-        "runtime_binding": "UNBOUND",
+        "runtime_binding": "RESOLVER_ONLY",
         "lookup": {"field": field, "value": value, "limit": limit},
         "records": records,
         "freshness": "UNKNOWN",
@@ -69,6 +70,13 @@ def read_customer_demand(
         "confidence": "LOW_UNTIL_FRESHNESS_VERIFIED",
         "missing_data": [] if records else ["record_customer_demand_not_found"],
     }
+
+
+def _statement_for_connection(connection: Any, statement: str) -> str:
+    module_name = connection.__class__.__module__.lower()
+    if module_name.startswith("sqlite3"):
+        return statement.replace("%s", "?")
+    return statement
 
 
 def _validate(
