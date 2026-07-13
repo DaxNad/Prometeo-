@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from datetime import datetime, timezone
 
 import pytest
 
@@ -53,23 +54,23 @@ class FakeConnection:
 
 
 def test_reader_uses_one_parameterized_select_and_does_not_mutate():
-    rows = [
-        {
-            "articolo": "12514",
-            "codice_articolo": "7056055000A0",
-            "quantita": 94,
-            "data_spedizione": None,
-            "priorita_cliente": "A",
-            "note": "must not be exposed",
-        }
-    ]
+    rows = [{
+        "articolo": "12514",
+        "codice_articolo": "7056055000A0",
+        "quantita": 94,
+        "data_spedizione": None,
+        "priorita_cliente": "A",
+        "note": "must not be exposed",
+    }]
     before = deepcopy(rows)
     connection = FakeConnection(rows)
+    retrieved_at = datetime(2026, 7, 13, 10, 0, tzinfo=timezone.utc)
 
     result = read_customer_demand(
         articolo="12514",
         limit=10,
         connection_factory=lambda: connection,
+        now_factory=lambda: retrieved_at,
     )
 
     assert rows == before
@@ -89,26 +90,23 @@ def test_reader_uses_one_parameterized_select_and_does_not_mutate():
     )
     assert params == ("12514", 10)
     assert set(result["records"][0]) == {
-        "articolo",
-        "codice_articolo",
-        "quantita",
-        "data_spedizione",
-        "priorita_cliente",
+        "articolo", "codice_articolo", "quantita", "data_spedizione", "priorita_cliente"
     }
     assert result["source_status"] == "SOURCE_FOUND"
     assert result["semantic_status"] == "DA_VERIFICARE"
+    assert result["confidence"] == "DA_VERIFICARE"
     assert result["freshness"] == "UNKNOWN"
-    assert result["runtime_binding"] == "UNBOUND"
+    assert result["runtime_binding"] == "TL_CHAT_READ_ONLY"
+    assert result["structural_origin"] == "customer_demand"
+    assert result["retrieved_at"] == "2026-07-13T10:00:00+00:00"
 
 
 def test_reader_returns_source_found_with_empty_records_for_missing_record():
     connection = FakeConnection([])
-
     result = read_customer_demand(
         codice_articolo="MISSING",
         connection_factory=lambda: connection,
     )
-
     assert result["source_status"] == "SOURCE_FOUND"
     assert result["records"] == []
     assert result["missing_data"] == ["record_customer_demand_not_found"]
@@ -117,13 +115,8 @@ def test_reader_returns_source_found_with_empty_records_for_missing_record():
 
 @pytest.mark.parametrize(
     "kwargs",
-    [
-        {},
-        {"articolo": "A", "codice_articolo": "B"},
-        {"articolo": ""},
-        {"articolo": "A", "limit": 0},
-        {"articolo": "A", "limit": 101},
-    ],
+    [{}, {"articolo": "A", "codice_articolo": "B"}, {"articolo": ""},
+     {"articolo": "A", "limit": 0}, {"articolo": "A", "limit": 101}],
 )
 def test_reader_rejects_invalid_lookup_before_opening_connection(kwargs):
     opened = False
