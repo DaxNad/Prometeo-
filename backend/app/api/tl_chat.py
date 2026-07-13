@@ -91,6 +91,10 @@ class TLChatResponse(BaseModel):
     source_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
+    conflicts: list[dict[str, Any]] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
 
 
 def _runtime_evidence_item(
@@ -674,6 +678,203 @@ def _format_operational_answer(
         parts.append(_sentence(f"Conferma: {confirmation}"))
 
     return " ".join(parts)
+
+
+def _normalized_article_identity_from_local_specs(
+    metadata: dict[str, Any],
+) -> dict[str, str]:
+    normalized: dict[str, str] = {}
+
+    values = {
+        "codice": metadata.get("codice") or metadata.get("code"),
+        "disegno": metadata.get("drawing") or metadata.get("disegno"),
+        "rev": metadata.get("rev") or metadata.get("revision"),
+    }
+
+    for field_name, raw_value in values.items():
+        value = _clean(raw_value)
+        if value:
+            normalized[field_name] = value
+
+    return normalized
+
+
+def _normalized_article_identity_from_spec_preview(
+    payload: dict[str, Any],
+) -> dict[str, str]:
+    article_payload = (
+        payload.get("article")
+        if isinstance(payload.get("article"), dict)
+        else {}
+    )
+
+    normalized: dict[str, str] = {}
+    values = {
+        "codice": article_payload.get("codice") or article_payload.get("code"),
+        "disegno": article_payload.get("disegno") or article_payload.get("drawing"),
+        "rev": article_payload.get("rev") or article_payload.get("revision"),
+    }
+
+    for field_name, raw_value in values.items():
+        value = _clean(raw_value)
+        if value:
+            normalized[field_name] = value
+
+    return normalized
+
+
+def _response_from_multisource_article_conflict(
+    *,
+    article: str,
+    local_specs_metadata: dict[str, Any] | None,
+    spec_intake_preview: dict[str, Any] | None,
+) -> TLChatResponse | None:
+    if not isinstance(local_specs_metadata, dict):
+        return None
+    if not isinstance(spec_intake_preview, dict):
+        return None
+
+    local_payload = _normalized_article_identity_from_local_specs(
+        local_specs_metadata
+    )
+    preview_payload = _normalized_article_identity_from_spec_preview(
+        spec_intake_preview
+    )
+
+    overlapping_fields = sorted(set(local_payload) & set(preview_payload))
+    if not overlapping_fields:
+        return None
+
+    local_comparable = {
+        field_name: local_payload[field_name]
+        for field_name in overlapping_fields
+    }
+    preview_comparable = {
+        field_name: preview_payload[field_name]
+        for field_name in overlapping_fields
+    }
+
+    local_confidence = _resolve_tl_chat_confidence(
+        local_specs_metadata.get("confidence")
+        or local_specs_metadata.get("classification")
+        or "DA_VERIFICARE"
+    )
+    local_source_status = (
+        _clean(local_specs_metadata.get("route_status")).upper()
+        or "SOURCE_FOUND"
+    )
+
+    preview_confidence = _resolve_tl_chat_confidence(
+        spec_intake_preview.get("confidence")
+        or "DA_VERIFICARE"
+    )
+    preview_source_status = (
+        _clean(spec_intake_preview.get("status")).upper()
+        or "PREVIEW_ONLY"
+    )
+
+    resolved_context = resolve_tl_chat_context(
+        article=article,
+        candidates=[
+            TLChatContextCandidate(
+                source_name="local_specs_metadata",
+                source_status=local_source_status,
+                confidence=local_confidence,
+                planner_eligible=bool(
+                    local_specs_metadata.get("planner_eligible")
+                ),
+                requires_tl_confirmation=(
+                    local_source_status != "CERTO"
+                    or local_confidence != "CERTO"
+                ),
+                payload=local_comparable,
+            ),
+            TLChatContextCandidate(
+                source_name="spec_intake_preview",
+                source_status=preview_source_status,
+                confidence=preview_confidence,
+                planner_eligible=False,
+                requires_tl_confirmation=True,
+                payload=preview_comparable,
+            ),
+        ],
+    )
+
+    if not resolved_context.conflicts:
+        return None
+
+    conflicts = [
+        {
+            "field_name": conflict.field_name,
+            "sources": list(conflict.sources),
+            "values": [
+                {
+                    "source": source_name,
+                    "value": raw_value,
+                }
+                for source_name, raw_value in conflict.values
+            ],
+        }
+        for conflict in resolved_context.conflicts
+    ]
+
+    conflicting_fields = [
+        conflict["field_name"]
+        for conflict in conflicts
+    ]
+    missing_data = [
+        field_name
+        for field_name in ("codice", "disegno", "rev")
+        if field_name not in local_payload
+        and field_name not in preview_payload
+    ]
+
+    answer_lines = [
+        f"Articolo {article}: conflitto tra fonti autorizzate.",
+        "Campi conflittuali: " + ", ".join(conflicting_fields) + ".",
+        (
+            "Fonti coinvolte: "
+            + ", ".join(
+                sorted(
+                    {
+                        source_name
+                        for conflict in conflicts
+                        for source_name in conflict["sources"]
+                    }
+                )
+            )
+            + "."
+        ),
+        "Nessun valore è stato riconciliato o promosso automaticamente.",
+        "Conferma del responsabile di produzione richiesta.",
+    ]
+
+    response = TLChatResponse(
+        ok=True,
+        answer=" ".join(answer_lines),
+        confidence="DA_VERIFICARE",
+        risk=(
+            "Le fonti autorizzate riportano valori operativi discordanti; "
+            "non usare la risposta per pianificazione automatica."
+        ),
+        recommended_action=(
+            "Verificare i valori conflittuali con il responsabile di "
+            "produzione e con la specifica autorevole."
+        ),
+        requires_confirmation=True,
+        technical_details_hidden=True,
+        source=resolved_context.selected_source,
+        source_status=resolved_context.source_status,
+        semantic_status=resolved_context.confidence,
+        missing_data=missing_data,
+        conflicts=conflicts,
+    )
+
+    return _with_runtime_evidence(
+        response,
+        _local_specs_metadata_evidence(article, local_confidence),
+        _spec_intake_preview_runtime_evidence(article),
+    )
 
 
 def _response_from_local_specs_metadata(article: str, metadata: dict[str, Any]) -> TLChatResponse:
@@ -2785,6 +2986,21 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
 
     if article:
         local_specs_metadata = _load_local_specs_metadata(article)
+        spec_intake_preview_for_conflict = (
+            _load_spec_intake_preview(article)
+            if local_specs_metadata
+            else None
+        )
+        multisource_conflict_response = (
+            _response_from_multisource_article_conflict(
+                article=article,
+                local_specs_metadata=local_specs_metadata,
+                spec_intake_preview=spec_intake_preview_for_conflict,
+            )
+        )
+        if multisource_conflict_response is not None:
+            return multisource_conflict_response
+
         if local_specs_metadata:
 
             if _question_asks_why(question):
