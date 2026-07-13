@@ -52,6 +52,29 @@ UNCERTAIN_SOURCE_STATUSES = frozenset(
     }
 )
 
+NON_OPERATIONAL_PAYLOAD_FIELDS = frozenset(
+    {
+        "source",
+        "source_id",
+        "source_name",
+        "source_type",
+        "source_status",
+        "confidence",
+        "semantic_status",
+        "authority_rank",
+        "reason",
+        "authorization_reason",
+        "retrieved_at",
+        "structural_origin",
+        "runtime_binding",
+        "planner_eligible",
+        "requires_tl_confirmation",
+        "can_promote",
+        "missing_data",
+        "error_type",
+    }
+)
+
 
 @dataclass(frozen=True)
 class TLChatContextCandidate:
@@ -61,6 +84,13 @@ class TLChatContextCandidate:
     payload: dict[str, Any]
     planner_eligible: bool = False
     requires_tl_confirmation: bool = True
+
+
+@dataclass(frozen=True)
+class TLChatContextConflict:
+    field_name: str
+    sources: tuple[str, ...]
+    values: tuple[tuple[str, Any], ...]
 
 
 @dataclass(frozen=True)
@@ -74,6 +104,7 @@ class TLChatResolvedContext:
     can_promote: bool
     reason: str
     payload: dict[str, Any]
+    conflicts: tuple[TLChatContextConflict, ...] = ()
 
 
 def _normalize_article(value: str | None) -> str:
@@ -106,6 +137,58 @@ def _is_preview_or_uncertain(candidate: TLChatContextCandidate) -> bool:
     )
 
 
+def _canonicalize_value(value: Any) -> Any:
+    if isinstance(value, str):
+        return value.strip().upper()
+    if isinstance(value, dict):
+        return tuple(
+            (str(key), _canonicalize_value(item))
+            for key, item in sorted(value.items(), key=lambda pair: str(pair[0]))
+        )
+    if isinstance(value, (list, tuple)):
+        return tuple(_canonicalize_value(item) for item in value)
+    if isinstance(value, set):
+        return tuple(sorted((_canonicalize_value(item) for item in value), key=repr))
+    return value
+
+
+def _detect_conflicts(
+    candidates: list[TLChatContextCandidate],
+) -> tuple[TLChatContextConflict, ...]:
+    ordered_candidates = sorted(candidates, key=lambda item: (_priority(item), item.source_name))
+    field_values: dict[str, list[tuple[str, Any, Any]]] = {}
+
+    for candidate in ordered_candidates:
+        for field_name, raw_value in candidate.payload.items():
+            normalized_field = str(field_name).strip()
+            if not normalized_field or normalized_field in NON_OPERATIONAL_PAYLOAD_FIELDS:
+                continue
+            field_values.setdefault(normalized_field, []).append(
+                (
+                    candidate.source_name,
+                    raw_value,
+                    _canonicalize_value(raw_value),
+                )
+            )
+
+    conflicts: list[TLChatContextConflict] = []
+    for field_name in sorted(field_values):
+        values = field_values[field_name]
+        if len(values) < 2:
+            continue
+        if len({repr(canonical_value) for _, _, canonical_value in values}) < 2:
+            continue
+        conflicts.append(
+            TLChatContextConflict(
+                field_name=field_name,
+                sources=tuple(dict.fromkeys(source_name for source_name, _, _ in values)),
+                values=tuple((source_name, raw_value) for source_name, raw_value, _ in values),
+            )
+        )
+
+    return tuple(conflicts)
+
+
 def resolve_tl_chat_context(
     *,
     article: str,
@@ -116,11 +199,12 @@ def resolve_tl_chat_context(
 
     Contract:
     - orders already-authorized source candidates
+    - compares overlapping operational fields without reconciling conflicts
     - does not read files
     - does not write files
     - does not call LLMs
     - does not call planner, SMF, DB, ATLAS Engine or frontend
-    - never promotes uncertain or preview sources to CERTO
+    - never promotes uncertain, preview or conflicting sources to CERTO
     """
     safe_article = _normalize_article(article)
 
@@ -144,6 +228,22 @@ def resolve_tl_chat_context(
         )
 
     selected = sorted(valid_candidates, key=_priority)[0]
+    conflicts = _detect_conflicts(valid_candidates)
+
+    if conflicts:
+        conflicting_fields = ", ".join(conflict.field_name for conflict in conflicts)
+        return TLChatResolvedContext(
+            article=safe_article,
+            selected_source=selected.source_name,
+            source_status="SOURCE_AMBIGUOUS",
+            confidence="DA_VERIFICARE",
+            planner_eligible=False,
+            requires_tl_confirmation=True,
+            can_promote=False,
+            reason=f"conflitto tra fonti autorizzate sui campi: {conflicting_fields}",
+            payload=dict(selected.payload),
+            conflicts=conflicts,
+        )
 
     source_status = _normalize_source_status(selected.source_status)
     confidence = _normalize_text(selected.confidence, "DA_VERIFICARE")
