@@ -4,7 +4,7 @@ from copy import deepcopy
 
 import pytest
 
-from backend.app.services.customer_demand_readonly_reader import (
+from app.services.customer_demand_readonly_reader import (
     CustomerDemandReaderInputError,
     read_customer_demand,
 )
@@ -83,7 +83,10 @@ def test_reader_uses_one_parameterized_select_and_does_not_mutate():
     normalized = " ".join(statement.upper().split())
     assert normalized.startswith("SELECT ")
     assert " FROM CUSTOMER_DEMAND " in normalized
-    assert all(keyword not in normalized for keyword in ("INSERT", "UPDATE", "DELETE", "REPLACE", "DROP", "ALTER", "CREATE"))
+    assert all(
+        keyword not in normalized
+        for keyword in ("INSERT", "UPDATE", "DELETE", "REPLACE", "DROP", "ALTER", "CREATE")
+    )
     assert params == ("12514", 10)
     assert set(result["records"][0]) == {
         "articolo",
