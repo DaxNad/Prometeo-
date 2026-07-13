@@ -1,0 +1,84 @@
+schema: PROMETEO_MODEL_ROUTING_001
+status: active
+purpose: Stable role routing for governed PROMETEO work. Roles do not grant permissions.
+invariants:
+  - Repository and canonical contracts override conversation memory.
+  - Roles are replaceable and non-authoritative.
+  - No role may expand scope, activate runtime, merge, or expose sensitive data without explicit authorization.
+  - Each task ends with one NEXT_MOVE.
+roles:
+  luna:
+    primary_function: Observe existing runtime, repository state, interfaces, and evidence.
+    allowed_outputs:
+      - observations
+      - source map
+      - unknowns
+    forbidden:
+      - material decisions
+      - unverified implementation
+  gpt_5_5:
+    primary_function: Verify observations, contracts, regressions, and test coverage.
+    allowed_outputs:
+      - review findings
+      - test gaps
+      - risk classification
+    forbidden:
+      - domain authority
+      - scope expansion
+  terra:
+    primary_function: Define bounded implementation scope and implement only after authorization.
+    allowed_outputs:
+      - minimal patch
+      - tests
+      - acceptance evidence
+    forbidden:
+      - implicit runtime activation
+      - new architecture without need
+  sol:
+    primary_function: Resolve material ambiguity or choose among consequential alternatives.
+    allowed_outputs:
+      - decision proposal
+      - trade-off analysis
+      - explicit rationale
+    forbidden:
+      - routine coding by default
+      - autonomous authorization
+  gpt_5_6:
+    primary_function: Coordinate evidence packages, handoffs, red-team review, and closure.
+    allowed_outputs:
+      - task packet
+      - review verdict
+      - single NEXT_MOVE
+    forbidden:
+      - invented facts
+      - permission inheritance between phases
+routing_rules:
+  - condition: Need factual repository/runtime observation
+    route_to:
+      - luna
+      - gpt_5_5
+  - condition: Need bounded implementation after explicit authorization
+    route_to:
+      - terra
+      - gpt_5_6
+  - condition: Need a material decision with meaningful trade-offs
+    route_to:
+      - sol
+      - gpt_5_6
+  - condition: Need final review, merge readiness, or deterministic closure
+    route_to:
+      - gpt_5_6
+      - gpt_5_5
+handoff_contract:
+  required:
+    - observed_facts
+    - sources
+    - unknowns
+    - scope
+    - acceptance_criteria
+    - stop_condition
+  prohibited:
+    - entire_chat_dump
+    - unstated_assumptions
+    - implicit_permissions
+    - stale_current_state
