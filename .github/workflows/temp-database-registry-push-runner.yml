@@ -7,6 +7,8 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   run:
@@ -47,7 +49,24 @@ jobs:
           python /tmp/pathless_registry_patch.py
 
       - name: Run full repository guards
-        run: bash backend/scripts/run_guards.sh
+        shell: bash
+        run: |
+          set +e
+          bash backend/scripts/run_guards.sh 2>&1 | tee /tmp/pathless-registry-guards.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            {
+              echo 'PATHLESS_REGISTRY_GUARD_FAILURE'
+              echo
+              echo '```text'
+              tail -n 220 /tmp/pathless-registry-guards.log
+              echo '```'
+            } > /tmp/pathless-registry-comment.md
+            gh pr comment 487 --body-file /tmp/pathless-registry-comment.md
+          fi
+          exit "$status"
+        env:
+          GH_TOKEN: ${{ github.token }}
 
       - name: Commit clean final diff
         run: |
