@@ -5,7 +5,7 @@ Lifecycle: `CANONICAL`
 Fonte semantica: `docs/PROMETEO_MASTER.md`.
 
 Verificato contro il `main` usato come base della modifica documentale il
-2026-07-12. Lo stato va riconfermato tramite codice e test a ogni aggiornamento,
+2026-07-13. Lo stato va riconfermato tramite codice e test a ogni aggiornamento,
 senza affidarsi a uno SHA incorporato nel documento.
 
 ## Stato sintetico
@@ -38,6 +38,14 @@ Non è ancora un prodotto SaaS/MES completo.
   e degli errori di trasporto senza dichiarare persistenza inesistente;
 - `VERTICAL_SLICE_001` della capability
   `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
+- `VERTICAL_SLICE_002` della capability
+  `TL_CHAT_UNIFIED_DATA_ACCESS_001`: `CLOSED` / `TESTED` / `MERGED`;
+- customer-demand registry registrato metadata-only con grant runtime separato,
+  read-only e deny-by-default;
+- reader customer-demand, binding Context Resolver e risposta TL Chat limitata
+  ai cinque campi autorizzati;
+- percorso deny verificato senza invocazione reader, connessione database o
+  scrittura;
 - target `make setup`, `make run` e `make doctor` presenti.
 
 ## Parziale
@@ -54,32 +62,38 @@ Non è ancora un prodotto SaaS/MES completo.
 ## Capability attiva
 
 - `ACTIVE_CAPABILITY`: `TL_CHAT_UNIFIED_DATA_ACCESS_001`;
-- `STATUS`: `AUTHORIZED`;
-- `MODE`: `READ_ONLY_FIRST`;
-- stato slice: `VERTICAL_SLICE_001` chiusa, testata e mergiata; la capability
-  non e' interamente chiusa;
-- fase corrente documentale e read-only-first: questa autorizzazione non apre
-  automaticamente nuove modifiche runtime;
-- prima iterazione ammessa:
-  - dati articolo;
-  - componenti e operazioni;
-  - ordini e date di spedizione;
+- `STATUS`: `ACTIVE` / `READ_ONLY_FIRST`;
+- stato slice:
+  - `VERTICAL_SLICE_001`: chiusa, testata e mergiata;
+  - `VERTICAL_SLICE_002`: chiusa, testata e mergiata;
+  - la capability non è interamente chiusa;
 - scope consegnato da `VERTICAL_SLICE_001`:
   - risposta TL Chat su articolo;
   - risposta TL Chat su componenti e operazioni;
   - mantenimento di `source`, `status` e `confidence`;
-- scope escluso da `VERTICAL_SLICE_001`:
-  - ordini e date di spedizione;
-  - `SMFAdapter`;
-  - DB;
+- scope consegnato da `VERTICAL_SLICE_002`:
+  - intent ordini e date di spedizione;
+  - source `customer_demand_registry`;
+  - autorizzazione runtime separata dall'indice metadata-only;
+  - reader e binding read-only;
+  - risposta TL Chat su `articolo`, `codice_articolo`, `quantita`,
+    `data_spedizione`, `priorita_cliente`;
+  - `data_spedizione` resa come data richiesta dal cliente e non come promessa,
+    deadline interna o decisione di piano;
+  - `DA_VERIFICARE`, conferma TL richiesta, planner e promozione automatica
+    disabilitati;
+- scope escluso dalle slice chiuse:
+  - `SMFAdapter` activation;
+  - database mutation;
   - planner;
   - agent runtime;
-  - UI;
-  - OCR;
+  - nuova UI;
+  - nuovo OCR;
   - cloud;
+  - campi customer-demand aggiuntivi;
 - prossima slice: non autorizzata; serve una nuova decisione umana per aprire
-  `VERTICAL_SLICE_002` o altro perimetro;
-- nessuna nuova capability e' autorizzata automaticamente da questa chiusura;
+  `VERTICAL_SLICE_003` o altro perimetro;
+- nessuna nuova capability è autorizzata automaticamente da questa chiusura;
 - vincoli:
   - read-only;
   - solo fonti autorizzate;
@@ -88,7 +102,7 @@ Non è ancora un prodotto SaaS/MES completo.
   - nessuna promozione automatica a `CERTO`;
   - nessuna decisione autonoma di pianificazione;
   - nessuna nuova UI;
-  - nessun OCR;
+  - nessun nuovo OCR;
   - nessun agente autonomo;
   - nessun cloud per dati industriali.
 
@@ -101,6 +115,8 @@ Non è ancora un prodotto SaaS/MES completo.
 
 ## Chiusura slice documentale
 
+### VERTICAL_SLICE_001
+
 `VERTICAL_SLICE_001` registra la chiusura documentale della parte consegnata
 della capability `TL_CHAT_UNIFIED_DATA_ACCESS_001`.
 
@@ -110,25 +126,40 @@ della capability `TL_CHAT_UNIFIED_DATA_ACCESS_001`.
 - `TEST_EVIDENCE`: `85 passed` con `TMPDIR=/tmp/prometeo_pytest_tmp`;
 - `RUNTIME_CHANGED`: `backend/app/api/tl_chat.py`;
 - `TESTS_CHANGED`: `backend/tests/test_tl_chat_unified_data_access.py`;
-- `DOCS_CHANGED` nella PR:
-  - `docs/CURRENT_STATE.md`;
-  - `docs/DOCUMENTATION_CATALOG.md`;
-  - `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_001.md`;
 - scope consegnato: articolo + componenti/operazioni con `source`, `status`
   e `confidence`;
-- scope escluso: ordini/date spedizione, `SMFAdapter`, DB, planner, agent
-  runtime, UI, OCR, cloud;
-- `CAPABILITY_STATUS`: `TL_CHAT_UNIFIED_DATA_ACCESS_001` resta `ACTIVE` /
-  `AUTHORIZED` / `READ_ONLY_FIRST` per slice successive, salvo diversa
-  decisione canonica;
 - anti-scope-creep:
-  - nessuna nuova capability aperta;
-  - nessuna patch runtime in questa chiusura documentale;
-  - nessun test modificato in questa chiusura documentale;
-  - nessuna estensione a ordini/date;
   - nessuna promozione automatica a `CERTO`;
   - nessuna decisione autonoma di planning;
   - nessuna chiusura totale della capability.
+
+### VERTICAL_SLICE_002
+
+`VERTICAL_SLICE_002` registra la chiusura della parte customer-demand read-only.
+
+- `SLICE_STATUS`: `CLOSED` / `TESTED` / `MERGED`;
+- catena di consegna: PR `#478`–`#489`;
+- chiusura governance/runtime: PR `#489`;
+- `MERGE_SHA`: `f5c39c3a0f317861cc0c32697a11f1044472096a`;
+- `SOURCE_ID`: `customer_demand_registry`;
+- `RUNTIME_BINDING`: `TL_CHAT_READ_ONLY`;
+- `DEFAULT_POLICY`: `DENY`;
+- `DATABASE_WRITE`: `NONE`;
+- `PLANNER_ELIGIBLE`: `false`;
+- `AUTOMATIC_PROMOTION`: `false`;
+- percorso autorizzato: verificato;
+- percorso deny: verificato;
+- reader invocato su deny: no;
+- database connection su deny: no;
+- documenti di evidenza:
+  - `docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002.md`;
+  - `docs/capabilities/CUSTOMER_DEMAND_GOVERNANCE_RUNTIME_ALIGNMENT_001.md`;
+- anti-scope-creep:
+  - nessun importer o SMF;
+  - nessun planner o board state;
+  - nessuna attivazione di altre fonti;
+  - nessun accesso tramite generic filesystem reader;
+  - nessuna nuova slice autorizzata.
 
 ## Prove correnti
 
@@ -137,6 +168,9 @@ CI; non sono risultati delle raccolte `collect-only` riportate più sotto:
 
 - `VERTICAL_SLICE_001` / PR #474: 85 test PASS con
   `TMPDIR=/tmp/prometeo_pytest_tmp`;
+- `VERTICAL_SLICE_002` / PR #489: test dedicati e sei workflow repository PASS;
+- verifica post-merge slice 002: authorized path PASS, deny path PASS, reader
+  non chiamato su deny, nessuna scrittura;
 - `make goal-complete-v1`: PASS;
 - TL Chat contract: 67 test PASS;
 - TL semantic eval: PASS;
@@ -210,5 +244,10 @@ attribuire a un guard un conteggio che include suite esterne al suo perimetro,
 usare `PASS` per una raccolta `collect-only` o presentare un totale aggregato
 senza identificarlo esplicitamente come aggregazione.
 
-Questa pagina descrive stato e gap. Non autorizza modifiche operative né
-sostituisce specifica reale, conferma umana o contratti di capability.
+## Prossima autorizzazione
+
+`NONE`.
+
+Questa pagina descrive stato e gap. Non autorizza modifiche operative, una slice
+successiva, una nuova fonte o una nuova capability e non sostituisce specifica
+reale, conferma umana o contratti di capability.
