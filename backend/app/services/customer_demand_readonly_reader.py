@@ -62,7 +62,7 @@ def read_customer_demand(
     return {
         "source_id": SOURCE_ID,
         "source_status": "SOURCE_FOUND",
-        "runtime_binding": "RESOLVER_ONLY",
+        "runtime_binding": "UNBOUND",
         "lookup": {"field": field, "value": value, "limit": limit},
         "records": records,
         "freshness": "UNKNOWN",
