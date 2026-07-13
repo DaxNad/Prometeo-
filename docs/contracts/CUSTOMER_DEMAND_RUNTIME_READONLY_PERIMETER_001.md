@@ -209,7 +209,7 @@ Il comportamento dovrà rispettare almeno i seguenti stati:
 | Source ID non registrato | `SOURCE_MISSING` | `MISSING_DATA` |
 | Source ID autorizzato ma reader/runtime disabilitato | `SOURCE_AUTHORIZED_BUT_UNAVAILABLE` | `MISSING_DATA` con indisponibilità dichiarata |
 | Connessione autorizzata non disponibile | `SOURCE_AUTHORIZED_BUT_UNAVAILABLE` | Nessun fallback |
-| Lookup valido senza record | `SOURCE_MISSING` oppure stato normalizzato equivalente già governato | `MISSING_DATA` |
+| Lookup valido senza record | `SOURCE_FOUND` (o stato canonico equivalente di fonte disponibile) con `records: []` e `missing_data: record_customer_demand_not_found` | `MISSING_DATA` |
 | Risultati incoerenti per identificativi forniti | `SOURCE_AMBIGUOUS` | Nessun record scelto automaticamente |
 | Dato presente con freshness sconosciuta | stato di fonte disponibile + `semantic_status: DA_VERIFICARE` | Dato con limite esplicito |
 | Richiesta fuori semantica o fuori campi autorizzati | stato di stop governato | `MISSING_DATA` per il dato richiesto |
