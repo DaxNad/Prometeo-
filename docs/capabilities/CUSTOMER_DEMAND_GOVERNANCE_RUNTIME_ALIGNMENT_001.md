@@ -12,7 +12,7 @@
 
 ## Contratto consolidato
 
-Il registro `memory/context_source_index.json` resta l'indice strutturale delle fonti. La voce `customer_demand_registry` è allineata al binding read-only reale e dichiara `runtime_enabled: true` esclusivamente per il binding dedicato.
+`memory/context_source_index.json` resta integralmente metadata-only. La voce `customer_demand_registry` mantiene `runtime_enabled: false` e descrive soltanto registrazione, origine, campi e policy semantica.
 
 L'autorizzazione eseguibile è separata in:
 
@@ -20,11 +20,11 @@ L'autorizzazione eseguibile è separata in:
 memory/context_source_runtime_authorizations.json
 ```
 
-La separazione impedisce che l'attivazione della singola fonte renda runtime l'intero indice documentale. La policy predefinita è `deny`.
+Questa separazione impedisce che una fonte dedicata renda runtime l'indice documentale o il generic filesystem reader. Il grant ha policy predefinita `deny` e abilita esclusivamente `tl_chat_readonly_runtime`.
 
 Prima di aprire una connessione, `authorize_customer_demand_runtime` verifica congiuntamente:
 
-- schema e unicità della registrazione;
+- schema e unicità della registrazione metadata-only;
 - `kind: database_registry`;
 - `access_mode: read_only`;
 - origine strutturale `customer_demand`;
@@ -64,7 +64,7 @@ Il reader restituisce:
 
 - autorizzazione verificata prima della query;
 - reader non invocato in caso di deny;
-- source index e grant runtime coerenti;
+- source index metadata-only e grant runtime coerenti;
 - provenienza completa e deterministica;
 - confidence canonica unica;
 - test dedicati e guard repository verdi.
