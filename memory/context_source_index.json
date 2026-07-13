@@ -360,11 +360,12 @@
       "kind": "database_registry",
       "tier": "B",
       "authority": "derived_customer_demand_copy",
-      "role": "Governed read-only customer-demand registry authorized only for the dedicated TL Chat binding.",
+      "role": "Metadata-only registration for the read-only customer-demand registry; executable authorization is held in context_source_runtime_authorizations.json.",
       "access_mode": "read_only",
-      "runtime_enabled": true,
+      "runtime_enabled": false,
       "allowed_for": [
-        "tl_chat_readonly_runtime"
+        "runtime_authorization_registry",
+        "tl_chat_context_policy"
       ],
       "exists": true,
       "source_id": "customer_demand_registry",
@@ -400,8 +401,8 @@
         "confidence",
         "missing_data"
       ],
-      "expected_source_status": "SOURCE_FOUND_OR_AUTHORIZED_BUT_UNAVAILABLE",
-      "summary": "Registry domanda cliente attivo esclusivamente tramite gate deterministico TL Chat read-only; nessuna scrittura o decisione automatica."
+      "expected_source_status": "REGISTERED_METADATA_ONLY",
+      "summary": "Registrazione strutturale metadata-only; il binding TL Chat è autorizzato separatamente da un grant deny-by-default e verificato prima della query."
     }
   ]
 }
