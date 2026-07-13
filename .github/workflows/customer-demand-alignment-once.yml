@@ -1,0 +1,50 @@
+name: Customer Demand Alignment Once
+
+on:
+  push:
+    branches:
+      - feat/customer-demand-governance-runtime-alignment-001
+
+permissions:
+  contents: write
+
+jobs:
+  align:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Align source index deterministically
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path('memory/context_source_index.json')
+          payload = json.loads(path.read_text(encoding='utf-8'))
+          matches = [s for s in payload['sources'] if s.get('id') == 'customer_demand_registry']
+          if len(matches) != 1:
+              raise SystemExit('customer_demand_registry must be unique')
+          source = matches[0]
+          source.update({
+              'role': 'Governed read-only customer-demand registry authorized only for the dedicated TL Chat binding.',
+              'runtime_enabled': True,
+              'allowed_for': ['tl_chat_readonly_runtime'],
+              'expected_source_status': 'SOURCE_FOUND_OR_AUTHORIZED_BUT_UNAVAILABLE',
+              'summary': 'Registry domanda cliente attivo esclusivamente tramite gate deterministico TL Chat read-only; nessuna scrittura o decisione automatica.',
+          })
+          path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          PY
+          rm .github/workflows/customer-demand-alignment-once.yml
+      - name: Commit aligned index
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add memory/context_source_index.json .github/workflows/customer-demand-alignment-once.yml
+          git commit -m "docs(context): align customer demand runtime governance"
+          git push
