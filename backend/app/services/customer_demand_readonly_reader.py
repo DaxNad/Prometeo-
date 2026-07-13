@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from typing import Any
 
 from app.db import get_connection
 
 SOURCE_ID = "customer_demand_registry"
+STRUCTURAL_ORIGIN = "customer_demand"
+RUNTIME_BINDING = "TL_CHAT_READ_ONLY"
 ALLOWED_FIELDS = (
     "articolo",
     "codice_articolo",
@@ -39,6 +41,7 @@ def read_customer_demand(
     codice_articolo: str | None = None,
     limit: int = 50,
     connection_factory: Callable[[], Any] = get_connection,
+    now_factory: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
 ) -> dict[str, Any]:
     field, value = _validate(articolo, codice_articolo, limit)
     connection = connection_factory()
@@ -59,15 +62,21 @@ def read_customer_demand(
         if callable(getattr(connection, "close", None)):
             connection.close()
 
+    retrieved_at = now_factory()
+    if retrieved_at.tzinfo is None:
+        retrieved_at = retrieved_at.replace(tzinfo=timezone.utc)
+
     return {
         "source_id": SOURCE_ID,
+        "structural_origin": STRUCTURAL_ORIGIN,
+        "retrieved_at": retrieved_at.astimezone(timezone.utc).isoformat(),
         "source_status": "SOURCE_FOUND",
-        "runtime_binding": "UNBOUND",
+        "runtime_binding": RUNTIME_BINDING,
         "lookup": {"field": field, "value": value, "limit": limit},
         "records": records,
         "freshness": "UNKNOWN",
         "semantic_status": "DA_VERIFICARE",
-        "confidence": "LOW_UNTIL_FRESHNESS_VERIFIED",
+        "confidence": "DA_VERIFICARE",
         "missing_data": [] if records else ["record_customer_demand_not_found"],
     }
 

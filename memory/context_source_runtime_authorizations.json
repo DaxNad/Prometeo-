@@ -1,0 +1,23 @@
+{
+  "schema": "PROMETEO_CONTEXT_SOURCE_RUNTIME_AUTHORIZATIONS_001",
+  "default_policy": "deny",
+  "authorizations": [
+    {
+      "source_id": "customer_demand_registry",
+      "binding": "tl_chat_readonly_runtime",
+      "enabled": true,
+      "access_mode": "read_only",
+      "structural_origin": "customer_demand",
+      "allowed_fields": [
+        "articolo",
+        "codice_articolo",
+        "quantita",
+        "data_spedizione",
+        "priorita_cliente"
+      ],
+      "planner_eligible": false,
+      "automatic_promotion": false,
+      "requires_tl_confirmation": true
+    }
+  ]
+}
