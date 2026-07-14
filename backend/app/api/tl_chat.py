@@ -29,6 +29,9 @@ from app.services.pattern_learning_registry import find_patterns_by_station
 from app.services.customer_demand_context_resolver_binding import (
     resolve_customer_demand_context,
 )
+from app.services.production_program_snapshot_preview import (
+    build_production_program_snapshot_preview,
+)
 from tools.context_source_reader_adapter import ContextSourceReaderAdapter, ContextSourceReaderError
 from tools.tl_chat_context_reader_bridge import (
     _map_reader_error_to_source_status,
@@ -53,6 +56,10 @@ SOURCE_FOUND = "SOURCE_FOUND"
 SOURCE_MISSING = "SOURCE_MISSING"
 SOURCE_INVALID = "SOURCE_INVALID"
 SOURCE_UNREADABLE = "SOURCE_UNREADABLE"
+
+PRODUCTION_PROGRAM_SNAPSHOT_PREVIEW_MARKER = (
+    "PROMETEO_PROGRAM_SNAPSHOT_PREVIEW_V1"
+)
 
 _JSON_LOADER_DIAGNOSTICS: dict[str, str] = {}
 
@@ -91,6 +98,10 @@ class TLChatResponse(BaseModel):
     source_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
+    production_program_snapshot_preview: dict[str, Any] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
     conflicts: list[dict[str, Any]] | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
@@ -3169,6 +3180,184 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
     )
 
 
+def _extract_explicit_production_program_snapshot_body(
+    question: str,
+) -> str | None:
+    """Return the unchanged body only for the exact first-line marker."""
+    first_line, separator, body = str(question or "").partition("\n")
+    if first_line != PRODUCTION_PROGRAM_SNAPSHOT_PREVIEW_MARKER:
+        return None
+    return body if separator else ""
+
+
+def _snapshot_display_value(value: Any) -> str:
+    if value is None or value == "":
+        return "non disponibile"
+    return str(value)
+
+
+def _snapshot_issue_lines(
+    title: str,
+    values: Any,
+) -> list[str]:
+    lines = [title + ":"]
+    if not isinstance(values, list) or not values:
+        lines.append("- Nessuno")
+        return lines
+
+    for item in values:
+        if isinstance(item, dict):
+            ordered_parts = [
+                f"{key}={_snapshot_display_value(value)}"
+                for key, value in item.items()
+            ]
+            lines.append("- " + ", ".join(ordered_parts))
+        else:
+            lines.append("- " + _snapshot_display_value(item))
+    return lines
+
+
+def _render_production_program_snapshot_preview(
+    preview: dict[str, Any],
+) -> str:
+    """Render a deterministic human readback without changing preview data."""
+    orders = preview.get("orders")
+    if not isinstance(orders, list):
+        orders = []
+
+    lines = [
+        "ANTEPRIMA PROGRAMMA PRODUZIONE",
+        "",
+        "Stato: "
+        + _snapshot_display_value(preview.get("semantic_status")),
+        "Periodo: " + _snapshot_display_value(preview.get("period")),
+        f"Ordini rilevati: {len(orders)}",
+        "",
+    ]
+
+    for position, order in enumerate(orders, start=1):
+        if not isinstance(order, dict):
+            continue
+
+        lines.extend(
+            [
+                f"Ordine {position}",
+                "- ordine: "
+                + _snapshot_display_value(order.get("order_id")),
+                "- articolo: "
+                + _snapshot_display_value(order.get("article_code")),
+                "- quantità: "
+                + _snapshot_display_value(order.get("quantity")),
+                "- data richiesta cliente: "
+                + _snapshot_display_value(
+                    order.get("customer_requested_date")
+                ),
+            ]
+        )
+
+        ambiguous = order.get("ambiguous_fields")
+        if isinstance(ambiguous, list) and ambiguous:
+            lines.append("- date/campi ambigui:")
+            for item in ambiguous:
+                if isinstance(item, dict):
+                    label = _snapshot_display_value(
+                        item.get("observed_label") or item.get("field")
+                    )
+                    raw_value = _snapshot_display_value(
+                        item.get("raw_value")
+                    )
+                    lines.append(f"  - {label}: {raw_value}")
+                else:
+                    lines.append(
+                        "  - " + _snapshot_display_value(item)
+                    )
+
+        lines.append("")
+
+    lines.extend(
+        _snapshot_issue_lines(
+            "Campi mancanti",
+            preview.get("missing_fields"),
+        )
+    )
+    lines.append("")
+    lines.extend(
+        _snapshot_issue_lines(
+            "Ambiguità",
+            preview.get("ambiguous_fields"),
+        )
+    )
+    lines.append("")
+    lines.extend(
+        _snapshot_issue_lines(
+            "Discrepanze",
+            preview.get("discrepancies"),
+        )
+    )
+    lines.extend(
+        [
+            "",
+            "Conferma TL richiesta.",
+            "Nessun dato è stato persistito.",
+            (
+                "Nessuna scrittura, pianificazione o attivazione "
+                "del Pattern Learning è stata eseguita."
+            ),
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _response_from_explicit_production_program_snapshot(
+    structured_text: str,
+) -> TLChatResponse:
+    preview = build_production_program_snapshot_preview(structured_text)
+
+    raw_missing = preview.get("missing_fields")
+    missing_data = []
+    if isinstance(raw_missing, list):
+        for item in raw_missing:
+            if isinstance(item, dict):
+                field = item.get("field")
+                record_index = item.get("record_index")
+                if field and record_index is not None:
+                    missing_data.append(
+                        f"record {record_index}: {field}"
+                    )
+                elif field:
+                    missing_data.append(str(field))
+                else:
+                    missing_data.append(str(item))
+            else:
+                missing_data.append(str(item))
+
+    semantic_status = str(
+        preview.get("semantic_status") or "DA_VERIFICARE"
+    )
+    return TLChatResponse(
+        ok=bool(preview.get("ok")),
+        answer=_render_production_program_snapshot_preview(preview),
+        confidence=semantic_status,
+        risk=(
+            "Anteprima non confermata: non usare come piano, promessa "
+            "cliente o dato operativo definitivo."
+        ),
+        recommended_action=(
+            "Revisionare campi mancanti, ambiguità e discrepanze; "
+            "richiedere conferma TL prima di qualunque uso operativo."
+        ),
+        requires_confirmation=True,
+        technical_details_hidden=True,
+        source="production_program_snapshot_preview",
+        source_status=str(
+            preview.get("source_status") or "SOURCE_REJECTED"
+        ),
+        semantic_status=semantic_status,
+        missing_data=missing_data or None,
+        production_program_snapshot_preview=preview,
+    )
+
+
 @public_router.post("/chat", response_model=TLChatResponse)
 @router.post("/chat", response_model=TLChatResponse)
 def tl_chat(payload: TLChatRequest) -> TLChatResponse:
@@ -3182,6 +3371,16 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     - no executor
     - no technical noise in response
     """
+    explicit_snapshot_body = (
+        _extract_explicit_production_program_snapshot_body(
+            payload.question
+        )
+    )
+    if explicit_snapshot_body is not None:
+        return _response_from_explicit_production_program_snapshot(
+            explicit_snapshot_body
+        )
+
     response = _build_contract_response(payload)
     article = _normalize_article(payload.context.article) or _extract_article_from_question(payload.question)
     evidence_pack = build_governed_retrieval_pack(
