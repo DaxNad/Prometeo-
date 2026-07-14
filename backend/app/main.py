@@ -16,6 +16,9 @@ from .api.devos_status import router as devos_status_router
 from .api.events import router as events_router
 from .api.postgres_probe import router as postgres_probe_router
 from .api.production_events import router as production_events_router
+from .api.production_program_image_ocr_acquisition import (
+    router as production_program_image_ocr_acquisition_router,
+)
 from .api.production_program_snapshot import router as production_program_snapshot_router
 from .api.routes.dev_db_init import router as dev_db_init_router
 from .api.state import router as state_router
@@ -77,7 +80,7 @@ def startup_event() -> None:
 
                 PostgresEventsRepository().ensure_schema()
         except Exception as e:
-            # Non blocca l'avvio: gli endpoint gestiranno con fallback
+            # Non blocca l’avvio: gli endpoint gestiranno con fallback
             print(f"EVENTS schema ensure skipped: {e}")
         startup_db_init_ok = True
         startup_db_init_error = None
@@ -186,6 +189,7 @@ app.include_router(ai_router)
 app.include_router(article_specification_acquisition_router)
 app.include_router(article_specification_confirmation_router)
 app.include_router(controlled_import_router)
+app.include_router(production_program_image_ocr_acquisition_router)
 app.include_router(production_program_snapshot_router)
 app.include_router(real_ingest_router)
 app.include_router(tl_router)
