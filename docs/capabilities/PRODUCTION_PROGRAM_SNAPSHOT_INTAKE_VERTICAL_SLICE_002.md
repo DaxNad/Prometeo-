@@ -2,63 +2,59 @@
 
 ## Status
 
-- `STATUS`: `AUTHORIZED`
-- `MODE`: `READ_ONLY / PREVIEW_FIRST`
+- `STATUS`: `CLOSED` / `TESTED` / `MERGED`
+- `MODE`: `READ_ONLY` / `PREVIEW_FIRST`
 - `CAPABILITY`: `PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_001`
 - `SLICE`: `VERTICAL_SLICE_002`
 - `ADAPTER`: `STRUCTURED_TEXT`
 - `DELIVERY`: `DEDICATED_FASTAPI_PREVIEW_ENDPOINT`
-- `RUNTIME_IMPLEMENTATION`: `AUTHORIZED_WITHIN_ALLOWLIST_ONLY`
-- `AUTHORITY`: explicit human decision on 2026-07-14
+- `RUNTIME_IMPLEMENTATION`: `MERGED`
+- `RUNTIME_PR`: `#504`
+- `RUNTIME_MERGE_SHA`: `9bc4ca124cb9faee2b5c1780857e3b776c16037e`
+- `CLOSURE_DATE`: `2026-07-14`
 
-## Purpose
-
-Expose the existing structured-text snapshot service through one dedicated read-only FastAPI endpoint:
+## Delivered vertical flow
 
 ```text
 HTTP POST structured text
 → strict request validation
-→ build_production_program_snapshot_preview(...)
+→ existing build_production_program_snapshot_preview(...)
 → unchanged governed preview response
 → zero side effects
 ```
 
-This slice does not add another adapter and does not authorize persistence, confirmation application, TL Chat, planner or Pattern Learning.
-
-## Preconditions
-
-- `VERTICAL_SLICE_001` is `CLOSED / TESTED / MERGED`.
-- Runtime PR `#501` merged at `4c848c29e6fcd2ca8dba5c6458afa9d7670fe6ca`.
-- Closure PR `#502` merged at `ba61c8605a0444b626d54677a19b37719ac48af8`.
-- Existing service: `backend/app/services/production_program_snapshot_preview.py`.
-- The existing service must remain unchanged.
-
-## Bootstrap preflight
-
-The canonical FastAPI application is assembled in `backend/app/main.py` through explicit router imports and `app.include_router(...)` calls.
-
-A router-only test would not prove canonical availability. Therefore the implementation requires exactly three changed files: router, canonical registration and focused tests.
-
-## Authorized route
+The delivered route is:
 
 ```text
 POST /production-program-snapshot/preview
 ```
 
-The route is preview-only and must not reuse persistence, apply or audit-persistence paths.
+The slice exposes only the structured-text adapter completed in `VERTICAL_SLICE_001`. It does not add another adapter and does not activate persistence, confirmation application, TL Chat, planner or Pattern Learning.
 
-## Request boundary
+## Changed files
 
-The request may contain only:
+The runtime implementation respected the exact three-file allowlist:
+
+```text
+backend/app/api/production_program_snapshot.py
+backend/app/main.py
+backend/tests/test_production_program_snapshot_endpoint.py
+```
+
+`backend/app/main.py` changed only to import the router and register one `app.include_router(...)` call. The existing snapshot service and slice-001 tests were not modified.
+
+## Delivered request boundary
+
+The request model accepts only:
 
 - required `structured_text: str`;
 - optional `source_id: str | None`.
 
-No file path, workbook, bytes, image, upload, database identifier, planner field or confirmation command is accepted. Fixtures must be synthetic or sanitized.
+The model uses `extra="forbid"`. File paths, workbook data, bytes, images, uploads, database identifiers, planner fields, confirmation commands and persistence controls are rejected by request validation.
 
-## Response boundary
+## Delivered response boundary
 
-Return the existing service result without field renaming or semantic reinterpretation. Preserve:
+The endpoint delegates directly to the existing service and returns its result without field renaming or semantic reinterpretation. It preserves:
 
 - snapshot and source identity;
 - source type and status;
@@ -68,93 +64,96 @@ Return the existing service result without field renaming or semantic reinterpre
 - provenance and unmatched content;
 - all no-side-effect flags.
 
-Required invariants:
-
-- `requires_confirmation=true`;
-- `persisted=false`;
-- `writer_called=false`;
-- `planner_called=false`;
-- `pattern_learning_called=false`;
-- automatic promotion to `CERTO` is forbidden.
-
-## Exact implementation allowlist
+## Fixed governance values
 
 ```text
-backend/app/api/production_program_snapshot.py
-backend/app/main.py
-backend/tests/test_production_program_snapshot_endpoint.py
+requires_confirmation=true
+persisted=false
+writer_called=false
+planner_called=false
+pattern_learning_called=false
 ```
 
-No other file may be added or modified.
+Automatic promotion to `CERTO` remains forbidden.
 
-## File boundaries
+## Acceptance evidence
 
-### Router module
+Focused endpoint tests prove:
 
-May contain only a strict request model, one `APIRouter`, one preview route, one call to the existing service and direct return of its result.
+1. valid two-record structured text returns HTTP 200;
+2. article code and quantity are preserved per record;
+3. the existing snapshot response is returned without semantic transformation;
+4. identical input produces deterministic output and identities;
+5. empty input returns governed `BLOCCATO` rather than an unhandled error;
+6. input without the explicit delimiter remains fail-closed;
+7. missing required fields remain declared;
+8. generic dates, including separatorless forms, remain ambiguous and do not populate `customer_requested_date`;
+9. provenance and unmatched content remain available;
+10. `requires_confirmation=true`;
+11. all side-effect flags remain false;
+12. canonical router registration is present in `backend/app/main.py`;
+13. no database, SMF, filesystem, Excel, upload, image, OCR, network, AI, planner, agent or Pattern Learning runtime is invoked;
+14. only the three allowlisted files changed;
+15. the existing service and slice-001 tests remained unchanged;
+16. focused tests and repository guards pass.
 
-It must not import or call database, repository, writer, audit persistence, file, Excel, image, OCR, network, cloud, planner, agent, Pattern Learning, TL Chat or confirmation-mutation components.
+## Review and correction evidence
 
-### `backend/app/main.py`
+The initial runtime head passed five workflows but failed `Guards`. The failure was traced to the endpoint test importing `app.main` at module collection time, which could initialize the canonical application before unrelated tests established their configuration.
 
-May change only to import the new router and register one `app.include_router(...)` call. Startup, database, middleware, authentication, health, UI mounts and existing routers must remain otherwise unchanged.
+The test was corrected within the allowlist by replacing the eager canonical-app import with a deterministic static verification of the required router import and single `app.include_router(...)` registration in `backend/app/main.py`.
 
-### Endpoint tests
+No runtime behavior or production file outside the authorized boundary was changed by this correction.
 
-Must prove isolated endpoint behavior and canonical route registration, using synthetic or sanitized fixtures only.
+## CI evidence
 
-## Acceptance criteria
+On final runtime head `571188fd8f0b4d77859cd3a423d4884b2afaa26e`:
 
-1. Valid two-record structured text returns HTTP 200.
-2. Article code and quantity are preserved per record.
-3. Existing snapshot fields are returned without semantic transformation.
-4. Identical input produces deterministic snapshot and source identity.
-5. Empty input returns governed `BLOCCATO`, not an unhandled error.
-6. Missing delimiter remains fail-closed.
-7. Missing required fields remain declared.
-8. Generic dates, including separatorless forms, remain ambiguous and do not populate `customer_requested_date`.
-9. Provenance and unmatched content remain available.
-10. `requires_confirmation=true`.
-11. All side-effect flags remain `false`.
-12. The route is registered in the canonical FastAPI application.
-13. No database, SMF, filesystem, Excel, upload, image, OCR, network, AI, planner, agent or Pattern Learning runtime is invoked.
-14. Only the three allowlisted files change.
-15. The existing service and slice-001 tests remain unchanged.
-16. Focused tests and repository guards pass.
+- `SMF Backend Tests`: PASS;
+- `Guards`: PASS;
+- `Frontend CI`: PASS;
+- `TL Eval Guard`: PASS;
+- `Privacy Guard`: PASS;
+- `Data Leak Guard`: PASS.
 
-## Scope out
+The runtime was squash-merged through PR `#504` as commit:
 
-Not authorized:
+```text
+9bc4ca124cb9faee2b5c1780857e3b776c16037e
+```
+
+## Residual limitations
+
+This closed slice does not provide:
 
 - TL Chat or UI integration;
 - chat transport;
-- Excel, file upload, screenshot, photograph or OCR;
+- Excel or direct file ingestion;
+- upload handling;
+- screenshot or photograph ingestion;
+- OCR;
+- persistence or audit persistence;
+- TL confirmation persistence or application;
 - SMF or database access;
-- importer, writer, audit persistence or preview persistence;
-- confirmation persistence or application;
-- planner, operator assignment, agent runtime or Pattern Learning;
+- planner, operator assignment, agent runtime or Pattern Learning activation;
 - source registry changes;
 - cloud processing of industrial data;
 - real industrial fixtures;
-- a second adapter;
-- modification of the existing snapshot service.
+- a second adapter.
 
-## Stop conditions
+These are explicit scope boundaries, not defects internal to `VERTICAL_SLICE_002`.
 
-Stop if implementation requires:
+## Closure verdict
 
-- a fourth changed file;
-- changing the existing snapshot service or slice-001 tests;
-- persistence, apply or audit-persistence behavior;
-- file, Excel, image, upload or OCR handling;
-- database, SMF, importer or writer access;
-- planner, agent, Pattern Learning, TL Chat or UI changes;
-- date-semantic collapse;
-- automatic promotion to `CERTO`;
-- real industrial data;
-- another adapter;
-- expansion beyond router, canonical registration and focused tests.
+All acceptance criteria internal to the authorized endpoint, canonical-registration and focused-test boundary are satisfied.
 
-## Closure boundary
+```text
+VERDICT: VERTICAL_SLICE_002_CLOSED
+RUNTIME: IMPLEMENTED / TESTED / MERGED
+ALLOWLIST: RESPECTED
+CANONICAL_ROUTE: REGISTERED
+SIDE_EFFECTS: NONE
+SCOPE_CREEP: NONE
+```
 
-This document authorizes only `VERTICAL_SLICE_002` within the exact three-file allowlist. It does not authorize a subsequent slice, second adapter, confirmation persistence, TL Chat integration, planner usage, Pattern Learning usage or another capability automatically.
+No `VERTICAL_SLICE_003`, subsequent adapter, confirmation persistence, TL Chat integration, planner usage, Pattern Learning usage or another capability is authorized automatically by this closure.
