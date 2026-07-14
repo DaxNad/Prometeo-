@@ -27,6 +27,7 @@ AMBIGUOUS_DATE_LABELS = {
     "due date",
     "data consegna",
 }
+DATE_LABELS = CUSTOMER_REQUESTED_DATE_LABELS | AMBIGUOUS_DATE_LABELS
 
 
 def build_production_program_snapshot_preview(
@@ -225,7 +226,7 @@ def _dates(
 
     for line in block.splitlines():
         normalized = re.sub(r"\s+", " ", line.strip())
-        label, value = _labeled(normalized)
+        label, value = _labeled_date(normalized)
         if label is None:
             continue
         folded = label.casefold()
@@ -251,11 +252,20 @@ def _dates(
     return requested, requested_provenance, ambiguous
 
 
-def _labeled(line: str) -> tuple[str | None, str]:
-    match = re.fullmatch(r"\s*([^:=\-]+?)\s*[:=\-]\s*(.+?)\s*", line)
-    if not match:
-        return None, ""
-    return match.group(1).strip(), match.group(2).strip()
+def _labeled_date(line: str) -> tuple[str | None, str]:
+    separated = re.fullmatch(r"\s*([^:=\-]+?)\s*[:=\-]\s*(.+?)\s*", line)
+    if separated:
+        return separated.group(1).strip(), separated.group(2).strip()
+
+    for label in sorted(DATE_LABELS, key=len, reverse=True):
+        separatorless = re.fullmatch(
+            rf"\s*({re.escape(label)})\s+(.+?)\s*",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if separatorless:
+            return separatorless.group(1).strip(), separatorless.group(2).strip()
+    return None, ""
 
 
 def _quantity(value: Any) -> tuple[int | float | None, str | None]:
