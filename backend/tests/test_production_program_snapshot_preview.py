@@ -81,7 +81,7 @@ QTA: 25
     assert result["orders"][1]["field_statuses"]["article_code"] == "INCOMPLETO"
 
 
-def test_generic_date_is_ambiguous_and_not_promoted_to_customer_requested_date():
+def test_generic_dates_with_and_without_separator_are_ambiguous():
     text = f"""\
 PERIODO: 2026-W30
 ORDINE: SYNTH-001
@@ -92,7 +92,7 @@ DATA: 2026-07-20
 ORDINE: SYNTH-002
 CODICE: ART-200
 QTA: 25
-SCADENZA: 2026-07-22
+CONSEGNA 22/07/2026
 """
 
     result = build_production_program_snapshot_preview(text)
@@ -110,7 +110,15 @@ SCADENZA: 2026-07-22
             "observed_label": "DATA",
         }
     ]
-    assert result["orders"][1]["ambiguous_fields"][0]["observed_label"] == "SCADENZA"
+    assert result["orders"][1]["ambiguous_fields"] == [
+        {
+            "field": "date_meaning",
+            "raw_value": "22/07/2026",
+            "source_line": "CONSEGNA 22/07/2026",
+            "observed_label": "CONSEGNA",
+        }
+    ]
+    assert "CONSEGNA 22/07/2026" not in result["orders"][1]["unmatched_content"]
 
 
 def test_non_separable_and_empty_inputs_fail_closed():
