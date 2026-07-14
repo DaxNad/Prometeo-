@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import inspect
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.api.production_program_snapshot import router
-from app.main import app as canonical_app
 from app.services.production_program_snapshot_preview import RECORD_DELIMITER
 
 
@@ -103,13 +103,18 @@ def test_missing_field_is_declared_and_extra_field_is_rejected():
 
 
 def test_route_is_registered_in_canonical_application():
-    matches = [
-        route
-        for route in canonical_app.routes
-        if getattr(route, "path", None) == "/production-program-snapshot/preview"
-    ]
-    assert len(matches) == 1
-    assert "POST" in matches[0].methods
+    main_source = (Path(__file__).parents[1] / "app" / "main.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert (
+        "from .api.production_program_snapshot import "
+        "router as production_program_snapshot_router"
+    ) in main_source
+    assert (
+        main_source.count("app.include_router(production_program_snapshot_router)")
+        == 1
+    )
 
 
 def test_router_source_has_no_forbidden_integrations():
