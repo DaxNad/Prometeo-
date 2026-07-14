@@ -20,6 +20,10 @@ ordine: ORD-001
 codice: ART-001
 qta: 12
 data richiesta cliente: 2026-07-20
+--- RECORD ---
+ordine: ORD-002
+codice: ART-002
+qta: 8
 """
 
 
