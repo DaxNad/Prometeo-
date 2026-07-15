@@ -43,7 +43,40 @@ def test_production_spec_summary_detects_explicit_intent_without_generic_fallbac
         "scheda operativa del 12514",
     ],
 )
-def test_production_spec_summary_from_preview_when_available(question):
+def test_production_spec_summary_from_preview_when_available(monkeypatch, question):
+    from app.api import tl_chat as tl_chat_api
+
+    preview = {
+        "status": "PREVIEW_ONLY",
+        "confidence": "PREVIEW_ONLY",
+        "planner_eligible": False,
+        "requires_tl_confirmation": True,
+        "article": {
+            "articolo": "12514",
+            "codice": "7056055000A0",
+            "disegno": "A1675003603",
+            "rev": "6",
+        },
+        "components_and_tools_preview": [
+            {"code": "468922", "description": "guaina"},
+            {"code": "468728", "description": "component"},
+        ],
+        "operations_preview": [
+            "LAVAGGIO",
+            "ASSEMBLAGGIO",
+            "MACCHINA CRIMP RING ZAW",
+            "COLLAUDO A PRESSIONE",
+        ],
+    }
+
+    monkeypatch.setattr(tl_chat_api, "_load_lifecycle_registry", lambda: {})
+    monkeypatch.setattr(tl_chat_api, "_load_local_specs_metadata", lambda _article: None)
+    monkeypatch.setattr(
+        tl_chat_api,
+        "_load_spec_intake_preview",
+        lambda article: preview if article == "12514" else None,
+    )
+
     data = _ask(question)
     answer = data["answer"]
 
@@ -52,4 +85,6 @@ def test_production_spec_summary_from_preview_when_available(question):
     assert "Fonte: spec_intake_preview" in answer
     assert "Stato: PREVIEW_ONLY" in answer
     assert "Componenti principali:" in answer
+    assert "468922" in answer
     assert "Ciclo operativo:" in answer
+    assert "ASSEMBLAGGIO" in answer
