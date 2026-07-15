@@ -36,14 +36,19 @@ def test_production_spec_summary_detects_explicit_intent_without_generic_fallbac
 
 
 @pytest.mark.parametrize(
-    "question",
+    ("question", "article"),
     [
-        "sintesi produzione del 12514",
-        "sintesi produttiva del 12514",
-        "scheda operativa del 12514",
+        ("sintesi produzione del 12514", None),
+        ("sintesi produzione del 12514", "12514"),
+        ("sintesi produttiva del 12514", None),
+        ("scheda operativa del 12514", None),
     ],
 )
-def test_production_spec_summary_from_preview_when_available(monkeypatch, question):
+def test_production_spec_summary_from_preview_when_available(
+    monkeypatch,
+    question,
+    article,
+):
     from app.api import tl_chat as tl_chat_api
 
     preview = {
@@ -77,7 +82,7 @@ def test_production_spec_summary_from_preview_when_available(monkeypatch, questi
         lambda article: preview if article == "12514" else None,
     )
 
-    data = _ask(question)
+    data = _ask(question, article=article)
     answer = data["answer"]
 
     assert "12514" in answer
