@@ -20,7 +20,12 @@ def test_production_spec_summary_blocks_inferred_fallback_when_source_missing():
     data = _ask("fammi la sintesi produzione", article="999999")
     answer = data["answer"]
 
+    assert "SPECIFICA NON DISPONIBILE" in answer
     assert "SINTESI PRODUZIONE NON DISPONIBILE" in answer
+    assert "Fonte: spec_intake_preview" in answer
+    assert "Stato: SOURCE_MISSING" in answer
+    assert "Dati mancanti:" in answer
+    assert "Prossima azione sicura:" in answer
     assert "Non genero una sintesi produzione da dati inferiti" in answer
     assert data["confidence"] == "DA_VERIFICARE"
     assert data["source_status"] == "SOURCE_MISSING"
@@ -33,6 +38,35 @@ def test_production_spec_summary_detects_explicit_intent_without_generic_fallbac
 
     assert "SINTESI PRODUZIONE NON DISPONIBILE" in answer
     assert "INFERITO" not in answer.splitlines()[0]
+
+
+def test_12069_production_spec_summary_reports_missing_authorized_source(
+    monkeypatch,
+):
+    from app.api import tl_chat as tl_chat_api
+
+    monkeypatch.setattr(tl_chat_api, "_load_lifecycle_registry", lambda: {})
+    monkeypatch.setattr(tl_chat_api, "_load_local_specs_metadata", lambda _article: None)
+    monkeypatch.setattr(tl_chat_api, "_load_spec_intake_preview", lambda _article: None)
+
+    data = _ask("sintesi produzione del 12069", article="12069")
+    answer = data["answer"]
+
+    assert answer.splitlines()[0] == "12069 — SPECIFICA NON DISPONIBILE"
+    assert "SINTESI PRODUZIONE NON DISPONIBILE" in answer
+    assert "Fonte: spec_intake_preview" in answer
+    assert "Stato: SOURCE_MISSING" in answer
+    assert "Dati mancanti:" in answer
+    assert "Prossima azione sicura:" in answer
+    assert "specifica reale o preview autorizzata" in answer
+    assert "Non genero una sintesi produzione da dati inferiti" in answer
+    assert data["source_status"] == "SOURCE_MISSING"
+    assert data["semantic_status"] == "MANCANTE"
+    assert data["confidence"] == "DA_VERIFICARE"
+    assert data["requires_confirmation"] is True
+    assert "specifica reale" in data["recommended_action"].lower()
+    assert "INFERITO" not in answer.splitlines()[0]
+    assert "CERTO" not in answer.splitlines()[0]
 
 
 @pytest.mark.parametrize(

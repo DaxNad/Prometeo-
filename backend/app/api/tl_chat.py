@@ -1139,9 +1139,17 @@ def _response_for_production_spec_summary(
         return TLChatResponse(
             ok=True,
             answer=(
-                f"{article} — SINTESI PRODUZIONE NON DISPONIBILE.\n\n"
-                "Non ho trovato una specifica reale o preview autorizzata per questo articolo.\n"
-                "Non genero una sintesi produzione da dati inferiti."
+                f"{article} — SPECIFICA NON DISPONIBILE\n\n"
+                "SINTESI PRODUZIONE NON DISPONIBILE.\n"
+                "Fonte: spec_intake_preview (fonte mancante)\n"
+                "Stato: SOURCE_MISSING / MANCANTE\n\n"
+                "Dati mancanti:\n"
+                "- specifica reale o preview autorizzata\n\n"
+                "Prossima azione sicura:\n"
+                "- Acquisire o rendere disponibile la specifica reale autorizzata.\n\n"
+                "Vincoli:\n"
+                "- Non genero una sintesi produzione da dati inferiti.\n"
+                "- Nessuna promozione automatica a CERTO."
             ),
             confidence="DA_VERIFICARE",
             risk="Sintesi produzione non disponibile senza fonte specifica autorizzata.",
