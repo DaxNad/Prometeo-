@@ -1080,6 +1080,22 @@ def _question_asks_specification_read(question: str) -> bool:
     )
 
 
+def _question_asks_production_spec_summary(question: str) -> bool:
+    normalized = question.strip().lower()
+    return any(
+        phrase in normalized
+        for phrase in (
+            "sintesi produzione",
+            "sintesi produttiva",
+            "scheda produzione",
+            "scheda operativa",
+            "riassunto produzione",
+            "dati produzione",
+            "sintesi operativa",
+        )
+    )
+
+
 def _response_for_specification_read(
     article: str,
     metadata: dict[str, Any] | None,
@@ -1111,6 +1127,154 @@ def _response_for_specification_read(
             "source_status": SOURCE_FOUND,
             "semantic_status": response.confidence,
         }
+    )
+
+
+def _response_for_production_spec_summary(
+    *,
+    article: str,
+    spec_intake_preview: dict[str, Any] | None,
+) -> TLChatResponse:
+    if spec_intake_preview is None:
+        return TLChatResponse(
+            ok=True,
+            answer=(
+                f"{article} — SINTESI PRODUZIONE NON DISPONIBILE.\n\n"
+                "Non ho trovato una specifica reale o preview autorizzata per questo articolo.\n"
+                "Non genero una sintesi produzione da dati inferiti."
+            ),
+            confidence="DA_VERIFICARE",
+            risk="Sintesi produzione non disponibile senza fonte specifica autorizzata.",
+            recommended_action="Acquisire o rendere disponibile la specifica reale autorizzata.",
+            requires_confirmation=True,
+            technical_details_hidden=True,
+            source="spec_intake_preview",
+            source_status=SOURCE_MISSING,
+            semantic_status="MANCANTE",
+            missing_data=["specifica reale o preview autorizzata"],
+        )
+
+    article_payload = (
+        spec_intake_preview.get("article")
+        if isinstance(spec_intake_preview.get("article"), dict)
+        else {}
+    )
+
+    codice = _clean(article_payload.get("codice"))
+    disegno = _clean(article_payload.get("disegno"))
+    rev = _clean(article_payload.get("rev") or article_payload.get("revision"))
+
+    operations_payload = (
+        spec_intake_preview.get("operations_preview")
+        or article_payload.get("operations_preview")
+        or []
+    )
+    components_payload = (
+        spec_intake_preview.get("components_and_tools_preview")
+        or article_payload.get("components_and_tools_preview")
+        or []
+    )
+
+    def _display_item(item: Any) -> str:
+        if isinstance(item, str):
+            return _clean(item)
+
+        if isinstance(item, dict):
+            code = _clean(
+                item.get("code")
+                or item.get("codice")
+                or item.get("article")
+                or item.get("articolo")
+            )
+            description = _clean(
+                item.get("description")
+                or item.get("descrizione")
+                or item.get("name")
+                or item.get("nome")
+                or item.get("operation")
+                or item.get("operazione")
+            )
+            if code and description:
+                return f"{code} — {description}"
+            return code or description
+
+        return _clean(item)
+
+    def _dedupe(items: list[Any]) -> list[str]:
+        rendered: list[str] = []
+        seen: set[str] = set()
+        for item in items:
+            value = _display_item(item)
+            if not value or value in seen:
+                continue
+            seen.add(value)
+            rendered.append(value)
+        return rendered
+
+    operations = _dedupe(operations_payload) if isinstance(operations_payload, list) else []
+    components = _dedupe(components_payload) if isinstance(components_payload, list) else []
+
+    missing_data: list[str] = []
+    if not codice:
+        missing_data.append("Codice cliente")
+    if not disegno:
+        missing_data.append("Disegno")
+    if not rev:
+        missing_data.append("Revisione disegno")
+    if not components:
+        missing_data.append("Componenti principali")
+    if not operations:
+        missing_data.append("Ciclo operativo")
+
+    identification_lines: list[str] = []
+    if codice:
+        identification_lines.append(f"- Codice cliente: {codice}")
+    if disegno:
+        drawing_line = f"- Disegno: {disegno}"
+        if rev:
+            drawing_line += f", revisione {rev}"
+        identification_lines.append(drawing_line)
+
+    answer = "\n".join(
+        [
+            f"{article} — SINTESI PRODUZIONE",
+            "",
+            "Fonte: spec_intake_preview",
+            "Stato: PREVIEW_ONLY",
+            "",
+            "Identificazione:",
+            *(identification_lines or ["- Non disponibile"]),
+            "",
+            "Componenti principali:",
+            *(f"- {item}" for item in components[:20]),
+            *([] if components else ["- Non disponibili"]),
+            "",
+            "Ciclo operativo:",
+            *(f"- {item}" for item in operations[:20]),
+            *([] if operations else ["- Non disponibile"]),
+            "",
+            "Vincoli:",
+            "- Stato preview: richiede conferma TL",
+            "- Non usare come dato certo fino a conferma",
+            "",
+            "Dati mancanti:",
+            *(f"- {item}" for item in missing_data),
+            *([] if missing_data else ["- Nessuno tra i campi preview minimi"]),
+        ]
+    )
+
+    return TLChatResponse(
+        ok=True,
+        answer=answer,
+        confidence="PREVIEW_ONLY",
+        risk="Dati da preview: non promossi a fonte certa.",
+        recommended_action="Verificare e confermare la specifica prima dell'uso operativo.",
+        requires_confirmation=True,
+        technical_details_hidden=True,
+        source="spec_intake_preview",
+        source_status=SOURCE_FOUND,
+        semantic_status="PREVIEW_ONLY",
+        missing_data=missing_data,
     )
 
 
@@ -3065,6 +3229,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
             return _response_for_specification_read(
                 article,
                 local_specs_metadata,
+            )
+
+        if _question_asks_production_spec_summary(question):
+            return _response_for_production_spec_summary(
+                article=article,
+                spec_intake_preview=_load_spec_intake_preview(article),
             )
 
         if local_specs_metadata:
