@@ -1065,6 +1065,55 @@ def _question_asks_if_article_needs_verification(question: str) -> bool:
     )
 
 
+def _question_asks_specification_read(question: str) -> bool:
+    normalized = question.strip().lower()
+    return any(
+        phrase in normalized
+        for phrase in (
+            "leggimi la specifica",
+            "leggi la specifica",
+            "mostrami la specifica",
+            "mostra la specifica",
+            "cosa dice la specifica",
+            "specifica reale",
+        )
+    )
+
+
+def _response_for_specification_read(
+    article: str,
+    metadata: dict[str, Any] | None,
+) -> TLChatResponse:
+    if metadata is None:
+        return TLChatResponse(
+            ok=True,
+            answer=f"Articolo {article}: specifica reale non disponibile.",
+            confidence="DA_VERIFICARE",
+            risk=(
+                "La specifica reale non è disponibile; un profilo inferito "
+                "non può sostituirla."
+            ),
+            recommended_action=(
+                "Acquisire o rendere disponibile la specifica reale autorizzata."
+            ),
+            requires_confirmation=True,
+            technical_details_hidden=True,
+            source="local_specs_metadata",
+            source_status=SOURCE_MISSING,
+            semantic_status="MANCANTE",
+            missing_data=["specifica reale articolo"],
+        )
+
+    response = _response_from_local_specs_metadata(article, metadata)
+    return response.model_copy(
+        update={
+            "source": "local_specs_metadata",
+            "source_status": SOURCE_FOUND,
+            "semantic_status": response.confidence,
+        }
+    )
+
+
 def _question_asks_operational_authorization(question: str) -> bool:
     normalized = question.strip().lower()
     return any(
@@ -3011,6 +3060,12 @@ def _build_contract_response(payload: TLChatRequest) -> TLChatResponse:
         )
         if multisource_conflict_response is not None:
             return multisource_conflict_response
+
+        if _question_asks_specification_read(question):
+            return _response_for_specification_read(
+                article,
+                local_specs_metadata,
+            )
 
         if local_specs_metadata:
 
