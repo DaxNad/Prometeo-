@@ -3,6 +3,7 @@ import ProductionDashboard from "./pages/ProductionDashboard";
 import TLBoardPage from "./pages/TLBoardPage";
 import TLChatPage from "./pages/TLChatPage";
 import ArticleSpecificationAcquisitionPage from "./pages/ArticleSpecificationAcquisitionPage";
+import ProductionProgramImageOCRAcquisitionPage from "./pages/ProductionProgramImageOCRAcquisitionPage";
 
 export default function App() {
   const [path, setPath] = useState<string>(typeof window !== "undefined" ? window.location.pathname : "/");
@@ -64,6 +65,22 @@ export default function App() {
           Dashboard
         </a>
         <a
+          href="/production-program/image-ocr/acquire"
+          onClick={(e) => {
+            e.preventDefault();
+            nav("/production-program/image-ocr/acquire");
+          }}
+          style={{
+            color:
+              path === "/production-program/image-ocr/acquire"
+                ? "#fff"
+                : "#9ca3af",
+            textDecoration: "none",
+          }}
+        >
+          Acquisisci programma
+        </a>
+        <a
           href="/article-specification/acquire"
           onClick={(e) => {
             e.preventDefault();
@@ -84,6 +101,8 @@ export default function App() {
         <ProductionDashboard />
       ) : path === "/article-specification/acquire" ? (
         <ArticleSpecificationAcquisitionPage />
+      ) : path === "/production-program/image-ocr/acquire" ? (
+        <ProductionProgramImageOCRAcquisitionPage />
       ) : (
         <TLChatPage />
       )}
