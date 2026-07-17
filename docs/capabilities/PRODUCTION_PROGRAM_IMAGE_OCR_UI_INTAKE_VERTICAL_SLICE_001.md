@@ -1,14 +1,21 @@
 # PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_VERTICAL_SLICE_001
 
-## Stato
+## Autorizzazione originaria
+
+Questa sezione conserva il perimetro autorizzato prima dell'implementazione.
+Le formulazioni al futuro e la route SPA qui riportata sono evidenza storica
+dell'autorizzazione; lo stato runtime finale è riconciliato nella closure più
+avanti.
+
+### Stato autorizzativo originario
 
 CAPABILITY: PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_001  
 SLICE: VERTICAL_SLICE_001  
-STATUS: AUTHORIZED  
+AUTHORIZATION_STATUS: AUTHORIZED
 MODE: LOCAL_ONLY / READ_ONLY / PREVIEW_FIRST  
-DATE: 2026-07-16
+AUTHORIZATION_DATE: 2026-07-16
 
-## Obiettivo
+### Obiettivo
 
 Implementare la più piccola porta di ingresso frontend per una singola immagine PNG o JPEG verso l'endpoint esistente:
 
@@ -16,7 +23,7 @@ Implementare la più piccola porta di ingresso frontend per una singola immagine
 
 Il risultato deve essere mostrato come preview non autorevole, non persistita e soggetta a conferma esterna alla slice.
 
-## Percorso utente autorizzato
+### Percorso utente autorizzato
 
 1. apertura della route `/production-program/image-ocr/acquire`;
 2. selezione di una sola immagine PNG o JPEG;
@@ -25,7 +32,7 @@ Il risultato deve essere mostrato come preview non autorevole, non persistita e 
 5. visualizzazione di stato, provenienza, evidenza OCR, righe normalizzate e snapshot preview;
 6. nessuna conferma, persistenza o scrittura.
 
-## Allowlist esatta
+### Allowlist esatta
 
 Possono cambiare esclusivamente:
 
@@ -36,7 +43,7 @@ Possono cambiare esclusivamente:
 
 Nessun quinto file è autorizzato.
 
-## Contratto client
+### Contratto client
 
 Aggiungere in `frontend/src/lib/api/prometeo.ts`:
 
@@ -65,7 +72,7 @@ Campi minimi da preservare senza riscrittura semantica:
 - `normalized_lines`
 - `snapshot_preview`
 
-## Contratto UI
+### Contratto UI
 
 La pagina deve:
 
@@ -81,7 +88,7 @@ La pagina deve:
 
 Il backend resta autorevole per firma e validità del formato.
 
-## Integrazione App
+### Integrazione App
 
 `frontend/src/App.tsx` può soltanto:
 
@@ -91,7 +98,7 @@ Il backend resta autorevole per firma e validità del formato.
 
 Sono vietati router esterni e redesign globale.
 
-## Test obbligatori
+### Test obbligatori
 
 Usare Vitest e Testing Library con fixture sintetiche.
 
@@ -110,7 +117,7 @@ I test devono provare:
 11. assenza di controlli di conferma o persistenza;
 12. route e navigazione operative.
 
-## Verifiche finali
+### Verifiche finali
 
 Devono passare:
 
@@ -120,7 +127,7 @@ Devono passare:
 - `git diff --check`;
 - verifica che siano cambiati esattamente i quattro file autorizzati.
 
-## Scope vietato
+### Scope vietato
 
 Non sono autorizzati:
 
@@ -138,7 +145,7 @@ Non sono autorizzati:
 - dati industriali reali;
 - cloud OCR.
 
-## Stop conditions
+### Stop conditions
 
 Fermarsi immediatamente se occorre:
 
@@ -150,7 +157,7 @@ Fermarsi immediatamente se occorre:
 - usare immagini reali aziendali;
 - ampliare il percorso oltre una singola immagine.
 
-## Criteri di accettazione
+### Criteri di accettazione
 
 La slice è chiudibile solo se:
 
@@ -162,9 +169,117 @@ La slice è chiudibile solo se:
 6. test e build sono verdi;
 7. il repository resta privo di dati sensibili.
 
-## Verdetto
+### Verdetto autorizzativo originario
 
 AUTHORIZATION: GRANTED  
 RUNTIME_SCOPE: FRONTEND_ONLY  
 BACKEND_CHANGE: FORBIDDEN  
-NEXT_MOVE: IMPLEMENT_EXACT_FOUR_FILE_SLICE
+NEXT_MOVE_AT_AUTHORIZATION: IMPLEMENT_EXACT_FOUR_FILE_SLICE
+
+## Closure della vertical slice
+
+La closure distingue l'implementazione attribuibile alla slice UI dalla merge
+cumulativa che l'ha portata su `main`. Il codice e i test presenti su `main`
+prevalgono sulle formulazioni autorizzative storiche.
+
+### Implementazione osservata
+
+Il commit logico `14f9d26` ha modificato esclusivamente i quattro file
+autorizzati:
+
+- `frontend/src/pages/ProductionProgramImageOCRAcquisitionPage.tsx`;
+- `frontend/src/pages/ProductionProgramImageOCRAcquisitionPage.test.tsx`;
+- `frontend/src/lib/api/prometeo.ts`;
+- `frontend/src/App.tsx`.
+
+La slice ha introdotto la pagina di acquisizione, il relativo test focalizzato,
+il client `acquireProductionProgramImageOCR(...)` e l'integrazione nella App.
+La parte attribuibile al commit logico UI non ha modificato il backend e usa
+l'endpoint esistente:
+
+```text
+POST /production-program/image-ocr/acquire
+```
+
+### Correzione routing
+
+La route SPA inizialmente autorizzata e implementata,
+`/production-program/image-ocr/acquire`, collideva con il namespace `/production`
+riservato dal proxy Vite. Il commit logico `9d50cda` ha separato i due confini:
+
+```text
+BACKEND_API_ENDPOINT: /production-program/image-ocr/acquire
+FRONTEND_SPA_ROUTE: /app/production-program/image-ocr/acquire
+```
+
+La correzione è confluita nella merge cumulativa `de2fcd0` della PR `#528`.
+Quella PR comprende dodici file e altre modifiche non attribuibili alla sola
+slice UI; la closure non li riclassifica come parte dell'allowlist originaria.
+
+### Guard di regressione
+
+La PR `#529`, merge `6aa8198`, ha aggiunto
+`frontend/src/spaRouteNamespaceGuard.test.ts`. Il guard verifica che le route SPA
+non usino prefissi riservati dal proxy Vite e accetta esplicitamente la route
+`/app/production-program/image-ocr/acquire`. Questo hardening è successivo
+all'implementazione e non faceva parte dell'autorizzazione originaria.
+
+### Evidenze Git
+
+- `14f9d26`: commit logico della slice UI nei quattro file autorizzati;
+- `9d50cda`: commit logico della correzione route SPA;
+- `de2fcd0` / PR `#528`: squash merge cumulativa che ha introdotto su `main`
+  pagina, test, client e route già corretta;
+- `6aa8198` / PR `#529`: guard di regressione dei namespace SPA/proxy;
+- `2520d57` / PR `#530`: classificazione catalogo del documento come
+  `EVIDENCE / ARCHIVED`.
+
+I commit logici `14f9d26` e `9d50cda` sono elencati nel commit della squash merge
+ma non risultano antenati diretti di `main`. I blob della pagina, del test e del
+client su `main` coincidono con quelli del commit logico UI; `App.tsx` differisce
+per la sola correzione della route SPA.
+
+### Evidenze test disponibili
+
+È verificabile nel repository la presenza del test focalizzato
+`frontend/src/pages/ProductionProgramImageOCRAcquisitionPage.test.tsx`, basato su
+fixture PNG/JPEG sintetiche. Il test copre in modo osservabile:
+
+- rendering review-only e submit disabilitato senza file;
+- conversione Base64 e invio del payload sintetico;
+- PNG e JPEG;
+- `PREVIEW_READY`, `PREVIEW_BLOCKED`, `OCR_FAILED` e `REJECTED`;
+- provenienza, stato semantico e flag di non persistenza;
+- errore di trasporto e assenza di controlli di conferma o persistenza.
+
+È inoltre verificabile la presenza del guard SPA aggiunto dalla PR `#529`.
+Nessun test o build è stato rieseguito durante questa fase esclusivamente
+documentale.
+
+### Limiti delle prove
+
+Non sono stati recuperati:
+
+- i log grezzi originali di `npm test` per la PR `#528`;
+- i log originali di `npm run build` per la PR `#528`;
+- il check rollup completo della PR `#528`;
+- la prova storica completa della suite frontend al momento del merge.
+
+La presenza dei test e del codice su `main` prova implementazione e copertura
+definita, ma non autorizza il marker assoluto `TESTED` in assenza dei log storici.
+
+### Stato finale
+
+STATUS: CLOSED / MERGED
+VERIFICATION_STATUS: IMPLEMENTATION_VERIFIED / HISTORICAL_TEST_LOGS_NOT_FULLY_RECOVERED
+LIFECYCLE: ARCHIVED
+CATEGORY: EVIDENCE
+
+### Verdetto
+
+CAPABILITY_CLOSURE: JUSTIFIED_WITH_EVIDENCE_LIMITS
+RUNTIME_SCOPE: FRONTEND_ONLY
+BACKEND_CHANGE_ATTRIBUTABLE_TO_SLICE: NONE
+FINAL_FRONTEND_ROUTE: /app/production-program/image-ocr/acquire
+BACKEND_ENDPOINT: /production-program/image-ocr/acquire
+NEXT_MOVE: REVIEW_DOCUMENTATION_DIFF
