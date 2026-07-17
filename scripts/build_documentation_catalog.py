@@ -44,8 +44,50 @@ ARCHIVED = {
     "docs/POSTGRESQL_CONSOLIDATION_v1.md",
 }
 
+CLASSIFICATION_OVERRIDES = {
+    "docs/PROMETEO_PORTABLE_WORK_METHOD_001.md": {
+        "lifecycle": "ACTIVE",
+    },
+    "docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_VERTICAL_SLICE_001.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/TL_CHAT_PRODUCTION_SPEC_SUMMARY_001.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_001.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_002.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_003.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/TL_CHAT_UNIFIED_DATA_ACCESS_VERTICAL_SLICE_004.md": {
+        "category": "EVIDENCE",
+        "lifecycle": "ARCHIVED",
+    },
+    "docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_API_INTAKE_001.md": {
+        "category": "CONTRACT",
+    },
+    "docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_INTAKE_001.md": {
+        "category": "CONTRACT",
+    },
+    "docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_001.md": {
+        "category": "CONTRACT",
+    },
+}
+
 
 def lifecycle(path: str) -> tuple[str, str]:
+    override = CLASSIFICATION_OVERRIDES.get(path, {})
+    if "lifecycle" in override:
+        return override["lifecycle"], ""
     if path in CANONICAL:
         return "CANONICAL", ""
     if path in SUPERSEDED:
@@ -65,6 +107,9 @@ def lifecycle(path: str) -> tuple[str, str]:
 
 
 def function(path: str) -> str:
+    override = CLASSIFICATION_OVERRIDES.get(path, {})
+    if "category" in override:
+        return override["category"]
     name = Path(path).name.upper()
     if path == "docs/CURRENT_STATE.md":
         return "STATE"
