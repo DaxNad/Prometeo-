@@ -153,6 +153,38 @@ export async function confirmArticleSpecification(
   );
 }
 
+export type ProductionProgramImageOCRAcquisitionRequest = {
+  image_base64: string;
+};
+
+export type ProductionProgramImageOCRAcquisitionResponse = {
+  ok: boolean;
+  status: string;
+  source_id: string | null;
+  source_hash: string | null;
+  media_type: string | null;
+  provider: string | null;
+  error_code: string | null;
+  requires_confirmation: boolean;
+  semantic_status: string;
+  persisted: boolean;
+  writer_called: boolean;
+  planner_called: boolean;
+  pattern_learning_called: boolean;
+  observed_text: string | null;
+  normalized_lines: string[];
+  snapshot_preview: Record<string, unknown> | null;
+};
+
+export async function acquireProductionProgramImageOCR(
+  payload: ProductionProgramImageOCRAcquisitionRequest
+) {
+  return apiPost<ProductionProgramImageOCRAcquisitionResponse>(
+    "/production-program/image-ocr/acquire",
+    payload
+  );
+}
+
 export type MachineLoadItem = {
   station: string;
   orders_total: number;
