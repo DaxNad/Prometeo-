@@ -65,14 +65,14 @@ export default function App() {
           Dashboard
         </a>
         <a
-          href="/production-program/image-ocr/acquire"
+          href="/app/production-program/image-ocr/acquire"
           onClick={(e) => {
             e.preventDefault();
-            nav("/production-program/image-ocr/acquire");
+            nav("/app/production-program/image-ocr/acquire");
           }}
           style={{
             color:
-              path === "/production-program/image-ocr/acquire"
+              path === "/app/production-program/image-ocr/acquire"
                 ? "#fff"
                 : "#9ca3af",
             textDecoration: "none",
@@ -101,7 +101,7 @@ export default function App() {
         <ProductionDashboard />
       ) : path === "/article-specification/acquire" ? (
         <ArticleSpecificationAcquisitionPage />
-      ) : path === "/production-program/image-ocr/acquire" ? (
+      ) : path === "/app/production-program/image-ocr/acquire" ? (
         <ProductionProgramImageOCRAcquisitionPage />
       ) : (
         <TLChatPage />
