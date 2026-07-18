@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from app.domain.article_tl_summary import build_article_tl_summary
 from app.domain.assembly_progression import summarize_assembly_progression
 from app.domain.component_classifier import find_explicit_manicotto_component
@@ -31,6 +31,11 @@ from app.services.customer_demand_context_resolver_binding import (
 )
 from app.services.production_program_snapshot_preview import (
     build_production_program_snapshot_preview,
+)
+from app.domain.production_program_snapshot_registry import (
+    ProductionProgramSnapshotRegistry,
+    ProductionProgramSnapshotRegistryError,
+    get_production_program_snapshot_registry,
 )
 from tools.context_source_reader_adapter import ContextSourceReaderAdapter, ContextSourceReaderError
 from tools.tl_chat_context_reader_bridge import (
@@ -59,6 +64,9 @@ SOURCE_UNREADABLE = "SOURCE_UNREADABLE"
 
 PRODUCTION_PROGRAM_SNAPSHOT_PREVIEW_MARKER = (
     "PROMETEO_PROGRAM_SNAPSHOT_PREVIEW_V1"
+)
+PRODUCTION_PROGRAM_VERIFIED_SNAPSHOT_MARKER = (
+    "PROMETEO_PROGRAM_VERIFIED_SNAPSHOT_V1"
 )
 
 _JSON_LOADER_DIAGNOSTICS: dict[str, str] = {}
@@ -99,6 +107,10 @@ class TLChatResponse(BaseModel):
     semantic_status: str | None = Field(default=None, exclude_if=lambda value: value is None)
     missing_data: list[str] | None = Field(default=None, exclude_if=lambda value: value is None)
     production_program_snapshot_preview: dict[str, Any] | None = Field(
+        default=None,
+        exclude_if=lambda value: value is None,
+    )
+    production_program_verified_snapshot: dict[str, Any] | None = Field(
         default=None,
         exclude_if=lambda value: value is None,
     )
@@ -3423,6 +3435,15 @@ def _extract_explicit_production_program_snapshot_body(
     return body if separator else ""
 
 
+def _extract_verified_production_program_snapshot_id(
+    question: str,
+) -> str | None:
+    first_line, separator, body = str(question or "").partition("\n")
+    if first_line != PRODUCTION_PROGRAM_VERIFIED_SNAPSHOT_MARKER:
+        return None
+    return body.strip() if separator else ""
+
+
 def _snapshot_display_value(value: Any) -> str:
     if value is None or value == "":
         return "non disponibile"
@@ -3591,9 +3612,139 @@ def _response_from_explicit_production_program_snapshot(
     )
 
 
+def _render_verified_production_program_snapshot(
+    record: dict[str, Any],
+) -> str:
+    snapshot = record.get("snapshot")
+    if not isinstance(snapshot, dict):
+        snapshot = {}
+    orders = snapshot.get("orders")
+    if not isinstance(orders, list):
+        orders = []
+    confirmed_by = record.get("confirmed_by")
+    if not isinstance(confirmed_by, dict):
+        confirmed_by = {}
+
+    lines = [
+        "PROGRAMMA PRODUZIONE CONFERMATO",
+        "",
+        "Stato: CONFERMATO",
+        "Fonte: production_program_snapshot_registry",
+        "Versione: " + _snapshot_display_value(record.get("version")),
+        "Confermato il: "
+        + _snapshot_display_value(record.get("confirmed_at")),
+        "Confermato da: "
+        + _snapshot_display_value(confirmed_by.get("actor_id")),
+        "Ruolo: "
+        + _snapshot_display_value(confirmed_by.get("authority_role")),
+        "Periodo: " + _snapshot_display_value(snapshot.get("period")),
+        f"Ordini confermati: {len(orders)}",
+        "",
+    ]
+    for position, order in enumerate(orders, start=1):
+        if not isinstance(order, dict):
+            continue
+        lines.extend(
+            [
+                f"Ordine {position}",
+                "- ordine: "
+                + _snapshot_display_value(order.get("order_id")),
+                "- articolo: "
+                + _snapshot_display_value(order.get("article_code")),
+                "- quantità: "
+                + _snapshot_display_value(order.get("quantity")),
+                "- data richiesta cliente: "
+                + _snapshot_display_value(
+                    order.get("customer_requested_date")
+                ),
+                "",
+            ]
+        )
+    lines.append(
+        "Snapshot confermato da autorità umana; nessuna pianificazione eseguita."
+    )
+    return "\n".join(lines)
+
+
+def _response_from_verified_production_program_snapshot(
+    registry_id: str,
+    registry: ProductionProgramSnapshotRegistry | None,
+) -> TLChatResponse:
+    if registry is None:
+        return TLChatResponse(
+            ok=False,
+            answer=(
+                "Snapshot programma produzione non disponibile: "
+                "registry autorizzato ma non configurato."
+            ),
+            confidence="DA_VERIFICARE",
+            risk="Nessun dato persistito è stato recuperato.",
+            recommended_action=(
+                "Configurare il registry autorizzato e ripetere la lettura."
+            ),
+            requires_confirmation=True,
+            source="production_program_snapshot_registry",
+            source_status="SOURCE_AUTHORIZED_BUT_UNAVAILABLE",
+            semantic_status="MANCANTE",
+            missing_data=["snapshot programma produzione persistito"],
+        )
+
+    try:
+        record = registry.read_latest(registry_id)
+    except ProductionProgramSnapshotRegistryError:
+        return TLChatResponse(
+            ok=False,
+            answer="Snapshot programma produzione non leggibile.",
+            confidence="DA_VERIFICARE",
+            risk="Il registry configurato non è leggibile in modo governato.",
+            recommended_action="Verificare il registry senza usare fallback inferiti.",
+            requires_confirmation=True,
+            source="production_program_snapshot_registry",
+            source_status="SOURCE_UNREADABLE",
+            semantic_status="BLOCCATO",
+            missing_data=["snapshot programma produzione persistito"],
+        )
+
+    if record is None:
+        return TLChatResponse(
+            ok=False,
+            answer="Snapshot programma produzione non disponibile.",
+            confidence="DA_VERIFICARE",
+            risk="Nessun record persistito corrisponde all'identità richiesta.",
+            recommended_action=(
+                "Acquisire la preview OCR e richiedere conferma umana autorizzata."
+            ),
+            requires_confirmation=True,
+            source="production_program_snapshot_registry",
+            source_status="SOURCE_MISSING",
+            semantic_status="MANCANTE",
+            missing_data=["snapshot programma produzione persistito"],
+        )
+
+    return TLChatResponse(
+        ok=True,
+        answer=_render_verified_production_program_snapshot(record),
+        confidence="CONFERMATO",
+        risk=(
+            "La conferma attesta il contenuto osservato, non una decisione "
+            "automatica di pianificazione."
+        ),
+        recommended_action="Usare la versione indicata e preservarne la provenienza.",
+        requires_confirmation=False,
+        source="production_program_snapshot_registry",
+        source_status="SOURCE_FOUND",
+        semantic_status="CONFERMATO",
+        production_program_verified_snapshot=record,
+    )
+
+
 @public_router.post("/chat", response_model=TLChatResponse)
 @router.post("/chat", response_model=TLChatResponse)
-def tl_chat(payload: TLChatRequest) -> TLChatResponse:
+def tl_chat(
+    payload: TLChatRequest,
+    production_program_snapshot_registry: ProductionProgramSnapshotRegistry
+    | None = Depends(get_production_program_snapshot_registry),
+) -> TLChatResponse:
     """
     PROMETEO TL CHAT — contract v1.
 
@@ -3604,6 +3755,15 @@ def tl_chat(payload: TLChatRequest) -> TLChatResponse:
     - no executor
     - no technical noise in response
     """
+    verified_snapshot_id = _extract_verified_production_program_snapshot_id(
+        payload.question
+    )
+    if verified_snapshot_id is not None:
+        return _response_from_verified_production_program_snapshot(
+            verified_snapshot_id,
+            production_program_snapshot_registry,
+        )
+
     explicit_snapshot_body = (
         _extract_explicit_production_program_snapshot_body(
             payload.question

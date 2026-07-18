@@ -185,6 +185,47 @@ export async function acquireProductionProgramImageOCR(
   );
 }
 
+export type ProductionProgramSnapshotConfirmationRequest = {
+  source_id: string;
+  source_hash: string;
+  observed_text: string;
+  snapshot_preview: Record<string, unknown>;
+  actor_id: string;
+  authority_role: "RESPONSABILE_PRODUZIONE";
+  confirmed_at: string;
+  audit_note: string;
+};
+
+export type ProductionProgramSnapshotConfirmationResponse = {
+  ok: boolean;
+  error_code: string | null;
+  status: string;
+  semantic_status: string;
+  requires_confirmation: boolean;
+  persisted: boolean;
+  write_performed: boolean;
+  registry_id: string | null;
+  snapshot_id: string | null;
+  version: number | null;
+  source: string | null;
+  source_id: string | null;
+  source_hash: string | null;
+  confirmed_by: {
+    actor_id: string;
+    authority_role: string;
+  } | null;
+  confirmed_at: string | null;
+};
+
+export async function confirmProductionProgramSnapshot(
+  payload: ProductionProgramSnapshotConfirmationRequest
+) {
+  return apiPost<ProductionProgramSnapshotConfirmationResponse>(
+    "/production-program-snapshot/confirm",
+    payload
+  );
+}
+
 export type MachineLoadItem = {
   station: string;
   orders_total: number;

@@ -1,12 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
-const { acquireProductionProgramImageOCR } = vi.hoisted(() => ({
+const {
+  acquireProductionProgramImageOCR,
+  confirmProductionProgramSnapshot,
+} = vi.hoisted(() => ({
   acquireProductionProgramImageOCR: vi.fn(),
+  confirmProductionProgramSnapshot: vi.fn(),
 }));
 
 vi.mock("../lib/api/prometeo", () => ({
   acquireProductionProgramImageOCR,
+  confirmProductionProgramSnapshot,
 }));
 
 import ProductionProgramImageOCRAcquisitionPage from "./ProductionProgramImageOCRAcquisitionPage";
@@ -277,5 +282,123 @@ describe("Production program image OCR acquisition page", () => {
     expect(
       screen.getByText(/prometeo non è raggiungibile oppure ha rifiutato/i)
     ).toBeDefined();
+  });
+
+  it("persists only after explicit authorized confirmation", async () => {
+    acquireProductionProgramImageOCR.mockResolvedValue(governedResponse());
+    confirmProductionProgramSnapshot.mockResolvedValue({
+      ok: true,
+      error_code: null,
+      status: "CONFERMATO",
+      semantic_status: "CONFERMATO",
+      requires_confirmation: false,
+      persisted: true,
+      write_performed: true,
+      registry_id: "production-program-verified:sha256:synthetic",
+      snapshot_id: "production-program-snapshot:sha256:synthetic",
+      version: 1,
+      source: "production_program_snapshot_registry",
+      source_id: "production-program-image:sha256:test",
+      source_hash: "hash-test",
+      confirmed_by: {
+        actor_id: "synthetic-team-leader",
+        authority_role: "RESPONSABILE_PRODUZIONE",
+      },
+      confirmed_at: "2026-08-01T08:30:00Z",
+    });
+
+    render(<ProductionProgramImageOCRAcquisitionPage />);
+    fireEvent.change(
+      screen.getByLabelText(/immagine programma produzione/i),
+      {
+        target: {
+          files: [syntheticFile([137, 80, 78, 71], "confirm.png", "image/png")],
+        },
+      }
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /acquisisci preview ocr/i })
+    );
+
+    await screen.findByRole("button", {
+      name: /conferma e persisti snapshot/i,
+    });
+    expect(screen.queryByText(/snapshot confermato/i)).toBeNull();
+    fireEvent.change(screen.getByLabelText(/identificativo attore/i), {
+      target: { value: "synthetic-team-leader" },
+    });
+    fireEvent.change(screen.getByLabelText(/nota audit/i), {
+      target: { value: "Synthetic confirmation." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /conferma e persisti snapshot/i,
+      })
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: /snapshot confermato/i })
+    ).toBeDefined();
+    expect(confirmProductionProgramSnapshot).toHaveBeenCalledWith({
+      source_id: "production-program-image:sha256:test",
+      source_hash: "hash-test",
+      observed_text: "ARTICOLO SYNTH-01",
+      snapshot_preview: {
+        status: "PREVIEW_READY",
+        article: "SYNTH-01",
+      },
+      actor_id: "synthetic-team-leader",
+      authority_role: "RESPONSABILE_PRODUZIONE",
+      confirmed_at: expect.any(String),
+      audit_note: "Synthetic confirmation.",
+    });
+    expect(screen.getByText("CONFERMATO")).toBeDefined();
+    expect(screen.queryByText("CERTO")).toBeNull();
+  });
+
+  it("does not show persisted success when confirmation fails", async () => {
+    acquireProductionProgramImageOCR.mockResolvedValue(governedResponse());
+    confirmProductionProgramSnapshot.mockResolvedValue({
+      ok: false,
+      error_code: "WRITE_FAILED",
+      status: "BLOCCATO",
+      semantic_status: "BLOCCATO",
+      requires_confirmation: true,
+      persisted: false,
+      write_performed: false,
+    });
+
+    render(<ProductionProgramImageOCRAcquisitionPage />);
+    fireEvent.change(
+      screen.getByLabelText(/immagine programma produzione/i),
+      {
+        target: {
+          files: [syntheticFile([137, 80, 78, 71], "failed.png", "image/png")],
+        },
+      }
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: /acquisisci preview ocr/i })
+    );
+    await screen.findByRole("button", {
+      name: /conferma e persisti snapshot/i,
+    });
+    fireEvent.change(screen.getByLabelText(/identificativo attore/i), {
+      target: { value: "synthetic-team-leader" },
+    });
+    fireEvent.change(screen.getByLabelText(/nota audit/i), {
+      target: { value: "Synthetic confirmation." },
+    });
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: /conferma e persisti snapshot/i,
+      })
+    );
+
+    expect(await screen.findByRole("alert")).toBeDefined();
+    expect(screen.getByText("WRITE_FAILED")).toBeDefined();
+    expect(
+      screen.queryByRole("heading", { name: /snapshot confermato/i })
+    ).toBeNull();
   });
 });
