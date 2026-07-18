@@ -1,7 +1,9 @@
 import { useState, type FormEvent } from "react";
 import {
   acquireProductionProgramImageOCR,
+  confirmProductionProgramSnapshot,
   type ProductionProgramImageOCRAcquisitionResponse,
+  type ProductionProgramSnapshotConfirmationResponse,
 } from "../lib/api/prometeo";
 
 async function fileToBase64(file: File): Promise<string> {
@@ -57,6 +59,12 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
     useState<ProductionProgramImageOCRAcquisitionResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [actorId, setActorId] = useState("");
+  const [auditNote, setAuditNote] = useState("");
+  const [confirmation, setConfirmation] =
+    useState<ProductionProgramSnapshotConfirmationResponse | null>(null);
+  const [confirmationError, setConfirmationError] = useState("");
+  const [confirming, setConfirming] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -66,6 +74,8 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
     setLoading(true);
     setError("");
     setResult(null);
+    setConfirmation(null);
+    setConfirmationError("");
 
     try {
       const imageBase64 = await fileToBase64(file);
@@ -77,6 +87,56 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
       setError(normalizeTransportError(caughtError));
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function confirm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (
+      !result?.ok ||
+      result.status !== "PREVIEW_READY" ||
+      !result.source_id ||
+      !result.source_hash ||
+      !result.observed_text ||
+      !result.snapshot_preview ||
+      !actorId.trim() ||
+      !auditNote.trim() ||
+      confirming
+    ) {
+      return;
+    }
+
+    setConfirming(true);
+    setConfirmation(null);
+    setConfirmationError("");
+    try {
+      const response = await confirmProductionProgramSnapshot({
+        source_id: result.source_id,
+        source_hash: result.source_hash,
+        observed_text: result.observed_text,
+        snapshot_preview: result.snapshot_preview,
+        actor_id: actorId.trim(),
+        authority_role: "RESPONSABILE_PRODUZIONE",
+        confirmed_at: new Date().toISOString(),
+        audit_note: auditNote.trim(),
+      });
+      if (
+        response.ok &&
+        response.persisted &&
+        response.status === "CONFERMATO"
+      ) {
+        setConfirmation(response);
+      } else {
+        setConfirmationError(
+          response.error_code || "CONFERMA_NON_PERSISTITA"
+        );
+      }
+    } catch {
+      setConfirmationError(
+        "PROMETEO non è raggiungibile oppure ha rifiutato la conferma."
+      );
+    } finally {
+      setConfirming(false);
     }
   }
 
@@ -125,6 +185,8 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
                 setFile(event.target.files?.[0] ?? null);
                 setResult(null);
                 setError("");
+                setConfirmation(null);
+                setConfirmationError("");
               }}
             />
           </label>
@@ -290,6 +352,84 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
                 : "non disponibile"}
             </pre>
           </section>
+
+          {result.ok &&
+            result.status === "PREVIEW_READY" &&
+            result.source_id &&
+            result.source_hash &&
+            result.observed_text &&
+            result.snapshot_preview && (
+              <section
+                aria-label="Conferma snapshot programma produzione"
+                style={{
+                  borderTop: "1px solid #27272a",
+                  paddingTop: 16,
+                }}
+              >
+                <h3 style={{ margin: "0 0 8px", fontSize: 16 }}>
+                  Conferma umana autorizzata
+                </h3>
+                <p style={{ color: "#a1a1aa" }}>
+                  La conferma persiste una versione CONFERMATO; non promuove
+                  lo snapshot a CERTO e non attiva il planner.
+                </p>
+                <form onSubmit={confirm} style={{ display: "grid", gap: 12 }}>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span>Identificativo attore</span>
+                    <input
+                      aria-label="Identificativo attore"
+                      value={actorId}
+                      disabled={confirming}
+                      onChange={(event) => setActorId(event.target.value)}
+                    />
+                  </label>
+                  <div>
+                    Ruolo autorizzato: <strong>RESPONSABILE_PRODUZIONE</strong>
+                  </div>
+                  <label style={{ display: "grid", gap: 6 }}>
+                    <span>Nota audit</span>
+                    <textarea
+                      aria-label="Nota audit"
+                      value={auditNote}
+                      disabled={confirming}
+                      onChange={(event) => setAuditNote(event.target.value)}
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={
+                      confirming || !actorId.trim() || !auditNote.trim()
+                    }
+                    style={{ justifySelf: "start" }}
+                  >
+                    {confirming
+                      ? "Conferma in corso…"
+                      : "Conferma e persisti snapshot"}
+                  </button>
+                </form>
+              </section>
+            )}
+
+          {confirmationError && (
+            <section role="alert">
+              <strong>Conferma non persistita</strong>
+              <div>{confirmationError}</div>
+            </section>
+          )}
+
+          {confirmation && (
+            <section aria-label="Snapshot confermato">
+              <h3>Snapshot confermato</h3>
+              <dl>
+                <dt>Stato persistito</dt>
+                <dd>{confirmation.status}</dd>
+                <dt>Versione</dt>
+                <dd>{confirmation.version}</dd>
+                <dt>Identità registry</dt>
+                <dd>{confirmation.registry_id}</dd>
+              </dl>
+            </section>
+          )}
         </section>
       )}
     </main>

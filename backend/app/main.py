@@ -20,6 +20,9 @@ from .api.production_program_image_ocr_acquisition import (
     router as production_program_image_ocr_acquisition_router,
 )
 from .api.production_program_snapshot import router as production_program_snapshot_router
+from .api.production_program_snapshot_confirmation import (
+    router as production_program_snapshot_confirmation_router,
+)
 from .api.routes.dev_db_init import router as dev_db_init_router
 from .api.state import router as state_router
 from .api.ai_state import router as ai_state_router
@@ -191,6 +194,7 @@ app.include_router(article_specification_confirmation_router)
 app.include_router(controlled_import_router)
 app.include_router(production_program_image_ocr_acquisition_router)
 app.include_router(production_program_snapshot_router)
+app.include_router(production_program_snapshot_confirmation_router)
 app.include_router(real_ingest_router)
 app.include_router(tl_router)
 app.include_router(public_chat_router)
