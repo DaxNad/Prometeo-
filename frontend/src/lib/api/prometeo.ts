@@ -157,6 +157,10 @@ export type ProductionProgramImageOCRAcquisitionRequest = {
   image_base64: string;
 };
 
+export type ProductionProgramImagesOCRAcquisitionRequest = {
+  images_base64: string[];
+};
+
 export type ProductionProgramImageOCRAcquisitionResponse = {
   ok: boolean;
   status: string;
@@ -174,6 +178,9 @@ export type ProductionProgramImageOCRAcquisitionResponse = {
   observed_text: string | null;
   normalized_lines: string[];
   snapshot_preview: Record<string, unknown> | null;
+  page_count?: number;
+  page_source_ids?: string[];
+  failed_page_number?: number | null;
 };
 
 export async function acquireProductionProgramImageOCR(
@@ -181,6 +188,15 @@ export async function acquireProductionProgramImageOCR(
 ) {
   return apiPost<ProductionProgramImageOCRAcquisitionResponse>(
     "/production-program/image-ocr/acquire",
+    payload
+  );
+}
+
+export async function acquireProductionProgramImagesOCR(
+  payload: ProductionProgramImagesOCRAcquisitionRequest
+) {
+  return apiPost<ProductionProgramImageOCRAcquisitionResponse>(
+    "/production-program/image-ocr/acquire-multipage",
     payload
   );
 }
