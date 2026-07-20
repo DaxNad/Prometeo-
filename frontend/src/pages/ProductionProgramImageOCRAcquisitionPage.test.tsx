@@ -3,14 +3,17 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 
 const {
   acquireProductionProgramImageOCR,
+  acquireProductionProgramImagesOCR,
   confirmProductionProgramSnapshot,
 } = vi.hoisted(() => ({
   acquireProductionProgramImageOCR: vi.fn(),
+  acquireProductionProgramImagesOCR: vi.fn(),
   confirmProductionProgramSnapshot: vi.fn(),
 }));
 
 vi.mock("../lib/api/prometeo", () => ({
   acquireProductionProgramImageOCR,
+  acquireProductionProgramImagesOCR,
   confirmProductionProgramSnapshot,
 }));
 
@@ -137,6 +140,56 @@ describe("Production program image OCR acquisition page", () => {
     expect(screen.getByText("synthetic-local-ocr")).toBeDefined();
     expect(screen.getAllByText("false").length).toBeGreaterThanOrEqual(4);
     expect(screen.getByText("true")).toBeDefined();
+  });
+
+  it("sends multiple images to the multipage OCR endpoint in selection order", async () => {
+    acquireProductionProgramImagesOCR.mockResolvedValue(
+      governedResponse({
+        source_id: "production-program-images:sha256:multipage",
+        page_count: 2,
+        page_source_ids: [
+          "production-program-image:sha256:page-1",
+          "production-program-image:sha256:page-2",
+        ],
+        observed_text: "PAGE 1\nPAGE 2",
+        normalized_lines: ["PAGE 1", "PAGE 2"],
+      })
+    );
+
+    const firstPage = syntheticFile(
+      [137, 80, 78, 71, 1],
+      "programma-page-1.png",
+      "image/png"
+    );
+    const secondPage = syntheticFile(
+      [137, 80, 78, 71, 2],
+      "programma-page-2.png",
+      "image/png"
+    );
+
+    render(<ProductionProgramImageOCRAcquisitionPage />);
+
+    fireEvent.change(
+      screen.getByLabelText(/immagine programma produzione/i),
+      { target: { files: [firstPage, secondPage] } }
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: /acquisisci preview ocr/i })
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: /preview ocr disponibile/i,
+      })
+    ).toBeDefined();
+
+    expect(acquireProductionProgramImageOCR).not.toHaveBeenCalled();
+    expect(acquireProductionProgramImagesOCR).toHaveBeenCalledWith({
+      images_base64: ["iVBORwE=", "iVBORwI="],
+    });
+
+    expect(screen.getByText("production-program-images:sha256:multipage")).toBeDefined();
   });
 
   it("accepts a synthetic JPEG", async () => {

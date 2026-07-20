@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import {
   acquireProductionProgramImageOCR,
+  acquireProductionProgramImagesOCR,
   confirmProductionProgramSnapshot,
   type ProductionProgramImageOCRAcquisitionResponse,
   type ProductionProgramSnapshotConfirmationResponse,
@@ -54,7 +55,7 @@ function outcomeTitle(result: ProductionProgramImageOCRAcquisitionResponse): str
 }
 
 export default function ProductionProgramImageOCRAcquisitionPage() {
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] =
     useState<ProductionProgramImageOCRAcquisitionResponse | null>(null);
   const [error, setError] = useState("");
@@ -69,7 +70,7 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    if (!file || loading) return;
+    if (files.length === 0 || loading) return;
 
     setLoading(true);
     setError("");
@@ -78,10 +79,15 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
     setConfirmationError("");
 
     try {
-      const imageBase64 = await fileToBase64(file);
-      const response = await acquireProductionProgramImageOCR({
-        image_base64: imageBase64,
-      });
+      const imagesBase64 = await Promise.all(files.map(fileToBase64));
+      const response =
+        imagesBase64.length === 1
+          ? await acquireProductionProgramImageOCR({
+              image_base64: imagesBase64[0],
+            })
+          : await acquireProductionProgramImagesOCR({
+              images_base64: imagesBase64,
+            });
       setResult(response);
     } catch (caughtError) {
       setError(normalizeTransportError(caughtError));
@@ -155,7 +161,7 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
           Acquisizione programma produzione
         </h1>
         <p style={{ margin: 0, color: "#a1a1aa", lineHeight: 1.5 }}>
-          Estrazione OCR locale da una singola immagine PNG o JPEG.
+          Estrazione OCR locale da una o più immagini PNG o JPEG.
           Il risultato è una preview non autorevole e non viene persistito.
         </p>
         <p style={{ margin: 0, color: "#a1a1aa", lineHeight: 1.5 }}>
@@ -180,9 +186,10 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
               aria-label="Immagine programma produzione"
               type="file"
               accept="image/png,image/jpeg"
+              multiple
               disabled={loading}
               onChange={(event) => {
-                setFile(event.target.files?.[0] ?? null);
+                setFiles(Array.from(event.target.files ?? []));
                 setResult(null);
                 setError("");
                 setConfirmation(null);
@@ -191,24 +198,25 @@ export default function ProductionProgramImageOCRAcquisitionPage() {
             />
           </label>
 
-          {file && (
+          {files.length > 0 && (
             <div style={{ color: "#d4d4d8", fontSize: 14 }}>
-              File selezionato: <strong>{file.name}</strong>
+              File selezionati:{" "}
+              <strong>{files.map((selectedFile) => selectedFile.name).join(", ")}</strong>
             </div>
           )}
 
           <button
             type="submit"
-            disabled={!file || loading}
+            disabled={files.length === 0 || loading}
             style={{
               justifySelf: "start",
               border: "1px solid #444",
               borderRadius: 8,
               padding: "10px 16px",
               fontWeight: 800,
-              cursor: !file || loading ? "not-allowed" : "pointer",
-              background: !file || loading ? "#18181b" : "#fff",
-              color: !file || loading ? "#71717a" : "#000",
+              cursor: files.length === 0 || loading ? "not-allowed" : "pointer",
+              background: files.length === 0 || loading ? "#18181b" : "#fff",
+              color: files.length === 0 || loading ? "#71717a" : "#000",
             }}
           >
             {loading ? "Acquisizione in corso…" : "Acquisisci preview OCR"}
