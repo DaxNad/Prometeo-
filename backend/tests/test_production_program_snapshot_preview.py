@@ -23,6 +23,23 @@ DATA RICHIESTA CLIENTE: 2026-07-22
 NOTA LIBERA NON CLASSIFICATA
 """
 
+OBSERVED_OCR_TEXT = """\
+PROGRAMMA PRODUZIONE
+
+Data spedizione: 22/07/2026
+Cliente: SMF
+
+Articolo 12069
+
+Quantita richiesta: 24
+Postazione: Banco assemblaggio
+Note: test OCR Prometeo
+
+Articolo 12514
+Quantita richiesta: 12
+Postazione: Banco assemblaggio
+"""
+
 
 def test_valid_two_record_preview_is_deterministic_and_non_authoritative():
     first = build_production_program_snapshot_preview(VALID_INPUT)
@@ -57,6 +74,35 @@ def test_valid_two_record_preview_is_deterministic_and_non_authoritative():
     assert second_order["article_code"] == "ART-200"
     assert second_order["quantity"] == 25
     assert "NOTA LIBERA NON CLASSIFICATA" in second_order["unmatched_content"]
+
+
+def test_observed_ocr_article_sections_build_non_persisted_preview_records():
+    result = build_production_program_snapshot_preview(OBSERVED_OCR_TEXT)
+
+    assert result["ok"] is True
+    assert result["source_status"] == "SOURCE_FOUND"
+    assert result["semantic_status"] == "INCOMPLETO"
+    assert result["missing_fields"] == [
+        {"record_index": 1, "field": "order_id"},
+        {"record_index": 2, "field": "order_id"},
+        {"field": "period"},
+    ]
+    assert result["discrepancies"] == []
+    assert result["requires_confirmation"] is True
+    assert result["persisted"] is False
+    assert result["writer_called"] is False
+    assert result["planner_called"] is False
+    assert result["pattern_learning_called"] is False
+
+    first_order, second_order = result["orders"]
+    assert first_order["article_code"] == "12069"
+    assert first_order["quantity"] == 24
+    assert first_order["station_hint"] == "Banco assemblaggio"
+    assert first_order["customer_requested_date"] is None
+    assert second_order["article_code"] == "12514"
+    assert second_order["quantity"] == 12
+    assert second_order["station_hint"] == "Banco assemblaggio"
+    assert second_order["customer_requested_date"] is None
 
 
 def test_missing_required_field_is_aggregated_without_defaulting_truth():
