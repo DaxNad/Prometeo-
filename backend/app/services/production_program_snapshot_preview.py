@@ -216,15 +216,23 @@ def _split_records(text: str) -> list[str] | None:
         return blocks
 
     lines = text.splitlines()
-    record_starts = [
-        index
-        for index, line in enumerate(lines)
-        if re.fullmatch(
-            r"\s*articolo(?:\s*[:=\-]\s*|\s+)(\S.*?)\s*",
-            line,
-            flags=re.IGNORECASE,
-        )
-    ]
+    record_starts: list[int] = []
+    for record_start_pattern in (
+        r"\s*ordine\s*[:=\-]\s*(\S.*?)\s*",
+        r"\s*articolo(?:\s*[:=\-]\s*|\s+)(\S.*?)\s*",
+    ):
+        candidates = [
+            index
+            for index, line in enumerate(lines)
+            if re.fullmatch(
+                record_start_pattern,
+                line,
+                flags=re.IGNORECASE,
+            )
+        ]
+        if len(candidates) >= 2:
+            record_starts = candidates
+            break
     if len(record_starts) < 2:
         return None
 
