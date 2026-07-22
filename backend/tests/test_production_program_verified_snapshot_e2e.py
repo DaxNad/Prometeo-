@@ -47,6 +47,16 @@ codice: SYNTH-ARTICLE-002
 qta: 4
 data richiesta cliente: 2026-08-05
 """
+CONFIRMED_PERIOD_OCR_TEXT = """PERIODO: 2026-W30
+ORDINE: ORD-001
+Articolo 12069
+Quantita richiesta: 24
+Postazione: Banco assemblaggio
+ORDINE: ORD-002
+Articolo 12514
+Quantita richiesta: 12
+Postazione: Banco assemblaggio
+"""
 VERIFIED_MARKER = "PROMETEO_PROGRAM_VERIFIED_SNAPSHOT_V1"
 
 
@@ -258,6 +268,89 @@ def test_ocr_preview_requires_authorized_confirmation_before_persistent_tl_readb
             get_production_program_snapshot_registry,
             None,
         )
+
+
+def test_tl_chat_reads_confirmed_production_program_by_period_without_mutation(
+    monkeypatch,
+) -> None:
+    registry = MemorySnapshotRegistry()
+    confirmation = confirm_production_program_snapshot(
+        registry=registry,
+        **_confirmation_values(observed_text=CONFIRMED_PERIOD_OCR_TEXT),
+    )
+    assert confirmation.ok is True
+    assert confirmation.record is not None
+    persisted_before_readback = registry.snapshot_bytes()
+
+    monkeypatch.setattr(
+        tl_chat_api,
+        "_build_contract_response",
+        _must_not_be_called("_build_contract_response"),
+    )
+    monkeypatch.setattr(
+        ocr_ingest,
+        "write_extracted_order_to_smf",
+        _must_not_be_called("write_extracted_order_to_smf"),
+    )
+    monkeypatch.setattr(
+        ocr_ingest,
+        "write_extracted_orders_to_smf",
+        _must_not_be_called("write_extracted_orders_to_smf"),
+    )
+    monkeypatch.setattr(
+        api_planner,
+        "planner_sequence",
+        _must_not_be_called("planner_sequence"),
+    )
+    monkeypatch.setattr(
+        tl_chat_api,
+        "find_patterns_by_station",
+        _must_not_be_called("find_patterns_by_station"),
+    )
+    app.dependency_overrides[get_production_program_snapshot_registry] = (
+        lambda: registry
+    )
+    try:
+        response = TestClient(app).post(
+            "/tl/chat",
+            json={
+                "question": (
+                    "Mostrami il programma produzione confermato 2026-W30"
+                ),
+                "context": {},
+            },
+        )
+    finally:
+        app.dependency_overrides.pop(
+            get_production_program_snapshot_registry,
+            None,
+        )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["source"] == "production_program_snapshot_registry"
+    assert data["source_status"] == "SOURCE_FOUND"
+    assert data["semantic_status"] == "CONFERMATO"
+    assert data["semantic_status"] != "CERTO"
+    assert data["requires_confirmation"] is False
+    assert "Periodo: 2026-W30" in data["answer"]
+    assert "ORD-001" in data["answer"]
+    assert "12069" in data["answer"]
+    assert "24" in data["answer"]
+    assert "Banco assemblaggio" in data["answer"]
+    assert "ORD-002" in data["answer"]
+    assert "12514" in data["answer"]
+    assert "12" in data["answer"]
+
+    verified = data["production_program_verified_snapshot"]
+    assert verified["registry_id"] == confirmation.record["registry_id"]
+    assert verified["version"] == 1
+    assert verified["status"] == "CONFERMATO"
+    assert verified["snapshot"]["period"] == "2026-W30"
+    assert verified["snapshot"]["planner_called"] is False
+    assert verified["snapshot"]["writer_called"] is False
+    assert verified["snapshot"]["pattern_learning_called"] is False
+    assert registry.snapshot_bytes() == persisted_before_readback
 
 
 @pytest.mark.parametrize(
