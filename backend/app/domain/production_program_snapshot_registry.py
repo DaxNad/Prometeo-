@@ -134,6 +134,39 @@ class ProductionProgramSnapshotRegistry:
         latest = versions[-1]
         return copy.deepcopy(latest) if isinstance(latest, dict) else None
 
+    def read_latest_by_period(
+        self,
+        period: str,
+    ) -> tuple[dict[str, Any], ...]:
+        normalized_period = str(period or "").strip().upper()
+        if not normalized_period:
+            return ()
+
+        document = self._read_document()
+        matches: list[dict[str, Any]] = []
+        for registry_id in sorted(document["snapshots"]):
+            history = document["snapshots"].get(registry_id)
+            if not isinstance(history, dict):
+                continue
+            versions = history.get("versions")
+            if not isinstance(versions, list) or not versions:
+                continue
+            latest = versions[-1]
+            if not isinstance(latest, dict):
+                continue
+            snapshot = latest.get("snapshot")
+            if (
+                latest.get("status") == "CONFERMATO"
+                and latest.get("semantic_status") == "CONFERMATO"
+                and latest.get("persisted") is True
+                and latest.get("requires_confirmation") is False
+                and isinstance(snapshot, dict)
+                and str(snapshot.get("period") or "").strip().upper()
+                == normalized_period
+            ):
+                matches.append(copy.deepcopy(latest))
+        return tuple(matches)
+
     def _read_document(self) -> dict[str, Any]:
         if not self.path.exists():
             return _empty_document()

@@ -161,7 +161,10 @@ def _build_order(block: str, *, index: int, source_id: str) -> dict[str, Any]:
     if requested_date_provenance is not None:
         provenance["customer_requested_date"] = requested_date_provenance
 
-    quantity, quantity_error = _quantity(parsed_order.get("qta"))
+    quantity, quantity_error = _production_program_quantity(
+        block,
+        parsed_order.get("qta"),
+    )
     values = {
         "order_id": _clean(parsed_order.get("order_id")),
         "article_code": _clean(parsed_order.get("codice")),
@@ -206,12 +209,42 @@ def _extract_period(text: str) -> tuple[str | None, str]:
 
 
 def _split_records(text: str) -> list[str] | None:
-    if RECORD_DELIMITER not in text:
+    if RECORD_DELIMITER in text:
+        blocks = [block.strip() for block in text.split(RECORD_DELIMITER)]
+        if len(blocks) < 2 or any(not block for block in blocks):
+            return None
+        return blocks
+
+    lines = text.splitlines()
+    record_starts: list[int] = []
+    for record_start_pattern in (
+        r"\s*ordine\s*[:=\-]\s*(\S.*?)\s*",
+        r"\s*articolo(?:\s*[:=\-]\s*|\s+)(\S.*?)\s*",
+    ):
+        candidates = [
+            index
+            for index, line in enumerate(lines)
+            if re.fullmatch(
+                record_start_pattern,
+                line,
+                flags=re.IGNORECASE,
+            )
+        ]
+        if len(candidates) >= 2:
+            record_starts = candidates
+            break
+    if len(record_starts) < 2:
         return None
-    blocks = [block.strip() for block in text.split(RECORD_DELIMITER)]
-    if len(blocks) < 2 or any(not block for block in blocks):
-        return None
-    return blocks
+
+    blocks = [
+        "\n".join(lines[start:end]).strip()
+        for start, end in zip(
+            record_starts,
+            (*record_starts[1:], len(lines)),
+            strict=True,
+        )
+    ]
+    return blocks if all(blocks) else None
 
 
 def _dates(
@@ -279,6 +312,21 @@ def _quantity(value: Any) -> tuple[int | float | None, str | None]:
     if number <= 0:
         return None, "quantity_must_be_positive"
     return (int(number) if number.is_integer() else number), None
+
+
+def _production_program_quantity(
+    block: str,
+    parsed_value: Any,
+) -> tuple[int | float | None, str | None]:
+    for line in block.splitlines():
+        match = re.fullmatch(
+            r"\s*quantit[aà]\s+richiesta\s*[:=\-]?\s*(.+?)\s*",
+            line,
+            flags=re.IGNORECASE,
+        )
+        if match:
+            return _quantity(match.group(1))
+    return _quantity(parsed_value)
 
 
 def _canonical_field(field: str) -> str:

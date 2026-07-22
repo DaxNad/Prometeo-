@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
@@ -59,6 +60,7 @@ SPEC_INTAKE_CONFIRMATION_ROOT = ROOT / "data" / "local_reports" / "spec_intake_c
 
 SOURCE_FOUND = "SOURCE_FOUND"
 SOURCE_MISSING = "SOURCE_MISSING"
+SOURCE_AMBIGUOUS = "SOURCE_AMBIGUOUS"
 SOURCE_INVALID = "SOURCE_INVALID"
 SOURCE_UNREADABLE = "SOURCE_UNREADABLE"
 
@@ -3444,6 +3446,20 @@ def _extract_verified_production_program_snapshot_id(
     return body.strip() if separator else ""
 
 
+def _extract_confirmed_production_program_period(
+    question: str,
+) -> str | None:
+    normalized_question = " ".join(str(question or "").casefold().split())
+    if "programma produzione confermato" not in normalized_question:
+        return None
+    match = re.search(
+        r"\b\d{4}-W(?:0[1-9]|[1-4]\d|5[0-3])\b",
+        question,
+        re.IGNORECASE,
+    )
+    return match.group(0).upper() if match else None
+
+
 def _snapshot_display_value(value: Any) -> str:
     if value is None or value == "":
         return "non disponibile"
@@ -3653,6 +3669,8 @@ def _render_verified_production_program_snapshot(
                 + _snapshot_display_value(order.get("article_code")),
                 "- quantità: "
                 + _snapshot_display_value(order.get("quantity")),
+                "- postazione: "
+                + _snapshot_display_value(order.get("station_hint")),
                 "- data richiesta cliente: "
                 + _snapshot_display_value(
                     order.get("customer_requested_date")
@@ -3738,6 +3756,57 @@ def _response_from_verified_production_program_snapshot(
     )
 
 
+def _response_from_confirmed_production_program_period(
+    period: str,
+    registry: ProductionProgramSnapshotRegistry | None,
+) -> TLChatResponse:
+    if registry is None:
+        return _response_from_verified_production_program_snapshot("", registry)
+
+    try:
+        records = registry.read_latest_by_period(period)
+    except ProductionProgramSnapshotRegistryError:
+        return TLChatResponse(
+            ok=False,
+            answer="Snapshot programma produzione non leggibile.",
+            confidence="DA_VERIFICARE",
+            risk="Il registry configurato non è leggibile in modo governato.",
+            recommended_action="Verificare il registry senza usare fallback inferiti.",
+            requires_confirmation=True,
+            source="production_program_snapshot_registry",
+            source_status=SOURCE_UNREADABLE,
+            semantic_status="BLOCCATO",
+            missing_data=[f"snapshot confermato per periodo {period}"],
+        )
+
+    if not records:
+        return _response_from_verified_production_program_snapshot(
+            "",
+            registry,
+        )
+
+    if len(records) > 1:
+        return TLChatResponse(
+            ok=False,
+            answer=f"Più snapshot confermati risultano per il periodo {period}.",
+            confidence="DA_VERIFICARE",
+            risk="Il periodo non identifica univocamente uno snapshot confermato.",
+            recommended_action=(
+                "Specificare il registry_id dello snapshot richiesto."
+            ),
+            requires_confirmation=True,
+            source="production_program_snapshot_registry",
+            source_status=SOURCE_AMBIGUOUS,
+            semantic_status="BLOCCATO",
+            missing_data=["registry_id univoco"],
+        )
+
+    return _response_from_verified_production_program_snapshot(
+        str(records[0].get("registry_id") or ""),
+        registry,
+    )
+
+
 @public_router.post("/chat", response_model=TLChatResponse)
 @router.post("/chat", response_model=TLChatResponse)
 def tl_chat(
@@ -3761,6 +3830,15 @@ def tl_chat(
     if verified_snapshot_id is not None:
         return _response_from_verified_production_program_snapshot(
             verified_snapshot_id,
+            production_program_snapshot_registry,
+        )
+
+    confirmed_snapshot_period = (
+        _extract_confirmed_production_program_period(payload.question)
+    )
+    if confirmed_snapshot_period is not None:
+        return _response_from_confirmed_production_program_period(
+            confirmed_snapshot_period,
             production_program_snapshot_registry,
         )
 
