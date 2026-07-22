@@ -9,8 +9,13 @@ export default defineConfig(({ mode }) => {
     env.VITE_PROMETEO_API_KEY ||
     "";
 
+  const backendTarget =
+    process.env.PROMETEO_BACKEND_URL ||
+    env.PROMETEO_BACKEND_URL ||
+    "http://127.0.0.1:8000";
+
   const proxyTarget: ProxyOptions = {
-    target: "http://127.0.0.1:8000",
+    target: backendTarget,
     changeOrigin: true,
     configure: (proxy) => {
       proxy.on("proxyReq", (proxyReq) => {
