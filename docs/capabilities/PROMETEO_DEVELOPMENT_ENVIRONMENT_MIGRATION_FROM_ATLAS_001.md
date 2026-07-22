@@ -153,13 +153,13 @@ Resta il controllo deterministico per backend, frontend, test, curl, Git, GitHub
 
 ### Backend
 
+Prerequisito: la variabile di autenticazione deve essere già disponibile nel contesto locale autorizzato e non deve essere documentata nel repository.
+
 ```bash
 cd ~/PROMETEO
 
-API_KEY="$(grep '^PROMETEO_API_KEY=' backend/.env | cut -d= -f2-)"
 
 PYTHONPATH="$PWD:$PWD/backend" \
-PROMETEO_API_KEY="$API_KEY" \
 PROMETEO_PRODUCTION_PROGRAM_OCR_PROVIDER=tesseract \
 ./tools/py -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
