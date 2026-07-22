@@ -11,6 +11,7 @@ from app.api.production_program_image_ocr_acquisition import (
 )
 from app.ingest.production_program_image_ocr_acquisition import OCRTextExtractionResult
 from app.main import app as main_app
+from app.services.production_program_tesseract_ocr import PROVIDER_ENV
 
 
 PNG = b"\x89PNG\r\n\x1a\nsynthetic-png"
@@ -65,6 +66,26 @@ def assert_governance(data: dict[str, object]) -> None:
     assert data["writer_called"] is False
     assert data["planner_called"] is False
     assert data["pattern_learning_called"] is False
+
+
+def test_explicit_stub_provider_returns_governed_preview(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(PROVIDER_ENV, "stub")
+
+    response = client().post(
+        "/production-program/image-ocr/acquire",
+        json=payload(PNG),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is True
+    assert data["status"] == "PREVIEW_READY"
+    assert data["provider"] == "deterministic-stub"
+    assert "ORD-STUB-001" in data["observed_text"]
+    assert data["snapshot_preview"] is not None
+    assert_governance(data)
 
 
 def test_ready_preview_preserves_evidence_and_provenance() -> None:

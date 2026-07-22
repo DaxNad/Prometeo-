@@ -9,7 +9,10 @@ import subprocess
 import tempfile
 from typing import Callable
 
-from app.ingest.production_program_image_ocr_acquisition import OCRTextExtractionResult
+from app.ingest.production_program_image_ocr_acquisition import (
+    OCRTextExtractionResult,
+    ProductionProgramOCRAdapter,
+)
 
 
 ERROR_PRODUCTION_PROGRAM_TESSERACT_FAILED = (
@@ -20,8 +23,21 @@ ERROR_PRODUCTION_PROGRAM_TESSERACT_TIMEOUT = (
 )
 
 PROVIDER_ID = "tesseract-local"
+STUB_PROVIDER_ID = "deterministic-stub"
 PROVIDER_ENV = "PROMETEO_PRODUCTION_PROGRAM_OCR_PROVIDER"
 COMMAND_ENV = "PROMETEO_TESSERACT_COMMAND"
+
+_STUB_TEXT = """PERIODO: DEV-STUB
+ordine: ORD-STUB-001
+codice: ART-STUB-001
+qta: 12
+data richiesta cliente: 2099-01-01
+--- RECORD ---
+ordine: ORD-STUB-002
+codice: ART-STUB-002
+qta: 8
+data richiesta cliente: 2099-01-02
+"""
 LANGUAGE_ENV = "PROMETEO_TESSERACT_LANGUAGE"
 TIMEOUT_ENV = "PROMETEO_TESSERACT_TIMEOUT_SECONDS"
 
@@ -29,6 +45,26 @@ _MEDIA_SUFFIX = {
     "image/png": ".png",
     "image/jpeg": ".jpg",
 }
+
+
+@dataclass(frozen=True)
+class DeterministicProductionProgramOCRAdapter:
+    provider: str = STUB_PROVIDER_ID
+    text: str = _STUB_TEXT
+
+    def extract_text(
+        self,
+        image_bytes: bytes,
+        *,
+        media_type: str,
+        source_id: str,
+    ) -> OCRTextExtractionResult:
+        del image_bytes, media_type, source_id
+        return OCRTextExtractionResult(
+            ok=True,
+            provider=self.provider,
+            text=self.text,
+        )
 
 
 @dataclass(frozen=True)
@@ -100,9 +136,13 @@ def build_production_program_ocr_adapter(
     *,
     environ: Mapping[str, str] | None = None,
     which: Callable[[str], str | None] = shutil.which,
-) -> TesseractProductionProgramOCRAdapter | None:
+) -> ProductionProgramOCRAdapter | None:
     values = os.environ if environ is None else environ
     provider = values.get(PROVIDER_ENV, "").strip().lower()
+
+    if provider == "stub":
+        return DeterministicProductionProgramOCRAdapter()
+
     if provider != "tesseract":
         return None
 
