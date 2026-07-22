@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
       port: 5173,
       strictPort: true,
       proxy: {
-        "/production": proxyTarget,
+        "^/production(/|$)": proxyTarget,
         "/health": proxyTarget,
         "/agent-runtime": proxyTarget,
         "/tl/chat": proxyTarget
