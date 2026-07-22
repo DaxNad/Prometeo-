@@ -177,6 +177,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_INTAKE_VERTICAL_SLICE_002.md` | PRODUCTION_PROGRAM_IMAGE_OCR_INTAKE_VERTICAL_SLICE_002 | `` |
 | `CONTRACT` | `REFERENCE` | `docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_001.md` | PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_001 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_VERTICAL_SLICE_001.md` | PRODUCTION_PROGRAM_IMAGE_OCR_UI_INTAKE_VERTICAL_SLICE_001 | `` |
+| `EVIDENCE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_OCR_CONFIRMED_READ_FLOW_CLOSURE_001.md` | PRODUCTION_PROGRAM_OCR_CONFIRMED_READ_FLOW_CLOSURE_001 | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_001.md` | PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_001 | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_001.md` | PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_001 | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_002.md` | PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_002 | `` |
@@ -224,6 +225,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **206**.
+Totale documenti catalogati: **207**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
