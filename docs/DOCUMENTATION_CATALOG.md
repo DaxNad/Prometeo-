@@ -183,6 +183,7 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `ARCHIVE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_002.md` | PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_002 | `` |
 | `ARCHIVE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_003.md` | PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_003 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/capabilities/PRODUCTION_PROGRAM_SNAPSHOT_INTAKE_VERTICAL_SLICE_003_CLOSURE.md` | Slice 003 closure | `` |
+| `REFERENCE` | `REFERENCE` | `docs/capabilities/PROMETEO_DEVELOPMENT_ENVIRONMENT_MIGRATION_FROM_ATLAS_001.md` | PROMETEO_DEVELOPMENT_ENVIRONMENT_MIGRATION_FROM_ATLAS_001 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/PROMETEO_NEXT_CAPABILITY_PRIORITY_PREFLIGHT_2026_07_14.md` | PROMETEO_NEXT_CAPABILITY_PRIORITY_PREFLIGHT_2026_07_14 | `` |
 | `REFERENCE` | `REFERENCE` | `docs/capabilities/PROMETEO_NEXT_CAPABILITY_PRIORITY_PREFLIGHT_2026_07_15.md` | PROMETEO_NEXT_CAPABILITY_PRIORITY_PREFLIGHT_2026_07_15 | `` |
 | `EVIDENCE` | `ARCHIVED` | `docs/capabilities/TL_CHAT_PRODUCTION_SPEC_SUMMARY_001.md` | TL_CHAT_PRODUCTION_SPEC_SUMMARY_001 — End-to-end verification closure | `` |
@@ -225,6 +226,6 @@ La policy di lettura è definita in `docs/DOCUMENTATION_GOVERNANCE.md`.
 | `STATE` | `SUPERSEDED` | `memory/project_state.md` | Project State | `docs/CURRENT_STATE.md` |
 | `GOVERNANCE` | `ACTIVE` | `memory/retrieval/retrieval_policy.md` | Memory Retrieval Policy | `` |
 
-Totale documenti catalogati: **207**.
+Totale documenti catalogati: **208**.
 
 File generato da `scripts/build_documentation_catalog.py`; non modificare le righe manualmente.
