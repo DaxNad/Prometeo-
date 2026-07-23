@@ -208,3 +208,77 @@ def test_router_is_registered_in_main_app() -> None:
         main_app.dependency_overrides.pop(get_production_program_ocr_adapter, None)
     assert response.status_code == 200
     assert response.json()["status"] == "PREVIEW_READY"
+
+def test_endpoint_preserves_multirow_snapshot_preview_contract(
+    monkeypatch,
+) -> None:
+    from app.ingest import production_program_image_ocr_acquisition as acquisition
+
+    expected_snapshot = {
+        "ok": True,
+        "semantic_status": "DA_VERIFICARE",
+        "records_preview": [
+            {
+                "record_index": 1,
+                "material_code": "7055845000C0",
+                "customer_material": "A2145019100",
+                "quantities": [70, 400, 55, 55],
+                "status": "DA_VERIFICARE",
+            },
+            {
+                "record_index": 3,
+                "material_code": "7055845000C2",
+                "customer_material": "A2145019300",
+                "quantities": [20, 30],
+                "status": "DA_VERIFICARE",
+            },
+        ],
+        "rejected_rows": [
+            {
+                "record_index": 2,
+                "source_line": (
+                    "7055845000C1 *P.12064A DIS. A2145019200"
+                ),
+                "reason": "MISSING_QUANTITIES",
+                "status": "BLOCCATO",
+            }
+        ],
+        "missing_fields": [
+            {
+                "record_index": 2,
+                "field": "quantities",
+            }
+        ],
+        "confidence": "DA_VERIFICARE",
+        "requires_confirmation": True,
+        "persisted": False,
+        "writer_called": False,
+        "planner_called": False,
+        "pattern_learning_called": False,
+    }
+
+    monkeypatch.setattr(
+        acquisition,
+        "build_production_program_snapshot_preview",
+        lambda observed_text, *, source_id: expected_snapshot,
+    )
+
+    response = client(OCRAdapter()).post(
+        "/production-program/image-ocr/acquire",
+        json=payload(PNG),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "PREVIEW_READY"
+    assert data["snapshot_preview"] == expected_snapshot
+    assert data["snapshot_preview"]["records_preview"][0]["record_index"] == 1
+    assert data["snapshot_preview"]["rejected_rows"][0]["record_index"] == 2
+    assert data["snapshot_preview"]["records_preview"][1]["record_index"] == 3
+    assert data["snapshot_preview"]["missing_fields"] == [
+        {
+            "record_index": 2,
+            "field": "quantities",
+        }
+    ]
+    assert_governance(data)
