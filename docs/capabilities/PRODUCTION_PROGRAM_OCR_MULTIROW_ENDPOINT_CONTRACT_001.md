@@ -6,7 +6,7 @@ Verificare che l'endpoint OCR del programma produzione propaghi integralmente la
 
 ## Stato
 
-APERTA - PERIMETRO
+CHIUSA
 
 ## Capability precedente
 
@@ -196,3 +196,82 @@ adapter OCR
 ```
 
 e i test endpoint esistenti, producendo un output compatto e senza patch.
+
+## Chiusura
+
+### Commit di verifica
+
+- `5b6039f test(ocr): preserve multirow endpoint contract`
+
+### Verifica eseguita
+
+```text
+49 passed in 0.54s
+```
+
+### Esito contrattuale
+
+```text
+CONTRACT_ALREADY_PRESERVED=YES
+RUNTIME_PATCH_REQUIRED=NO
+```
+
+L'endpoint OCR preserva integralmente il contratto multirow prodotto dal servizio dominio.
+
+Sono stati verificati:
+
+- `records_preview[]`;
+- `rejected_rows[]`;
+- `missing_fields[]`;
+- `record_index`;
+- ordine dei record;
+- `confidence`;
+- `semantic_status`;
+- `requires_confirmation=true`;
+- `persisted=false`;
+- `writer_called=false`;
+- `planner_called=false`;
+- `pattern_learning_called=false`.
+
+### Decisione
+
+Non è stata applicata alcuna patch runtime.
+
+La capability è stata chiusa mediante test di caratterizzazione endpoint, poiché la propagazione di `snapshot_preview` risultava già corretta e non distruttiva.
+
+### File modificato
+
+- `backend/tests/test_production_program_image_ocr_acquisition_endpoint.py`
+
+### Sistemi non modificati
+
+- servizio runtime OCR;
+- servizio snapshot preview;
+- frontend;
+- adapter Tesseract;
+- endpoint multipage;
+- endpoint di conferma;
+- registry persistente;
+- database e migrazioni;
+- writer;
+- planner;
+- pattern learning;
+- inferenza LLM.
+
+### Limite confermato
+
+La capability termina alla verifica della propagazione HTTP del contratto multirow.
+
+Non introduce:
+
+- conferma;
+- persistenza;
+- correzione manuale;
+- aggregazione;
+- deduplicazione;
+- pianificazione;
+- scrittura su registry.
+
+## Next move
+
+Aprire una capability successiva solo dopo aver definito il prossimo confine verticale minimo verificabile.
