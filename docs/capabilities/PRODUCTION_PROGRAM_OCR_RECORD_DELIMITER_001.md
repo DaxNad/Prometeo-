@@ -6,7 +6,7 @@ Trasformare il testo OCR osservato del programma produzione in righe candidate s
 
 ## Stato
 
-APERTA - PERIMETRO
+CHIUSA
 
 ## Capability precedente
 
@@ -157,3 +157,99 @@ Mappare in modalità read-only il percorso:
 `observed_text → normalized_lines → snapshot_preview → parser record esistente`
 
 senza applicare patch.
+
+## Chiusura
+
+### Commit di implementazione
+
+- `09de255 feat(ocr): parse flat production program rows`
+
+### Verifica eseguita
+
+```text
+47 passed in 0.55s
+```
+
+Suite pertinente:
+
+- `backend/tests/test_production_program_snapshot_preview.py`
+- `backend/tests/test_production_program_image_ocr_acquisition.py`
+- `backend/tests/test_production_program_image_ocr_acquisition_endpoint.py`
+- `backend/tests/test_production_program_image_ocr_multipage_acquisition.py`
+- `backend/tests/test_production_program_image_ocr_multipage_acquisition_endpoint.py`
+
+### Contratto positivo verificato
+
+Data la riga OCR:
+
+```text
+7055845000C0 *P.12063A DIS. A 214 501 9100 A2145019100 70 400 55 55
+```
+
+la preview restituisce almeno:
+
+```json
+{
+  "material_code": "7055845000C0",
+  "customer_material": "A2145019100",
+  "quantities": [70, 400, 55, 55],
+  "status": "DA_VERIFICARE"
+}
+```
+
+### Fail-closed verificato
+
+Una riga riconoscibile ma priva di quantità produce:
+
+```json
+{
+  "records_preview": [],
+  "rejected_rows": [
+    {
+      "reason": "MISSING_QUANTITIES",
+      "status": "BLOCCATO"
+    }
+  ],
+  "missing_fields": ["quantities"]
+}
+```
+
+### Confine di non persistenza verificato
+
+La preview mantiene:
+
+```json
+{
+  "requires_confirmation": true,
+  "persisted": false,
+  "writer_called": false,
+  "planner_called": false,
+  "pattern_learning_called": false
+}
+```
+
+### File runtime modificati
+
+- `backend/app/services/production_program_snapshot_preview.py`
+- `backend/tests/test_production_program_snapshot_preview.py`
+
+### File e sistemi non modificati
+
+- frontend;
+- endpoint OCR;
+- registry persistente;
+- endpoint di conferma;
+- database;
+- planner;
+- writer;
+- adapter Tesseract.
+
+## Capability successiva
+
+`PRODUCTION_PROGRAM_OCR_MULTIROW_PREVIEW_001`
+
+Scopo minimo: estendere il contratto governato a più righe OCR piatte, preservando ordine, righe rifiutate, campi mancanti, conferma obbligatoria e assenza di persistenza.
+
+## Next move
+
+Aprire `PRODUCTION_PROGRAM_OCR_MULTIROW_PREVIEW_001` solo dopo il commit della presente chiusura documentale.
