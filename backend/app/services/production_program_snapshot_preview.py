@@ -48,6 +48,14 @@ def build_production_program_snapshot_preview(
     if not normalized_text:
         return _blocked(snapshot_id, resolved_source_id, None, "empty_input")
 
+    flat_preview = _build_flat_ocr_record_preview(
+        normalized_text,
+        snapshot_id=snapshot_id,
+        source_id=resolved_source_id,
+    )
+    if flat_preview is not None:
+        return flat_preview
+
     period, records_text = _extract_period(normalized_text)
     blocks = _split_records(records_text)
     if blocks is None:
@@ -193,6 +201,102 @@ def _build_order(block: str, *, index: int, source_id: str) -> dict[str, Any]:
         "ambiguous_fields": ambiguous_dates,
         "discrepancies": [quantity_error] if quantity_error else [],
         "unmatched_content": list(parsed["unmatched_lines"]),
+    }
+
+
+
+def _build_flat_ocr_record_preview(
+    text: str,
+    *,
+    snapshot_id: str,
+    source_id: str,
+) -> dict[str, Any] | None:
+    """Parse one deterministic flat OCR row without persistence."""
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    if len(lines) != 1:
+        return None
+
+    tokens = re.sub(r"\s+", " ", lines[0]).split(" ")
+    if len(tokens) < 4:
+        return None
+
+    quantity_start = len(tokens)
+    while quantity_start > 0 and tokens[quantity_start - 1].isdigit():
+        quantity_start -= 1
+
+    quantity_tokens = tokens[quantity_start:]
+
+    customer_index = quantity_start - 1
+    if customer_index < 1:
+        return None
+
+    material_code = tokens[0].strip()
+    customer_material = tokens[customer_index].strip()
+
+    if re.fullmatch(r"[A-Z0-9]{10,}", material_code) is None:
+        return None
+    if re.fullmatch(r"[A-Z][A-Z0-9]{9,}", customer_material) is None:
+        return None
+
+    if not quantity_tokens:
+        return {
+            "ok": False,
+            "capability": CAPABILITY,
+            "snapshot_id": snapshot_id,
+            "source_id": source_id,
+            "source_type": SOURCE_TYPE,
+            "source_status": SOURCE_REJECTED,
+            "period": None,
+            "orders": [],
+            "records_preview": [],
+            "rejected_rows": [
+                {
+                    "source_line": lines[0],
+                    "reason": "MISSING_QUANTITIES",
+                    "status": BLOCCATO,
+                }
+            ],
+            "missing_fields": ["quantities"],
+            "ambiguous_fields": [],
+            "discrepancies": ["MISSING_QUANTITIES"],
+            "confidence": "LOW",
+            "semantic_status": BLOCCATO,
+            "requires_confirmation": True,
+            "persisted": False,
+            "writer_called": False,
+            "planner_called": False,
+            "pattern_learning_called": False,
+        }
+
+    quantities = [int(value) for value in quantity_tokens]
+    record = {
+        "material_code": material_code,
+        "customer_material": customer_material,
+        "quantities": quantities,
+        "status": DA_VERIFICARE,
+    }
+
+    return {
+        "ok": True,
+        "capability": CAPABILITY,
+        "snapshot_id": snapshot_id,
+        "source_id": source_id,
+        "source_type": SOURCE_TYPE,
+        "source_status": SOURCE_FOUND,
+        "period": None,
+        "orders": [],
+        "records_preview": [record],
+        "rejected_rows": [],
+        "missing_fields": [],
+        "ambiguous_fields": [],
+        "discrepancies": [],
+        "confidence": DA_VERIFICARE,
+        "semantic_status": DA_VERIFICARE,
+        "requires_confirmation": True,
+        "persisted": False,
+        "writer_called": False,
+        "planner_called": False,
+        "pattern_learning_called": False,
     }
 
 

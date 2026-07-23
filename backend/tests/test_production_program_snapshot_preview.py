@@ -361,3 +361,53 @@ def test_service_source_has_no_forbidden_integrations():
 
     assert all(token in source for token in required)
     assert all(token not in source for token in forbidden)
+
+FLAT_OCR_RECORD_ROW = (
+    "7055845000C0 *P.12063A DIS. A 214 501 9100 "
+    "A2145019100 70 400 55 55"
+)
+
+
+def test_flat_ocr_row_builds_governed_candidate_record():
+    result = build_production_program_snapshot_preview(
+        FLAT_OCR_RECORD_ROW,
+        source_id="synthetic:flat-ocr-record-row",
+    )
+
+    assert result["records_preview"] == [
+        {
+            "material_code": "7055845000C0",
+            "customer_material": "A2145019100",
+            "quantities": [70, 400, 55, 55],
+            "status": "DA_VERIFICARE",
+        }
+    ]
+    assert result["rejected_rows"] == []
+    assert result["missing_fields"] == []
+    assert result["confidence"] == "DA_VERIFICARE"
+    assert result["requires_confirmation"] is True
+    assert result["persisted"] is False
+    assert result["writer_called"] is False
+    assert result["planner_called"] is False
+    assert result["pattern_learning_called"] is False
+
+def test_flat_ocr_row_without_quantities_is_rejected_with_missing_fields():
+    result = build_production_program_snapshot_preview(
+        "7055845000C0 *P.12063A DIS. A2145019100",
+        source_id="synthetic:flat-ocr-record-row-missing-quantities",
+    )
+
+    assert result["records_preview"] == []
+    assert result["rejected_rows"] == [
+        {
+            "source_line": "7055845000C0 *P.12063A DIS. A2145019100",
+            "reason": "MISSING_QUANTITIES",
+            "status": "BLOCCATO",
+        }
+    ]
+    assert result["missing_fields"] == ["quantities"]
+    assert result["requires_confirmation"] is True
+    assert result["persisted"] is False
+    assert result["writer_called"] is False
+    assert result["planner_called"] is False
+    assert result["pattern_learning_called"] is False
