@@ -57,9 +57,9 @@ Fonte: `PRODUCTION_PROGRAM_OCR_CONFIRMED_READ_FLOW_CLOSURE_001`.
 Il comando corrente osservato in `scripts/dev_start.sh` è:
 
 ```bash
-cd backend
-export PYTHONPATH=.
-python -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+cd ~/PROMETEO
+export PYTHONPATH=backend
+./tools/py -m uvicorn app.main:app --host 127.0.0.1 --port 8000
 ```
 
 Lo script corrente:
