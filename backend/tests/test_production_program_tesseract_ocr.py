@@ -54,6 +54,29 @@ def test_provider_disabled_returns_none() -> None:
     ) is None
 
 
+def test_stub_provider_without_explicit_allow_flag_returns_none() -> None:
+    assert build_production_program_ocr_adapter(
+        environ={PROVIDER_ENV: "stub"},
+        which=lambda _: "/bin/tesseract",
+    ) is None
+
+
+@pytest.mark.parametrize(
+    "allow_value",
+    ["", "false", "FALSE", "0", "yes", "invalid"],
+)
+def test_stub_provider_with_invalid_allow_flag_returns_none(
+    allow_value: str,
+) -> None:
+    assert build_production_program_ocr_adapter(
+        environ={
+            PROVIDER_ENV: "stub",
+            "PROMETEO_ALLOW_DETERMINISTIC_OCR_STUB": allow_value,
+        },
+        which=lambda _: "/bin/tesseract",
+    ) is None
+
+
 def test_stub_provider_builds_deterministic_adapter_without_command_discovery() -> None:
     discovered_commands: list[str] = []
 
@@ -62,7 +85,10 @@ def test_stub_provider_builds_deterministic_adapter_without_command_discovery() 
         return "/bin/tesseract"
 
     adapter = build_production_program_ocr_adapter(
-        environ={PROVIDER_ENV: "stub"},
+        environ={
+            PROVIDER_ENV: "stub",
+            "PROMETEO_ALLOW_DETERMINISTIC_OCR_STUB": "true",
+        },
         which=which,
     )
 
