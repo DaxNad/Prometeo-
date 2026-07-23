@@ -68,10 +68,36 @@ def assert_governance(data: dict[str, object]) -> None:
     assert data["pattern_learning_called"] is False
 
 
+def test_stub_provider_without_explicit_allow_flag_fails_closed(
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(PROVIDER_ENV, "stub")
+    monkeypatch.delenv(
+        "PROMETEO_ALLOW_DETERMINISTIC_OCR_STUB",
+        raising=False,
+    )
+
+    response = client().post(
+        "/production-program/image-ocr/acquire",
+        json=payload(PNG),
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["ok"] is False
+    assert data["status"] == "REJECTED"
+    assert data["error_code"] == "OCR_ADAPTER_REQUIRED"
+    assert_governance(data)
+
+
 def test_explicit_stub_provider_returns_governed_preview(
     monkeypatch,
 ) -> None:
     monkeypatch.setenv(PROVIDER_ENV, "stub")
+    monkeypatch.setenv(
+        "PROMETEO_ALLOW_DETERMINISTIC_OCR_STUB",
+        "true",
+    )
 
     response = client().post(
         "/production-program/image-ocr/acquire",

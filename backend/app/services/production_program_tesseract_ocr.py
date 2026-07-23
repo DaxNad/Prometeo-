@@ -25,6 +25,7 @@ ERROR_PRODUCTION_PROGRAM_TESSERACT_TIMEOUT = (
 PROVIDER_ID = "tesseract-local"
 STUB_PROVIDER_ID = "deterministic-stub"
 PROVIDER_ENV = "PROMETEO_PRODUCTION_PROGRAM_OCR_PROVIDER"
+ALLOW_STUB_ENV = "PROMETEO_ALLOW_DETERMINISTIC_OCR_STUB"
 COMMAND_ENV = "PROMETEO_TESSERACT_COMMAND"
 
 _STUB_TEXT = """PERIODO: DEV-STUB
@@ -141,6 +142,9 @@ def build_production_program_ocr_adapter(
     provider = values.get(PROVIDER_ENV, "").strip().lower()
 
     if provider == "stub":
+        allow_stub = values.get(ALLOW_STUB_ENV, "").strip().lower()
+        if allow_stub != "true":
+            return None
         return DeterministicProductionProgramOCRAdapter()
 
     if provider != "tesseract":
