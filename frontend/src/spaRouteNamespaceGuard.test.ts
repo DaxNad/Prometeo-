@@ -31,10 +31,16 @@ function objectBodyAfter(source: string, marker: string): string {
 
 function proxyPrefixes(source: string): string[] {
   const proxyBody = objectBodyAfter(source, "proxy:");
+
   return Array.from(
-    proxyBody.matchAll(/["'](\/[^"']+)["']\s*:/g),
+    proxyBody.matchAll(/["']([^"']+)["']\s*:/g),
     (match) => match[1]
-  );
+  )
+    .map((key) => {
+      if (key === "^/production(/|$)") return "/production";
+      return key.startsWith("/") ? key : null;
+    })
+    .filter((key): key is string => key !== null);
 }
 
 function spaRoutes(source: string): string[] {

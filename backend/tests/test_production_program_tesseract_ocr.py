@@ -54,6 +54,42 @@ def test_provider_disabled_returns_none() -> None:
     ) is None
 
 
+def test_stub_provider_builds_deterministic_adapter_without_command_discovery() -> None:
+    discovered_commands: list[str] = []
+
+    def which(command: str) -> str | None:
+        discovered_commands.append(command)
+        return "/bin/tesseract"
+
+    adapter = build_production_program_ocr_adapter(
+        environ={PROVIDER_ENV: "stub"},
+        which=which,
+    )
+
+    assert adapter is not None
+    assert discovered_commands == []
+
+    first = adapter.extract_text(
+        PNG,
+        media_type="image/png",
+        source_id="production-program-image:sha256:first",
+    )
+    second = adapter.extract_text(
+        JPEG,
+        media_type="image/jpeg",
+        source_id="production-program-image:sha256:second",
+    )
+
+    assert first.ok is True
+    assert second.ok is True
+    assert first.provider == "deterministic-stub"
+    assert second.provider == "deterministic-stub"
+    assert first.text == second.text
+    assert "ordine:" in first.text
+    assert "codice:" in first.text
+    assert "qta:" in first.text
+
+
 def test_exact_provider_opt_in_builds_adapter_and_discovers_command() -> None:
     commands: list[str] = []
 
