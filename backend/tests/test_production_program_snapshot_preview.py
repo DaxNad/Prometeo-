@@ -161,6 +161,69 @@ def test_explicit_period_and_order_ids_preserve_observed_provenance():
     )
 
 
+def test_complete_observed_production_program_format_preserves_governed_mapping():
+    text = """\
+PROGRAMMA PRODUZIONE
+PERIODO: 2026-W30
+
+Data spedizione: 22/07/2026
+Cliente: CLIENTE-SINTETICO
+
+ORDINE: ORD-SYNTH-001
+Articolo 12069
+Quantita richiesta: 24
+Postazione: Banco assemblaggio
+DATA RICHIESTA CLIENTE: 2026-07-20
+Nota: fixture sintetica
+
+ORDINE: ORD-SYNTH-002
+Articolo 12514
+Quantita richiesta: 12
+Postazione: Banco assemblaggio
+"""
+
+    result = build_production_program_snapshot_preview(
+        text,
+        source_id="synthetic:real-format-fixture",
+    )
+
+    assert result["ok"] is True
+    assert result["period"] == "2026-W30"
+    assert result["requires_confirmation"] is True
+    assert result["persisted"] is False
+    assert result["writer_called"] is False
+    assert result["planner_called"] is False
+    assert result["pattern_learning_called"] is False
+
+    assert len(result["orders"]) == 2
+    first_order, second_order = result["orders"]
+
+    assert first_order["order_id"] == "ORD-SYNTH-001"
+    assert first_order["article_code"] == "12069"
+    assert first_order["quantity"] == 24
+    assert first_order["station_hint"] == "Banco assemblaggio"
+    assert first_order["customer_requested_date"] == "2026-07-20"
+
+    assert second_order["order_id"] == "ORD-SYNTH-002"
+    assert second_order["article_code"] == "12514"
+    assert second_order["quantity"] == 12
+    assert second_order["station_hint"] == "Banco assemblaggio"
+    assert second_order["customer_requested_date"] is None
+
+    assert first_order["field_provenance"]["order_id"]["source_line"] == (
+        "ORDINE: ORD-SYNTH-001"
+    )
+    assert first_order["field_provenance"]["customer_requested_date"][
+        "source_line"
+    ] == "DATA RICHIESTA CLIENTE: 2026-07-20"
+
+    assert result["missing_fields"] == []
+    assert all(
+        order["customer_requested_date"] != "22/07/2026"
+        for order in result["orders"]
+    )
+
+
 def test_missing_required_field_is_aggregated_without_defaulting_truth():
     text = f"""\
 PERIODO: 2026-W30
