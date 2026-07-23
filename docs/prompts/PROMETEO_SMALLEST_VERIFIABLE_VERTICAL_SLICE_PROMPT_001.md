@@ -28,6 +28,16 @@ Questo artefatto non è una copia integrale di una conversazione. Contiene solta
 | Chiusura capability | evidenze, limiti, impatti e una sola prossima mossa | `EXPORTABLE_SANITIZED` | `DEFER` — richiede confronto con i documenti closure esistenti |
 | Più piccola slice verticale verificabile | privilegiare una consegna concreta rispetto a ulteriore analisi non necessaria | `EXPORTABLE_SANITIZED` | `SELECTED` |
 
+## Registrazione obbligatoria degli elementi
+
+| `item_id` | `source_category` | `source_description` | `business_need` | `classification` | `sanitization_required` | `destination` | `verification_status` | `verified_by` | `verified_at` | `notes` |
+|---|---|---|---|---|---|---|---|---|---|---|
+| `ATLAS_PROMPT_CANDIDATE_001` | `prompt_canonici` | Preflight deterministico | Preservare il controllo di perimetro, fonti e assunzioni | `EXPORTABLE_SANITIZED` | `true` | `reference-only` | `REVIEWED` | `repository_operator` | `2026-07-22` | `DEFER`: già distribuito in documenti e regole repository |
+| `ATLAS_PROMPT_CANDIDATE_002` | `prompt_canonici` | Mappatura minima | Preservare la lettura minima prima di autorizzare modifiche | `EXPORTABLE_SANITIZED` | `true` | `reference-only` | `REVIEWED` | `repository_operator` | `2026-07-22` | `DEFER`: consolidamento rinviato |
+| `ATLAS_PROMPT_CANDIDATE_003` | `prompt_canonici` | Test-first | Preservare il ciclo test rosso e patch runtime minima | `EXPORTABLE_PUBLIC` | `false` | `reference-only` | `REVIEWED` | `repository_operator` | `2026-07-22` | `DEFER`: già prescritto da AGENTS.md |
+| `ATLAS_PROMPT_CANDIDATE_004` | `prompt_canonici` | Chiusura capability | Preservare evidenze, limiti, impatti e prossima mossa | `EXPORTABLE_SANITIZED` | `true` | `reference-only` | `REVIEWED` | `repository_operator` | `2026-07-22` | `DEFER`: richiede confronto con closure esistenti |
+| `ATLAS_PROMPT_001` | `prompt_canonici` | Più piccola slice verticale verificabile | Preservare il metodo operativo minimo, concreto e verificabile fuori da Atlas | `EXPORTABLE_SANITIZED` | `true` | `repository` | `SANITIZED` | `repository_operator` | `2026-07-22` | `SELECTED` ed esportato come artefatto testuale |
+
 ## Motivazione della selezione
 
 Il prompt selezionato:

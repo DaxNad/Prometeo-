@@ -81,7 +81,7 @@ Ogni elemento deve ricevere una sola classificazione primaria:
 | Comandi canonici | avvio backend/frontend, test, Git, diagnostica | `EXPORTABLE_SANITIZED` | rimuovere percorsi utente, host, token e valori locali |
 | Roadmap e capability | prossime mosse, limiti, criteri di accettazione | `EXPORTABLE_PUBLIC` | riportare nei documenti canonici |
 | Procedure in conversazione | flussi operativi non ancora documentati | `EXPORTABLE_SANITIZED` | trasformare in procedura verificabile, non copiare intere chat |
-| Screenshot operativi | errori UI, stato localhost, routing | `LOCAL_ONLY` o `EXPORTABLE_SANITIZED` | usare solo immagini sintetiche o ritagli senza dati sensibili |
+| Screenshot operativi | errori UI, stato localhost, routing | `LOCAL_ONLY` o `REFERENCE_ONLY` | non esportare immagini; conservare localmente oppure registrare soltanto un riepilogo testuale non sensibile o un riferimento descrittivo |
 | Percorsi locali | home directory, file system, mount | `REFERENCE_ONLY` | documentare placeholder generici, mai il percorso personale reale |
 | Dati di autenticazione | password, cookie, token, API key, sessioni | `FORBIDDEN_SECRET` | non esportare, non trascrivere, non committare |
 | Dati aziendali reali | ordini, articoli, documenti, immagini, Excel | `FORBIDDEN_SENSITIVE` o `LOCAL_ONLY` | nessun repository pubblico; usare dati sintetici |
