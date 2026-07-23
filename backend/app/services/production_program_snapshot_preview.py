@@ -211,20 +211,103 @@ def _build_flat_ocr_record_preview(
     snapshot_id: str,
     source_id: str,
 ) -> dict[str, Any] | None:
-    """Parse one deterministic flat OCR row without persistence."""
+    # Parse deterministic flat OCR rows without persistence.
     lines = [line.strip() for line in text.splitlines() if line.strip()]
-    if len(lines) != 1:
+    if not lines:
         return None
 
-    tokens = re.sub(r"\s+", " ", lines[0]).split(" ")
+    records_preview: list[dict[str, Any]] = []
+    rejected_rows: list[dict[str, Any]] = []
+    missing_fields: list[dict[str, Any]] = []
+
+    for record_index, line in enumerate(lines, start=1):
+        parsed = _parse_flat_ocr_line(line)
+        if parsed is None:
+            return None
+
+        if parsed["reason"] == "MISSING_QUANTITIES":
+            rejected_rows.append(
+                {
+                    "record_index": record_index,
+                    "source_line": line,
+                    "reason": "MISSING_QUANTITIES",
+                    "status": BLOCCATO,
+                }
+            )
+            missing_fields.append(
+                {
+                    "record_index": record_index,
+                    "field": "quantities",
+                }
+            )
+            continue
+
+        records_preview.append(
+            {
+                "record_index": record_index,
+                "material_code": parsed["material_code"],
+                "customer_material": parsed["customer_material"],
+                "quantities": parsed["quantities"],
+                "status": DA_VERIFICARE,
+            }
+        )
+
+    if not records_preview and not rejected_rows:
+        return None
+
+    if len(lines) == 1:
+        for record in records_preview:
+            record.pop("record_index", None)
+        for rejected in rejected_rows:
+            rejected.pop("record_index", None)
+        normalized_missing_fields: list[Any] = [
+            item["field"] for item in missing_fields
+        ]
+    else:
+        normalized_missing_fields = missing_fields
+
+    blocked = bool(rejected_rows) and not records_preview
+    return {
+        "ok": not blocked,
+        "capability": CAPABILITY,
+        "snapshot_id": snapshot_id,
+        "source_id": source_id,
+        "source_type": SOURCE_TYPE,
+        "source_status": SOURCE_REJECTED if blocked else SOURCE_FOUND,
+        "period": None,
+        "orders": [],
+        "records_preview": records_preview,
+        "rejected_rows": rejected_rows,
+        "missing_fields": normalized_missing_fields,
+        "ambiguous_fields": [],
+        "discrepancies": [
+            {
+                "record_index": item["record_index"],
+                "code": item["reason"],
+            }
+            for item in rejected_rows
+            if "record_index" in item
+        ] if len(lines) > 1 else [
+            item["reason"] for item in rejected_rows
+        ],
+        "confidence": DA_VERIFICARE if records_preview else "LOW",
+        "semantic_status": DA_VERIFICARE if records_preview else BLOCCATO,
+        "requires_confirmation": True,
+        "persisted": False,
+        "writer_called": False,
+        "planner_called": False,
+        "pattern_learning_called": False,
+    }
+
+
+def _parse_flat_ocr_line(line: str) -> dict[str, Any] | None:
+    tokens = re.sub(r"\s+", " ", line).split(" ")
     if len(tokens) < 4:
         return None
 
     quantity_start = len(tokens)
     while quantity_start > 0 and tokens[quantity_start - 1].isdigit():
         quantity_start -= 1
-
-    quantity_tokens = tokens[quantity_start:]
 
     customer_index = quantity_start - 1
     if customer_index < 1:
@@ -238,67 +321,21 @@ def _build_flat_ocr_record_preview(
     if re.fullmatch(r"[A-Z][A-Z0-9]{9,}", customer_material) is None:
         return None
 
+    quantity_tokens = tokens[quantity_start:]
     if not quantity_tokens:
         return {
-            "ok": False,
-            "capability": CAPABILITY,
-            "snapshot_id": snapshot_id,
-            "source_id": source_id,
-            "source_type": SOURCE_TYPE,
-            "source_status": SOURCE_REJECTED,
-            "period": None,
-            "orders": [],
-            "records_preview": [],
-            "rejected_rows": [
-                {
-                    "source_line": lines[0],
-                    "reason": "MISSING_QUANTITIES",
-                    "status": BLOCCATO,
-                }
-            ],
-            "missing_fields": ["quantities"],
-            "ambiguous_fields": [],
-            "discrepancies": ["MISSING_QUANTITIES"],
-            "confidence": "LOW",
-            "semantic_status": BLOCCATO,
-            "requires_confirmation": True,
-            "persisted": False,
-            "writer_called": False,
-            "planner_called": False,
-            "pattern_learning_called": False,
+            "material_code": material_code,
+            "customer_material": customer_material,
+            "quantities": [],
+            "reason": "MISSING_QUANTITIES",
         }
 
-    quantities = [int(value) for value in quantity_tokens]
-    record = {
+    return {
         "material_code": material_code,
         "customer_material": customer_material,
-        "quantities": quantities,
-        "status": DA_VERIFICARE,
+        "quantities": [int(value) for value in quantity_tokens],
+        "reason": None,
     }
-
-    return {
-        "ok": True,
-        "capability": CAPABILITY,
-        "snapshot_id": snapshot_id,
-        "source_id": source_id,
-        "source_type": SOURCE_TYPE,
-        "source_status": SOURCE_FOUND,
-        "period": None,
-        "orders": [],
-        "records_preview": [record],
-        "rejected_rows": [],
-        "missing_fields": [],
-        "ambiguous_fields": [],
-        "discrepancies": [],
-        "confidence": DA_VERIFICARE,
-        "semantic_status": DA_VERIFICARE,
-        "requires_confirmation": True,
-        "persisted": False,
-        "writer_called": False,
-        "planner_called": False,
-        "pattern_learning_called": False,
-    }
-
 
 def _extract_period(text: str) -> tuple[str | None, str]:
     period: str | None = None
