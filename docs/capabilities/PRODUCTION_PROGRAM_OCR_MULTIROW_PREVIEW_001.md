@@ -6,7 +6,7 @@ Elaborare più righe OCR piatte del programma produzione preservando ordine, rig
 
 ## Stato
 
-APERTA - PERIMETRO
+CHIUSA
 
 ## Capability precedente
 
@@ -150,3 +150,86 @@ Non comprende:
 ## Next move
 
 Mappare in modalità read-only il ramo flat OCR corrente e i test introdotti da `8b0a1c9`, producendo un output compatto e senza applicare patch.
+
+## Chiusura
+
+### Commit di implementazione
+
+- `6a2f02f feat(ocr): support multirow production program preview`
+
+### Verifica eseguita
+
+```text
+48 passed in 0.55s
+```
+
+Suite pertinente:
+
+- `backend/tests/test_production_program_snapshot_preview.py`
+- `backend/tests/test_production_program_image_ocr_acquisition.py`
+- `backend/tests/test_production_program_image_ocr_acquisition_endpoint.py`
+- `backend/tests/test_production_program_image_ocr_multipage_acquisition.py`
+- `backend/tests/test_production_program_image_ocr_multipage_acquisition_endpoint.py`
+
+### Contratto multirow verificato
+
+Un singolo input può contenere più righe OCR piatte.
+
+La preview:
+
+- preserva l'ordine originale;
+- assegna `record_index` a ogni riga;
+- mantiene le righe valide in `records_preview[]`;
+- mantiene le righe incomplete in `rejected_rows[]`;
+- associa ogni campo mancante al relativo `record_index`;
+- non blocca le righe valide quando un'altra riga è incompleta.
+
+### Caso verificato
+
+Con tre righe, di cui due valide e una senza quantità:
+
+- i record 1 e 3 sono presenti in `records_preview[]`;
+- il record 2 è presente in `rejected_rows[]`;
+- `missing_fields[]` dichiara `quantities` per `record_index: 2`;
+- il motivo di rifiuto è `MISSING_QUANTITIES`;
+- lo stato resta governato e richiede conferma umana.
+
+### Confine di non persistenza verificato
+
+La preview mantiene:
+
+```json
+{
+  "requires_confirmation": true,
+  "persisted": false,
+  "writer_called": false,
+  "planner_called": false,
+  "pattern_learning_called": false
+}
+```
+
+### File runtime modificati
+
+- `backend/app/services/production_program_snapshot_preview.py`
+- `backend/tests/test_production_program_snapshot_preview.py`
+
+### File e sistemi non modificati
+
+- frontend;
+- adapter Tesseract;
+- endpoint OCR;
+- endpoint di conferma;
+- registry persistente;
+- database;
+- planner;
+- writer.
+
+## Capability successiva
+
+`PRODUCTION_PROGRAM_OCR_MULTIROW_ENDPOINT_CONTRACT_001`
+
+Scopo minimo: verificare che l'endpoint OCR propaghi integralmente il contratto multirow governato, preservando `records_preview[]`, `rejected_rows[]`, `missing_fields[]`, `record_index`, conferma obbligatoria e assenza di persistenza.
+
+## Next move
+
+Aprire `PRODUCTION_PROGRAM_OCR_MULTIROW_ENDPOINT_CONTRACT_001` solo dopo il commit della presente chiusura documentale.
