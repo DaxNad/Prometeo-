@@ -411,3 +411,55 @@ def test_flat_ocr_row_without_quantities_is_rejected_with_missing_fields():
     assert result["writer_called"] is False
     assert result["planner_called"] is False
     assert result["pattern_learning_called"] is False
+
+FLAT_OCR_MULTIROW_TEXT = (
+    "7055845000C0 *P.12063A DIS. A 214 501 9100 "
+    "A2145019100 70 400 55 55\n"
+    "7055845000C1 *P.12064A DIS. A2145019200\n"
+    "7055845000C2 *P.12065A DIS. A 214 501 9300 "
+    "A2145019300 20 30"
+)
+
+
+def test_flat_ocr_multirow_preserves_order_and_rejections():
+    result = build_production_program_snapshot_preview(
+        FLAT_OCR_MULTIROW_TEXT,
+        source_id="synthetic:flat-ocr-multirow",
+    )
+
+    assert result["records_preview"] == [
+        {
+            "record_index": 1,
+            "material_code": "7055845000C0",
+            "customer_material": "A2145019100",
+            "quantities": [70, 400, 55, 55],
+            "status": "DA_VERIFICARE",
+        },
+        {
+            "record_index": 3,
+            "material_code": "7055845000C2",
+            "customer_material": "A2145019300",
+            "quantities": [20, 30],
+            "status": "DA_VERIFICARE",
+        },
+    ]
+    assert result["rejected_rows"] == [
+        {
+            "record_index": 2,
+            "source_line": "7055845000C1 *P.12064A DIS. A2145019200",
+            "reason": "MISSING_QUANTITIES",
+            "status": "BLOCCATO",
+        }
+    ]
+    assert result["missing_fields"] == [
+        {
+            "record_index": 2,
+            "field": "quantities",
+        }
+    ]
+    assert result["confidence"] == "DA_VERIFICARE"
+    assert result["requires_confirmation"] is True
+    assert result["persisted"] is False
+    assert result["writer_called"] is False
+    assert result["planner_called"] is False
+    assert result["pattern_learning_called"] is False
